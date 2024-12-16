@@ -6,16 +6,16 @@ error_report strings_test_init_and_push() {
 	printf("strings_test_init_and_push\n");
 	size_t stat = 0, total = 0;
 
-	string text = strings_init(vectors_min);
+	string text = strings_init(vectors_min, null);
 	string textpredict = strings_premake("00000");
 	for (size_t i = 0; i < 5; i++) {
-		strings_push(text, '0', null);
+		strings_push(text, '0', null, null);
 	}
 
 	stat += errors_assert("push('0')x5 == \"00000\"", strings_seems(&text, &textpredict));
 	total++;
 
-	strings_free(&text);
+	strings_free(&text, null);
 	return (error_report) {.total=total, .successfull=stat};
 }
 
@@ -95,15 +95,15 @@ error_report strings_test_make_and_free() {
 	size_t stat = 0, total = 0;
 
 	string textlit = strings_premake("texto");
-	string text = strings_make(textlit.data);
+	string text = strings_make(textlit.data, null);
 	bool textequals = strings_seems(&textlit, &text);
 
 	stat += errors_assert("make(\"texto\") == \"texto\"", textequals);
 	total++;
 
-	strings_free(&text);
-	bool textfreed = text.data == NULL;
-	stat += errors_assert("free(&text) == NULL", textfreed);
+	strings_free(&text, null);
+	bool textfreed = text.data == null;
+	stat += errors_assert("free(&text) == null", textfreed);
 	total++;
 
 	return (error_report) {.total=total, .successfull=stat};
@@ -225,14 +225,14 @@ error_report strings_test_make_find() {
 	string text0 = strings_premake("Um 'um' mais do que um.");
 	string text1 = strings_premake("um");
 
-	size_vec texts0 = strings_make_find(&text0, &text1, 0);
+	size_vec texts0 = strings_make_find(&text0, &text1, 0, null);
 	size_vec positions = vectors_premake(size_t, 3, 0, 4, 20);
-	bool matches = vectors_equals((vector *)&texts0, (vector *)&positions, (compvecfunc)size_equals);
+	bool matches = size_vecs_equals(&texts0, &positions);
 
 	stat += errors_assert("make_find(\"Um 'um' mais do que um.\", \"um\", 0).data == [0, 4, 20]", matches);
 	total++;
 
-	size_vec texts1 = strings_make_find(&text0, &text1, 1);
+	size_vec texts1 = strings_make_find(&text0, &text1, 1, null);
 	matches = texts1.size == 1;
 
 	stat += errors_assert("make_find(\"Um 'um' mais do que um.\", \"um\", 1).size == 1", matches);
@@ -240,15 +240,15 @@ error_report strings_test_make_find() {
 
 	string text2 = strings_premake("coração");
 	string text3 = strings_premake("ã");
-	size_vec texts2 = strings_make_find(&text2, &text3, 0);
+	size_vec texts2 = strings_make_find(&text2, &text3, 0, null);
 	matches = texts2.size == 1;
 
 	stat += errors_assert("make_find(\"coração\", \"ã\", 1).size == 1", matches);
 	total++;
 
-	vectors_free(texts0);
-	vectors_free(texts1);
-	vectors_free(texts2);
+	vectors_free(texts0, null);
+	vectors_free(texts1, null);
+	vectors_free(texts2, null);
 	return (error_report) {.total=total, .successfull=stat};
 }
 
@@ -259,7 +259,7 @@ error_report strings_test_replace() {
 	string charset0 = strings_premake("an");
 	string charset1 = strings_premake(" ");
 	string charset2 = strings_premake("h");
-	string text0 = strings_make("alehandrah");
+	string text0 = strings_make("alehandrah", null);
 
 	strings_replace(&text0, &charset0, ' ', 0);
 	string text1 = strings_premake(" leh  dr h");
@@ -279,7 +279,7 @@ error_report strings_test_replace() {
 	stat += errors_assert("replace(\"lehdrh\", \"h\", \"e\", 1) == \"leedrh\"", matches);
 	total++;
 
-	strings_free(&text0);
+	strings_free(&text0, null);
 	return (error_report) {.total=total, .successfull=stat};
 }
 
@@ -291,22 +291,22 @@ error_report strings_test_make_replace() {
 	string text1 = strings_premake("o b");
 
 	string text2predict = strings_premake("ãom.");
-	string text2 = strings_make_replace(&text0, &text1, NULL, 0);
+	string text2 = strings_make_replace(&text0, &text1, null, 0, null);
 
 	bool matches = strings_seems(&text2, &text2predict);
-	stat += errors_assert("make_replace(\"o bão bom.\", \"o b\", NULL, 0) == \"ãom.\"", matches);
+	stat += errors_assert("make_replace(\"o bão bom.\", \"o b\", null, 0) == \"ãom.\"", matches);
 	total++;
 
 	string text3predict = strings_premake("ão bom.");
-	string text3 = strings_make_replace(&text0, &text1, NULL, 1);
+	string text3 = strings_make_replace(&text0, &text1, null, 1, null);
 
 	matches = strings_seems(&text3, &text3predict);
-	stat += errors_assert("make_replace(\"o bão bom.\", \"o b\", NULL, 1) == \"ão bom.\"", matches);
+	stat += errors_assert("make_replace(\"o bão bom.\", \"o b\", null, 1) == \"ão bom.\"", matches);
 	total++;
 
 	string text4 = strings_premake("o c");
 	string text5predict = strings_premake("o cão bom.");
-	string text5 = strings_make_replace(&text0, &text1, &text4, 1);
+	string text5 = strings_make_replace(&text0, &text1, &text4, 1, null);
 
 	matches = strings_seems(&text5, &text5predict);
 	stat += errors_assert("make_replace(\"o bão bom.\", \"o b\", \"o c\", 1) == \"o cão bom.\"", matches);
@@ -314,16 +314,16 @@ error_report strings_test_make_replace() {
 
 	string text7 = strings_premake("ã");
 	string text6predict = strings_premake("ãããom.");
-	string text6 = strings_make_replace(&text0, &text1, &text7, 0);
+	string text6 = strings_make_replace(&text0, &text1, &text7, 0, null);
 
 	matches = strings_seems(&text6, &text6predict);
 	stat += errors_assert("make_replace(\"o bão bom.\", \"o b\", \"ã\", 0) == \"ãããom.\"", matches);
 	total++;
 
-	strings_free(&text2);
-	strings_free(&text3);
-	strings_free(&text5);
-	strings_free(&text6);
+	strings_free(&text2, null);
+	strings_free(&text3, null);
+	strings_free(&text5, null);
+	strings_free(&text6, null);
 
 	return (error_report) {.total=total, .successfull=stat};
 }
@@ -335,7 +335,7 @@ error_report strings_test_make_split() {
 	string text0 = strings_premake("aumbumcumd");
 	string text1 = strings_premake("um");
 
-	string_vec text2 = strings_make_split(&text0, &text1, 0);
+	string_vec text2 = strings_make_split(&text0, &text1, 0, null);
 	string_vec text2predict = vectors_premake(
 		string, 4, 
 		strings_premake("a"), 
@@ -349,7 +349,7 @@ error_report strings_test_make_split() {
 		matches);
 	total++;
 
-	string_vec text3 = strings_make_split(&text0, &text1, 1);
+	string_vec text3 = strings_make_split(&text0, &text1, 1, null);
 	string_vec text3predict = vectors_premake(
 			string, 2, 
 			strings_premake("a"), 
@@ -361,8 +361,8 @@ error_report strings_test_make_split() {
 		matches);
 	total++;
 
-	string_vecs_free(&text2);
-	string_vecs_free(&text3);
+	string_vecs_free(&text2, null);
+	string_vecs_free(&text3, null);
 
 	return (error_report) {.total=total, .successfull=stat};
 }
@@ -371,14 +371,14 @@ error_report strings_test_make_format() {
 	printf("strings_test_make_format\n");
 	size_t stat = 0, total = 0;
 
-	string json = strings_make_format("{\"age\": %d}", 10);
+	string json = strings_make_format("{\"age\": %d}", null, 10);
 	string jsonpredict = strings_premake("{\"age\": 10}");
 
 	bool matches = strings_seems(&json, &jsonpredict);
 	stat += errors_assert("make_format(\"{\"age\": %d}\", 10) == \"{\"age\": 10}\"", matches);
 	total++;
 
-	strings_free(&json);
+	strings_free(&json, null);
 	return (error_report) {.total=total, .successfull=stat};
 }
 
@@ -397,7 +397,7 @@ error_report strings_test_lower_and_upper() {
 	printf("strings_test_lower_and_upper\n");
 	size_t stat = 0, total = 0;
 
-	string text = strings_make("eXeMpLo");
+	string text = strings_make("eXeMpLo", null);
 	string textlower = strings_premake("exemplo");
 	string textupper = strings_premake("EXEMPLO");
 
@@ -411,7 +411,7 @@ error_report strings_test_lower_and_upper() {
 	stat += errors_assert("lower(\"EXEMPLO\") == \"exemplo\"", matches);
 	total++;
 
-	strings_free(&text);
+	strings_free(&text, null);
 	return (error_report) {.total=total, .successfull=stat};
 }
 
@@ -445,14 +445,14 @@ error_report strings_test_next() {
 
 	string textalt = strings_premake("_");
 
-	text2.data = NULL;
+	text2.data = null;
 	strings_next(&text0, &textalt, &text2);
 	matches = strings_equals(&text2, &text0);
 	stat += errors_assert("next(\"a, b, c\", \"_\", {0}) == \"a, b, c\"", matches);
 	total++;
 
 	size_t count = 0;
-	text2.data = NULL;
+	text2.data = null;
 	while(!strings_next(&text0, &text1, &text2)) { count++; }
 	stat += errors_assert("next(\"a, b, c\", \", \", {0}).count == 3", count == 3);
 	total++;
@@ -460,18 +460,23 @@ error_report strings_test_next() {
 	return (error_report) {.total=total, .successfull=stat};
 }
 
+void string_maps_print(string_map *self) {
+	strings_print(&self->data.key);
+	strings_print(&self->data.value);
+	printf("\n");
+}
+
 error_report string_maps_test_get_and_push() {
-	printf("string_maps_test\n");
+	printf("string_maps_test_get_and_push\n");
 	size_t stat = 0, total = 0;
 
 	string_map *json = null;
 	string namepredict = strings_premake("angelus");
 
-	string_maps_push(json, strings_make("name"), strings_make("angelus"), null);
-	string_maps_push(json, strings_make("age"), strings_make("10"), null);
+	string_maps_push(json, strings_make("name", null), strings_make("angelus", null), null, null);
+	string_maps_push(json, strings_make("age", null), strings_make("10", null), null, null);
 
 	string *name = string_maps_get(json, "name");
-	size_t *name_freq = string_maps_get_frequency(json, "name");
 
 	bool is_valid = name != null;
 	if (is_valid) { is_valid = strings_equals(name, &namepredict); }
@@ -479,15 +484,14 @@ error_report string_maps_test_get_and_push() {
 	stat += errors_assert("string_maps_get(json, \"name\") == \"angelus\"", is_valid);
 	total++;
 
-	string_maps_push(json, strings_make("name"), strings_make("angelus"), null);
-
-	is_valid = name_freq != null;
-	if (is_valid) { is_valid = *name_freq == 2; }
+	string_maps_push(json, strings_make("name", null), strings_make("angelus", null), null, null);
+	size_t name_freq = string_maps_get_frequency(json, "name");
+	if (is_valid) { is_valid = name_freq == 2; }
 
 	stat += errors_assert("string_maps_push(json, \"name\", \"angelus\").frequency == 2", is_valid);
 	total++;
 
-	string_maps_free(json);
+	string_maps_free(json, null);
 	return (error_report) {.total=total, .successfull=stat};
 }
 
@@ -516,7 +520,7 @@ void strings_test() {
 		strings_test_lower_and_upper,
 		strings_test_next,
 		string_maps_test_get_and_push,
-		NULL,
+		null,
 	};
 
 	size_t i = 0;

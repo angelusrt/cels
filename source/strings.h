@@ -13,8 +13,8 @@
 #include "errors.h"
 #include "vectors.h"
 
-typedef vectors(char) string;
-typedef vectors(string) string_vec;
+typedef vectors(char *) string;
+typedef vectors(string *) string_vec;
 typedef errors(string) string_with_error;
 
 typedef enum strings_size {
@@ -52,7 +52,6 @@ typedef enum strings_size {
  * - join
  * - simplify
  * - revise case-insensitivity
- * - contains
  */
 
 /* 
@@ -84,9 +83,9 @@ typedef enum strings_size {
  *
  * Should be freed using 'strings_free'.
  *
- * #allocates #depends:stdio.h #posix-reliant #tested
+ * #allocates #depends:stdio.h #posix-reliant #tested #to-edit
  */
-#define strings_init(quantity) vectors_init(sizeof(char), quantity)
+#define strings_init(quantity, mem) vectors_init(char, quantity, mem)
 
 /*
  * Prints a debug-friendly message of 
@@ -104,15 +103,15 @@ typedef enum strings_size {
  * happens, it will be put to true. 
  * It may be null to be silently ignored.
  *
- * #allocates #may-fail #depends:stdio.h #posix-reliant #test
+ * #allocates #may-fail #depends:stdio.h #posix-reliant #test #to-edit
  */
-#define strings_push(s, item, err) \
+#define strings_push(s, item, mem, err) \
 	if (s.size == 0) { \
-		vectors_push(s, item, err); \
+		vectors_push(s, item, mem, err); \
 	} else { \
 		s.data[s.size - 1] = item; \
 	} \
-	vectors_push(s, '\0', err); \
+	vectors_push(s, '\0', mem, err); \
 
 /* 
  * Checks if string was properly initialized 
@@ -145,28 +144,29 @@ bool strings_check_charset(const string *s, const string *charset);
  * Capacity snaps to nearest two powered number.
  *
  * #allocates #may-panic #depends:string.h
- * #tested #posix-reliant
+ * #tested #posix-reliant #to-edit
  */
 __attribute_warn_unused_result__
-string strings_make(const char *lit);
+string strings_make(const char *lit, const allocator *mem);
 
 /*
  * Allocates string from another string.
  *
  * #allocates #may-panic 
- * #depends:string.h #posix-reliant
+ * #depends:string.h #posix-reliant #to-edit
  */
 __attribute_warn_unused_result__
-string strings_make_copy(const string *s);
+string strings_make_copy(const string *s, const allocator *mem);
 
 /*
  * Frees alocated string.
  *
  * Shouldn't be used for non-allocated strings!
  *
- * #may-fail #depends:string.h #posix-reliant #tested 
+ * #may-fail #depends:string.h #posix-reliant 
+ * #tested #to-edit
  */
-void strings_free(string *s);
+void strings_free(string *s, const allocator *mem);
 
 /*
  * Prints the string to the terminal respecting it's size.
@@ -229,10 +229,10 @@ ssize_t strings_find(const string *s, const string *sep, size_t pos);
  *
  * If n is 0 the search is unrestricted.
  *
- * #case-insensitive #may-panic #may-fail #allocates #tested
+ * #case-insensitive #may-panic #may-fail #allocates #tested #to-edit
  */
 __attribute_warn_unused_result__
-size_vec strings_make_find(const string *s, const string *sep, size_t n);
+size_vec strings_make_find(const string *s, const string *sep, size_t n, const allocator *mem);
 
 /*
  * Replaces at most n ocurrences of any character in seps in s to rep.
@@ -256,10 +256,10 @@ void strings_replace(string *s, const string *seps, const char rep, size_t n);
  * If no ocurrence of text is found in s, s is 
  * copy'd completely to the new string.
  * 
- * #case-insensitive #allocates #may-fail #tested
+ * #case-insensitive #allocates #may-fail #tested #to-edit
  */
 __attribute_warn_unused_result__
-string strings_make_replace(const string *s, const string *text, const string *rep, size_t n);
+string strings_make_replace(const string *s, const string *text, const string *rep, size_t n, const allocator *mem);
 
 /*
  * Creates a string_vec (aka vectors(string)) containing the 
@@ -269,10 +269,11 @@ string strings_make_replace(const string *s, const string *text, const string *r
  * If sep is not found, a string_vec with a copy of s 
  * is returned.
  *
- * #case-insensitive #allocates #may-fail #may-panic #depends:string.h #posix-reliant #tested
+ * #case-insensitive #allocates #may-fail #may-panic 
+ * #depends:string.h #posix-reliant #tested #to-edit
  */
 __attribute_warn_unused_result__
-string_vec strings_make_split(const string *s, const string *sep, size_t n);
+string_vec strings_make_split(const string *s, const string *sep, size_t n, const allocator *mem);
 
 /*
  * Formats the string in form with arguments and 
@@ -284,8 +285,8 @@ string_vec strings_make_split(const string *s, const string *sep, size_t n);
  * string json = strings_make_format("{\"age\": %d}", 10); //{"age": 10}
  */
 __attribute_warn_unused_result__
-__attribute__ ((__format__ (printf, 1, 2)))
-string strings_make_format(const char *const form, ...);
+__attribute__ ((__format__ (printf, 1, 3)))
+string strings_make_format(const char *const form, const allocator *mem, ...);
 
 /*
  * Hashes string. 
@@ -341,44 +342,48 @@ bool string_vecs_seems(const string_vec *v0, const string_vec *v1);
 
 /*
  * Frees a string_vec deeply - sv.data[i].data must be allocated. 
+ *
+ * #to-edit
  */
-void string_vecs_free(string_vec *sv);
+void string_vecs_free(string_vec *sv, const allocator *mem);
 
-//extras
+//extras #to-edit
 
 #include "nodes.h"
 
-void *string_bnode_sets_free(bnode *n);
+void string_bnode_sets_free(bnode *n, const allocator *mem);
 
 typedef struct string_set string_set;
 sets(string);
 
-#define string_sets_push(s, item, err) sets_push(s, item, strings_hasherize, strings_free, err)
+#define string_sets_push(s, item, mem, err) sets_push(s, item, strings_hasherize, mem, strings_free, err)
 
-#define string_sets_free(s) sets_free(s, string_bnode_sets_free)
+#define string_sets_free(s, mem) sets_free(s, mem, string_bnode_sets_free)
 
-void *string_bnode_maps_free(bnode *n);
+void string_bnode_maps_free(bnode *n, const allocator *mem);
 
 typedef key_pairs(string, string) string_key_pair;
 
 typedef struct string_key_pair_map string_key_pair_map;
 typedef maps(string_key_pair) string_map;
 
-#define string_maps_push(m, k, v, err) \
-	maps_push(m, k, v, strings_hasherize, string_map_items_free, err)
+#define string_maps_push(m, k, v, mem, err) \
+	maps_push(m, k, v, strings_hasherize, mem, string_map_items_free, err)
 
-#define string_maps_free(m) \
-	maps_free(m, string_bnode_maps_free)
+#define string_maps_free(m, mem) \
+	maps_free(m, mem, string_bnode_maps_free)
 
 #define string_maps_get(m, lit) \
 	string_maps_get_value(m, strings_hasherize(&(string)strings_premake(lit)))
 
 #define string_maps_get_frequency(m, lit) \
-	(size_t *)bnodes_get_frequency((bnode *)m, strings_hasherize(&(string)strings_premake(lit)));
+	bnodes_get_frequency((bnode *)m, strings_hasherize(&(string)strings_premake(lit)));
 
-void string_map_items_free(string_key_pair *ss);
+/*
+ * #to-edit
+ */
+void string_map_items_free(string_key_pair *ss, const allocator *mem);
 
 string *string_maps_get_value(string_map *s, size_t hash);
-
 
 #endif

@@ -8,23 +8,18 @@
 
 #include "errors.h"
 
-typedef struct vector {
-	size_t size;
-	size_t capacity;
-	void *data;
-} vector;
-
 #define vectors(t) struct { \
     size_t size; \
     size_t capacity; \
-    typeof(t) *data; \
+    typeof(t) data; \
 }
 
-typedef vectors(size_t) size_vec;
+typedef vectors(void *) vector;
 
-#define vectors_min 16
+#define vectors_min 8
 
-#include "utils.h"
+#include "mems.h"
+//#include "utils.h"
 
 /*
  * The module 'vectors' is about the manipulation
@@ -47,13 +42,13 @@ typedef vectors(size_t) size_vec;
  *
  * Should be check'd afterwards.
  *
- * #allocates #may-fail #depends:stdio.h #posix-reliant #tested
+ * #allocates #may-fail #depends:stdio.h #posix-reliant #tested #to-edit
  */
-#define vectors_init(len, cap) \
-	{.data=calloc(cap, len), .size=0, .capacity=cap}
+#define vectors_init(type, len, mem) \
+	{.data=(type *)mems_alloc(mem, sizeof(type) * len), .capacity=len}
 
 /*
- * Pushes item (to be owned) to v.
+ * Pushes item (to be owned) to vector.
  * Requiring further capacity, it automaticaly upscales.
  *
  * Shouldn't be used with automatic variables.
@@ -61,117 +56,119 @@ typedef vectors(size_t) size_vec;
  * If it fails to realloc, true is assigned to error.
  * If error is null silent errors happens.
  *
- * #allocates #may-fail #depends:stdio.h #posix-reliant #tested
+ * #allocates #may-fail #depends:stdio.h #posix-reliant #tested #to-edit
  */
-#define vectors_push(v, item, error) { \
-    v.size++; \
-	v.data[v.size - 1] = item; \
-    if (v.size >= v.capacity) { \
-		vectors_upscale((vector *)&v, sizeof(typeof(item)), error); \
+#define vectors_push(self, item, mem, error) { \
+    self.size++; \
+	self.data[self.size - 1] = item; \
+    if (self.size >= self.capacity) { \
+		vectors_upscale((vector *)&self, sizeof(typeof(item)), mem, error); \
 	} \
 }
 
 /*
- * Frees v.data shallowly.
+ * Frees vector.data shallowly.
  *
  * Shouldn't be used with automatic variables.
  *
- * #may-fail #depends:stdio.h #posix-reliant #tested
+ * #may-fail #depends:stdio.h #posix-reliant #tested #to-edit
  */
-#define vectors_free(v) \
-	if (v.data != NULL) { \
-		free(v.data); \
-		v.data = NULL; \
+#define vectors_free(self, mem) \
+	if (self.data != null) { \
+		mems_dealloc(mem, self.data, self.capacity * sizeof(*self.data)); \
+		self.data = null; \
 	}
 
 /*
- * Sorts v depending on compare func 
+ * Sorts vector depending on compare func 
  * (of type compfunc, defined in utils.h).
  *
  * It uses insert-sort algorithm.
  *
  * #tested
  */
-#define vectors_sort(v, compare) \
-	for (size_t i = v.size; i > 0; i--) { \
+#define vectors_sort(self, compare) \
+	for (size_t i = self.size; i > 0; i--) { \
 		for (size_t j = 1; j < i; j++) { \
-			bool is_bigger = compare(&v.data[j - 1], &v.data[j]); \
+			bool is_bigger = compare(&self.data[j - 1], &self.data[j]); \
 			if (is_bigger) { \
-				maths_swap(v.data[j], v.data[j - 1]); \
+				maths_swap(self.data[j], self.data[j - 1]); \
 			} \
 		} \
 	}
 
 /*
  * Prints a debug-friendly message 
- * about v's information.
+ * about vector's information.
  *
  * #debug
  */
-#define vectors_debug(v) \
+#define vectors_debug(self) \
 	printf( \
-		#v "<vector>{size: %zu, capacity: %zu, data: %p}\n", \
-		v.size, v.capacity, (void *)v.data); \
+		#self "<vector>{size: %zu, capacity: %zu, data: %p}\n", \
+		self.size, self.capacity, (void *)self.data); \
 
 /*
- * Prints elements in vector v0 provided a 
+ * Prints elements in vector, provided a 
  * print function (printvecfunc - definition 
  * found in utils.h).
  */
-#define vectors_print(v0, print) \
-	for (size_t i = 0; i < v0->size; i++) { \
-		print(v0->data, &i); \
+#define vectors_print(self, print) \
+	for (size_t i = 0; i < self->size; i++) { \
+		print(self->data, &i); \
 	}
 
 /*
- * Checks shallowly if v was properly initialized.
+ * #to-review
+ */
+#define vectors_generate_implementation(type, name) \
+	bool name##s_equals(const name *v0, const name *v1) { \
+		if (v0->size != v1->size) { return false; } \
+		for (size_t i = 0; i < v0->size; i++) { \
+			if (v0->data[i] != v1->data[i]) { \
+				return false; \
+			} \
+		} \
+		\
+		return true; \
+	} \
+	\
+	ssize_t name##s_find(const name *self, type item) { \
+		for (size_t i = 0; i < self->size; i++) { \
+			if (self->data[i] == item) { \
+				return i; \
+			} \
+		} \
+		\
+		return -1; \
+	}
+
+#define vectors_generate_definition(type, name) \
+	typedef vectors(type *) name; \
+	\
+	bool name##s_equals(const name *v0, const name *v1); \
+	\
+	ssize_t name##s_find(const name *self, type item)
+
+vectors_generate_definition(size_t, size_vec);
+
+/*
+ * Checks shallowly if vecto was properly initialized.
  *
  * #tested
  */
 __attribute_warn_unused_result__
-bool vectors_check(const vector *v);
+bool vectors_check(const vector *self);
 
 /*
- * Upscales v having type size informed.
+ * Upscales vector having type size informed.
  * If it fails to realloc sets error to 
  * true if not null. 
  * If null, it silently errors.
  *
  * #allocates #may-fail #depends:stdio.h 
- * #posix-reliant #tested
+ * #posix-reliant #tested #to-edit
  */
-void vectors_upscale(vector *v, size_t type_size, bool *error);
-
-/*
- * Compares if two vectors are equal 
- * returning true if they are. A comparison 
- * function (compvecfunc, provided in utils.h) 
- * must be provided.
- *
- * #tested
- */
-__attribute_warn_unused_result__
-bool vectors_equals(const vector *v0, const vector *v1, compvecfunc compare);
-
-/*
- * Compares literally if two vectors are equal 
- * returning true if they are. An object_size 
- * must be provided, ideally like 'sizeof(int)', 
- * for indexing and iterating over vectors.
- *
- * #danger
- */
-__attribute_warn_unused_result__
-bool vectors_sized_equals(const vector *v0, const vector *v1, size_t object_size);
-
-/*
- * Finds first match of item in vector, giving, 
- * type's size is provided, than it returns the 
- * position on the list or -1 for not found.
- *
- * #danger #tested
- */
-__attribute_warn_unused_result__
-ssize_t vectors_sized_find(const vector *v, void *item, size_t object_size);
+void vectors_upscale(vector *self, size_t object_size, const allocator *mem, bool *error);
 
 #endif

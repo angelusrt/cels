@@ -28,7 +28,7 @@ clock_t sets_bench(size_t size) {
 	int_set *ages = null;
 	for (size_t i = 0; i < size; i++) {
 		int random = rand();
-		sets_push(ages, random, _ints_hasherize, null, null);
+		sets_push(ages, random, _ints_hasherize, null, null, null);
 	}
 
 	/*printf("\ndata: ");
