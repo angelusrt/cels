@@ -5,22 +5,14 @@
 #include "../source/nodes.h"
 #include "../source/utils.h"
 
-typedef struct int_set int_set;
-sets(int);
-
-size_t _ints_hasherize(int *a) { return *a; }
-void *int_sets_free(int_set *s) {
-	if(s != null) { free(s); }
+size_t ints_hasherize(int *a) { return *a; }
+void *ints_free(int *self, const allocator *mem) {
+	mems_dealloc(mem, self, sizeof(int));
 	return null;
 }
 
-void *_sets_print(int_set *is) {
-	//printf("%d ", is->data);
-	//printf(".");
-	fflush(stdout);
-
-	return null;
-}
+sets_generate_definition(int, int_set)
+sets_generate_implementation(int, int_set, ints_hasherize, ints_free)
 
 clock_t sets_bench(size_t size) {
 	clock_t start = clock();
@@ -28,19 +20,14 @@ clock_t sets_bench(size_t size) {
 	int_set *ages = null;
 	for (size_t i = 0; i < size; i++) {
 		int random = rand();
-		sets_push(ages, random, _ints_hasherize, null, null, null);
+		int_sets_push(ages, random,  null);
 	}
 
-	/*printf("\ndata: ");
-	sets_traverse(ages, _sets_print);
-	printf("\n\n");*/
-
-	sets_traverse(ages, int_sets_free);
+	int_sets_free(ages, null);
 	clock_t end = clock();
 
 	return end - start;
 }
-
 
 void nodes_bench() {
 	size_vec size_buckets = vectors_premake(size_t, 5, 10, 100, 1000, 10000, 100000);

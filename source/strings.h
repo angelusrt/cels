@@ -13,8 +13,12 @@
 #include "errors.h"
 #include "vectors.h"
 
-typedef vectors(char *) string;
-typedef vectors(string *) string_vec;
+vectors_generate_definition(char, char_vec)
+
+typedef char_vec string;
+
+vectors_generate_definition(string, string_vec)
+
 typedef errors(string) string_with_error;
 
 typedef enum strings_size {
@@ -75,44 +79,6 @@ typedef enum strings_size {
 #define strings_premake(lit) \
 	{.data=lit, .size=sizeof(lit), .capacity=sizeof(lit)}
 
-/*
- * Allocates string (aka vectors(char)) with 
- * quantity mapping its capacity.
- *
- * You need to check if allocation was successfull.
- *
- * Should be freed using 'strings_free'.
- *
- * #allocates #depends:stdio.h #posix-reliant #tested #to-edit
- */
-#define strings_init(quantity, mem) vectors_init(char, quantity, mem)
-
-/*
- * Prints a debug-friendly message of 
- * string's information.
- *
- * #debug #depends:stdio.h #posix-reliant
- */
-#define strings_debug(s) \
-	printf(#s"<string>{.size: %zu, .capacity: %zu, .data: %p}\n", s.size, s.capacity, s.data);
-
-/*
- * Pushes char into s - s being an allocated variable.
- * The err variable is a pointer to a boolean 
- * initialized by false, in which, if an error 
- * happens, it will be put to true. 
- * It may be null to be silently ignored.
- *
- * #allocates #may-fail #depends:stdio.h #posix-reliant #test #to-edit
- */
-#define strings_push(s, item, mem, err) \
-	if (s.size == 0) { \
-		vectors_push(s, item, mem, err); \
-	} else { \
-		s.data[s.size - 1] = item; \
-	} \
-	vectors_push(s, '\0', mem, err); \
-
 /* 
  * Checks if string was properly initialized 
  * returning true if something illegal happened.
@@ -140,6 +106,18 @@ __attribute_warn_unused_result__
 bool strings_check_charset(const string *s, const string *charset);
 
 /*
+ * Allocates string (aka vectors(char)) with 
+ * quantity mapping its capacity.
+ *
+ * You need to check if allocation was successfull.
+ *
+ * Should be freed using 'strings_free'.
+ *
+ * #allocates #depends:stdio.h #posix-reliant #tested #to-review
+ */
+string strings_init(size_t quantity, const allocator *mem);
+
+/*
  * Allocates string from char literal. 
  * Capacity snaps to nearest two powered number.
  *
@@ -159,6 +137,17 @@ __attribute_warn_unused_result__
 string strings_make_copy(const string *s, const allocator *mem);
 
 /*
+ * Pushes char into s - s being an allocated variable.
+ * The err variable is a pointer to a boolean 
+ * initialized by false, in which, if an error 
+ * happens, it will be put to true. 
+ * It may be null to be silently ignored.
+ *
+ * #allocates #may-fail #depends:stdio.h #posix-reliant #test #to-review
+ */
+bool strings_push(string *self, char item, const allocator *mem);
+
+/*
  * Frees alocated string.
  *
  * Shouldn't be used for non-allocated strings!
@@ -167,6 +156,14 @@ string strings_make_copy(const string *s, const allocator *mem);
  * #tested #to-edit
  */
 void strings_free(string *s, const allocator *mem);
+
+/*
+ * Prints a debug-friendly message of 
+ * string's information.
+ *
+ * #debug #depends:stdio.h #posix-reliant #to-review
+ */
+void strings_debug(const string *self);
 
 /*
  * Prints the string to the terminal respecting it's size.
@@ -351,39 +348,23 @@ void string_vecs_free(string_vec *sv, const allocator *mem);
 
 #include "nodes.h"
 
-void string_bnode_sets_free(bnode *n, const allocator *mem);
+//sets 
 
-typedef struct string_set string_set;
-sets(string);
+//void string_bnode_sets_free(bnode *n, const allocator *mem);
 
-#define string_sets_push(s, item, mem, err) sets_push(s, item, strings_hasherize, mem, strings_free, err)
+//typedef struct string_set string_set;
+//sets(string);
 
-#define string_sets_free(s, mem) sets_free(s, mem, string_bnode_sets_free)
+//#define string_sets_push(s, item, mem, err) sets_push(s, item, strings_hasherize, mem, strings_free, err)
 
-void string_bnode_maps_free(bnode *n, const allocator *mem);
+//#define string_sets_free(s, mem) sets_free(s, mem, string_bnode_sets_free)
 
-typedef key_pairs(string, string) string_key_pair;
+///new
 
-typedef struct string_key_pair_map string_key_pair_map;
-typedef maps(string_key_pair) string_map;
+sets_generate_definition(string, string_set)
 
-#define string_maps_push(m, k, v, mem, err) \
-	maps_push(m, k, v, strings_hasherize, mem, string_map_items_free, err)
+//maps
 
-#define string_maps_free(m, mem) \
-	maps_free(m, mem, string_bnode_maps_free)
-
-#define string_maps_get(m, lit) \
-	string_maps_get_value(m, strings_hasherize(&(string)strings_premake(lit)))
-
-#define string_maps_get_frequency(m, lit) \
-	bnodes_get_frequency((bnode *)m, strings_hasherize(&(string)strings_premake(lit)));
-
-/*
- * #to-edit
- */
-void string_map_items_free(string_key_pair *ss, const allocator *mem);
-
-string *string_maps_get_value(string_map *s, size_t hash);
+maps_generate_definition(string, string, string_key_pair, string_map)
 
 #endif

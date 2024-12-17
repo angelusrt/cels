@@ -9,7 +9,7 @@ error_report strings_test_init_and_push() {
 	string text = strings_init(vectors_min, null);
 	string textpredict = strings_premake("00000");
 	for (size_t i = 0; i < 5; i++) {
-		strings_push(text, '0', null, null);
+		strings_push(&text, '0', null);
 	}
 
 	stat += errors_assert("push('0')x5 == \"00000\"", strings_seems(&text, &textpredict));
@@ -246,9 +246,9 @@ error_report strings_test_make_find() {
 	stat += errors_assert("make_find(\"coração\", \"ã\", 1).size == 1", matches);
 	total++;
 
-	vectors_free(texts0, null);
-	vectors_free(texts1, null);
-	vectors_free(texts2, null);
+	size_vecs_free(&texts0, null);
+	size_vecs_free(&texts1, null);
+	size_vecs_free(&texts2, null);
 	return (error_report) {.total=total, .successfull=stat};
 }
 
@@ -473,10 +473,10 @@ error_report string_maps_test_get_and_push() {
 	string_map *json = null;
 	string namepredict = strings_premake("angelus");
 
-	string_maps_push(json, strings_make("name", null), strings_make("angelus", null), null, null);
-	string_maps_push(json, strings_make("age", null), strings_make("10", null), null, null);
+	string_maps_push(json, strings_make("name", null), strings_make("angelus", null), null);
+	string_maps_push(json, strings_make("age", null), strings_make("10", null), null);
 
-	string *name = string_maps_get(json, "name");
+	string *name = string_maps_get(json, (string)strings_premake("name"));
 
 	bool is_valid = name != null;
 	if (is_valid) { is_valid = strings_equals(name, &namepredict); }
@@ -484,8 +484,8 @@ error_report string_maps_test_get_and_push() {
 	stat += errors_assert("string_maps_get(json, \"name\") == \"angelus\"", is_valid);
 	total++;
 
-	string_maps_push(json, strings_make("name", null), strings_make("angelus", null), null, null);
-	size_t name_freq = string_maps_get_frequency(json, "name");
+	string_maps_push(json, strings_make("name", null), strings_make("angelus", null), null);
+	size_t name_freq = string_maps_get_frequency(json, (string)strings_premake("name"));
 	if (is_valid) { is_valid = name_freq == 2; }
 
 	stat += errors_assert("string_maps_push(json, \"name\", \"angelus\").frequency == 2", is_valid);

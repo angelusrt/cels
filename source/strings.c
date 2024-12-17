@@ -1,42 +1,44 @@
 #include "strings.h"
 
-bool strings_check(const string *s) {
+vectors_generate_implementation(char, char_vec)
+
+bool strings_check(const string *self) {
 	#if cels_debug
-		if (errors_check("strings_check.s", vectors_check((const vector *)s))) return true;
-		if (errors_check("strings_check.s.size == 0", s->size == 0)) return true;
+		if (errors_check("strings_check.self", vectors_check((const vector *)self))) return true;
+		if (errors_check("strings_check.self.size == 0", self->size == 0)) return true;
 	#else 
-		if (vectors_check((const vector *)s)) return true;
-		if (s->size == 0) return true;
+		if (vectors_check((const vector *)self)) return true;
+		if (self->size == 0) return true;
 	#endif
 
 	return false;
 }
 
-bool strings_check_extra(const string *s) {
+bool strings_check_extra(const string *self) {
 	#if cels_debug
-		if (errors_check("strings_check_extra.s", strings_check(s))) return true;
-		if (errors_check("strings_check_extra.s.data[0] == '\\0'", s->data[0] == '\0')) return true;
-		if (errors_check("strings_check_extra.s.size == 1", s->size == 1)) return true;
+		if (errors_check("strings_check_extra.self", strings_check(self))) return true;
+		if (errors_check("strings_check_extra.self.data[0] == '\\0'", self->data[0] == '\0')) return true;
+		if (errors_check("strings_check_extra.self.size == 1", self->size == 1)) return true;
 	#else
-		if (strings_check(s)) return true;
-		if (s->data[0] == '\0') return true;
-		if (s->size == 1) return true;
+		if (strings_check(self)) return true;
+		if (self->data[0] == '\0') return true;
+		if (self->size == 1) return true;
 	#endif
 
 	return false;
 }
 
-bool strings_check_charset(const string *s, const string *charset) {
+bool strings_check_charset(const string *self, const string *charset) {
 	#if cels_debug
-		errors_panic("strings_check_charset.s", strings_check_extra(s));
+		errors_panic("strings_check_charset.self", strings_check_extra(self));
 		errors_panic("strings_check_charset.charset", strings_check_extra(charset));
 	#endif
 
-	for (size_t i = 0; i < s->size - 1; i++) {
+	for (size_t i = 0; i < self->size - 1; i++) {
 		bool has_matched = false;
 
 		for (size_t j = 0; j < charset->size - 1; j++) {
-			if (s->data[i] == charset->data[j]) {
+			if (self->data[i] == charset->data[j]) {
 				has_matched = true;
 
 				break;
@@ -49,6 +51,12 @@ bool strings_check_charset(const string *s, const string *charset) {
 	return true;
 }
 
+string strings_init(size_t quantity, const allocator *mem) {
+	//TODO: checks
+
+	return char_vecs_init(quantity, mem);
+}
+
 string strings_make(const char *text, const allocator *mem) {
 	#if cels_debug
 		errors_panic("strings_make.text", text == NULL);
@@ -59,57 +67,86 @@ string strings_make(const char *text, const allocator *mem) {
 	const size_t text_size = strlen(text) + 1;
 	size_t s_capacity_new = maths_nearest_two_power(text_size);
 
-	string s = strings_init(s_capacity_new, mem);
-	errors_panic("strings_make.s.data", s.data == NULL);
+	string self = char_vecs_init(s_capacity_new, mem);
+	errors_panic("strings_make.self.data", self.data == NULL);
 	//TODO?: convert panic to error return
 
-	strncpy(s.data, text, text_size);
-	s.size = text_size;
+	strncpy(self.data, text, text_size);
+	self.size = text_size;
 
-	return s;
+	return self;
 }
 
-string strings_make_copy(const string *s, const allocator *mem) {
+string strings_make_copy(const string *self, const allocator *mem) {
 	#if cels_debug
-		errors_panic("strings_make_copy.s", strings_check(s));
+		errors_panic("strings_make_copy.self", strings_check(self));
 	#endif
 
-	string dest = strings_init(s->size, mem);
+	string dest = char_vecs_init(self->size, mem);
 	errors_panic("strings_make_copy.dest.data", dest.data == NULL);
 	//TODO?: convert panic to error return
 
-	strncpy(dest.data, s->data, s->size);
-	dest.size = s->size;
+	strncpy(dest.data, self->data, self->size);
+	dest.size = self->size;
 
 	return dest;
 }
 
-void strings_free(string *s, const allocator *mem) {
+bool strings_push(string *self, char item, const allocator *mem) {
 	#if cels_debug
-		errors_panic("strings_free.s", strings_check(s));
+		errors_panic("strings_push.self", strings_check(self));
+		//TODO: more checks
 	#endif
 
-	vectors_free((*s), mem);
+	bool error = false;
+
+	if (self->size == 0) {
+		error = char_vecs_push(self, item, mem);
+	} else {
+		self->data[self->size - 1] = item;
+	}
+
+	error = char_vecs_push(self, '\0', mem);
+
+	return error;
 }
 
-void strings_print(const string *s) {
+void strings_free(string *self, const allocator *mem) {
 	#if cels_debug
-		errors_panic("strings_print.s", strings_check_extra(s));
+		errors_panic("strings_free.self", strings_check(self));
 	#endif
 
-    for (size_t i = 0; i < s->size - 1; i++) {
-        printf("%c", s->data[i]);
+	char_vecs_free(self, mem);
+}
+
+void strings_debug(const string *self) {
+	#if cels_debug
+		errors_panic("strings_debug.self", strings_check(self));
+	#endif
+
+	printf(
+		"<string>{.size: %zu, .capacity: %zu, .data: %p}\n", 
+		self->size, self->capacity, self->data);
+}
+
+void strings_print(const string *self) {
+	#if cels_debug
+		errors_panic("strings_print.self", strings_check_extra(self));
+	#endif
+
+    for (size_t i = 0; i < self->size - 1; i++) {
+        printf("%c", self->data[i]);
     }
 
 	fflush(stdout);
 }
 
-void strings_println(const string *s) {
+void strings_println(const string *self) {
 	#if cels_debug
-		errors_panic("strings_println.s", strings_check_extra(s));
+		errors_panic("strings_println.self", strings_check_extra(self));
 	#endif
 
-	strings_print(s);
+	strings_print(self);
     printf("\n");
 }
 
@@ -173,22 +210,22 @@ bool strings_seems(const string *first, const string *second) {
 	return true;
 }
 
-ssize_t strings_find(const string *s, const string *sep, size_t pos) {
+ssize_t strings_find(const string *self, const string *sep, size_t pos) {
 	#if cels_debug
-		errors_panic("strings_find.s", strings_check_extra(s));
+		errors_panic("strings_find.self", strings_check_extra(self));
 		errors_panic("strings_find.sep", strings_check_extra(sep));
 	#endif
 
-	if (pos >= s->size - 1) {
+	if (pos >= self->size - 1) {
 		return -1;
 	}
 
-    for (size_t i = pos, j = 0; i < s->size - 1; i++) {
-		char slower = tolower(s->data[i]);
+    for (size_t i = pos, j = 0; i < self->size - 1; i++) {
+		char slower = tolower(self->data[i]);
 
         if (slower == tolower(sep->data[0])) {
             j = 1;
-		} else if (tolower(s->data[i]) == tolower(sep->data[j])) {
+		} else if (tolower(self->data[i]) == tolower(sep->data[j])) {
             j++;
 		} else {
             j = 0;
@@ -202,29 +239,28 @@ ssize_t strings_find(const string *s, const string *sep, size_t pos) {
 	return -1;
 }
 
-size_vec strings_make_find(const string *s, const string *sep, size_t n, const allocator *mem) {
+size_vec strings_make_find(const string *self, const string *sep, size_t n, const allocator *mem) {
 	#if cels_debug
-		errors_panic("strings_make_find.s", strings_check_extra(s));
+		errors_panic("strings_make_find.self", strings_check_extra(self));
 		errors_panic("strings_make_find.sep", strings_check_extra(sep));
 	#endif
 
-	size_vec indexes = vectors_init(size_t, vectors_min, mem);
+	size_vec indexes = size_vecs_init(vectors_min, mem);
 	errors_panic("strings_make_find.indexes", vectors_check((vector *)&indexes));
 
-    for (size_t i = 0, j = 0; i < s->size - 1; i++) {
-		char slower = tolower(s->data[i]);
+    for (size_t i = 0, j = 0; i < self->size - 1; i++) {
+		char slower = tolower(self->data[i]);
 
         if (slower == tolower(sep->data[0])) {
             j = 1;
-		} else if (tolower(s->data[i]) == tolower(sep->data[j])) {
+		} else if (tolower(self->data[i]) == tolower(sep->data[j])) {
             j++;
 		} else {
             j = 0;
         }
 
         if (j == sep->size - 1) {
-			bool err = false;
-			vectors_push(indexes, i - (j - 1), mem, &err);
+			bool err = size_vecs_push(&indexes, i - (j - 1), mem);
 			#if cels_debug
 				errors_panic("strings_make_find.vectors_push failed", err);
 			#endif
@@ -242,20 +278,20 @@ size_vec strings_make_find(const string *s, const string *sep, size_t n, const a
     return indexes;
 }
 
-void strings_replace(string *s, const string *seps, const char rep, size_t n) {
+void strings_replace(string *self, const string *seps, const char rep, size_t n) {
 	#if cels_debug
-		errors_panic("strings_replace.s", strings_check_extra(s));
+		errors_panic("strings_replace.self", strings_check_extra(self));
 		errors_panic("strings_replace.seps", strings_check_extra(seps));
 	#endif
 
 	size_t n_rep = 0;
-    for (size_t i = 0; i < s->size - 1; i++) {
+    for (size_t i = 0; i < self->size - 1; i++) {
 		for (size_t j = 0; j < seps->size - 1; j++) {
-			if (s->data[i] == seps->data[j]) {
+			if (self->data[i] == seps->data[j]) {
 				if (rep < 0) {
-					s->data[i] = -1;
+					self->data[i] = -1;
 				} else {
-					s->data[i] = rep;
+					self->data[i] = rep;
 				}
 
 				n_rep++;
@@ -272,32 +308,32 @@ void strings_replace(string *s, const string *seps, const char rep, size_t n) {
 	replace:
 	if (rep < 0 && n_rep > 0) {
 		size_t offset = 0;
-		for (size_t i = 0; i + offset < s->size - 1; i++) {
+		for (size_t i = 0; i + offset < self->size - 1; i++) {
 			if (offset > 0){
-				s->data[i] = s->data[i + offset];
+				self->data[i] = self->data[i + offset];
 			}
 
-			if (s->data[i] == -1) {
-				while (s->data[i] == -1 && i + offset < s->size - 1) {
+			if (self->data[i] == -1) {
+				while (self->data[i] == -1 && i + offset < self->size - 1) {
 					offset++;
-					s->data[i] = s->data[i + offset];
+					self->data[i] = self->data[i + offset];
 				}
 			}
 		}
 
 		if (offset > 0) {
 			for (size_t i = 0; i < offset; i++) {
-				s->data[s->size - 2 - i] = '\0';
+				self->data[self->size - 2 - i] = '\0';
 			}
 
-			s->size -= offset;
+			self->size -= offset;
 		}
 	}
 }
 
-string strings_make_replace(const string *s, const string *text, const string *rep, size_t n, const allocator *mem) {
+string strings_make_replace(const string *self, const string *text, const string *rep, size_t n, const allocator *mem) {
 	#if cels_debug
-		errors_panic("strings_make_replace.s", strings_check_extra(s));
+		errors_panic("strings_make_replace.self", strings_check_extra(self));
 		errors_panic("strings_make_replace.text", strings_check_extra(text));
 	#endif
 
@@ -310,20 +346,20 @@ string strings_make_replace(const string *s, const string *text, const string *r
 		diff_size += (rep->size - 1);
 	}
 
-	size_vec indexes = strings_make_find(s, text, n, mem);
+	size_vec indexes = strings_make_find(self, text, n, mem);
 	if (indexes.size == 0) {
-		vectors_free(indexes, mem);
-		return strings_make_copy(s, mem);
+		size_vecs_free(&indexes, mem);
+		return strings_make_copy(self, mem);
 	}
 
-	size_t size = s->size + diff_size * indexes.size;
+	size_t size = self->size + diff_size * indexes.size;
 	size_t capacity = maths_nearest_two_power(size);
-	string new_string = strings_init(capacity, mem);
+	string new_string = char_vecs_init(capacity, mem);
 	errors_panic("strings_make_replace.new_string", new_string.data == NULL);
 
     new_string.size = size;
     size_t prev = 0, i = 0, j = 0;
-    while (i < s->size - 1) {
+    while (i < self->size - 1) {
 		size_t offset = i + j * diff_size;
 		size_t sentence_size = 0;
 
@@ -337,46 +373,45 @@ string strings_make_replace(const string *s, const string *text, const string *r
             j += 1;
         } else {
             if (j > indexes.size - 1) {
-                sentence_size = s->size - prev;
+                sentence_size = self->size - prev;
             } else {
                 sentence_size = indexes.data[j] - prev;
             }
 
-            strncpy(new_string.data + offset, s->data + prev, sentence_size);
+            strncpy(new_string.data + offset, self->data + prev, sentence_size);
             i += sentence_size;
         }
     }
 
-	vectors_free(indexes, mem);
+	size_vecs_free(&indexes, mem);
     return new_string;
 }
 
-string_vec strings_make_split(const string *s, const string *sep, size_t n, const allocator *mem) {
+string_vec strings_make_split(const string *self, const string *sep, size_t n, const allocator *mem) {
 	#if cels_debug
-		errors_panic("strings_make_split.s", strings_check_extra(s));
+		errors_panic("strings_make_split.self", strings_check_extra(self));
 		errors_panic("strings_make_split.sep", strings_check_extra(sep));
 	#endif
 
-	size_vec indexes = strings_make_find(s, sep, n, mem);
-    string_vec sentences = vectors_init(string, vectors_min, mem);
+	size_vec indexes = strings_make_find(self, sep, n, mem);
+    string_vec sentences = string_vecs_init(vectors_min, mem);
 
 	if (indexes.size == 0) {
-		string scopy = strings_make_copy(s, mem);
+		string scopy = strings_make_copy(self, mem);
 
-		bool error = false;
-		vectors_push(sentences, scopy, mem, &error);
+		bool error = string_vecs_push(&sentences, scopy, mem);
 		#if cels_debug
 			errors_panic("strings_make_split.vectors_push failed", error);
 		#endif
 
-		vectors_free(indexes, mem);
+		size_vecs_free(&indexes, mem);
 		return sentences;
 	}
 
     size_t prev = 0, size = 0, index = 0;
     for (size_t i = 0; i < indexes.size + 1; i++) {
         if (i > indexes.size - 1) {
-            size = s->size - prev;
+            size = self->size - prev;
         } else {
 			index = indexes.data[i];
             size = index - prev + 1;
@@ -387,25 +422,23 @@ string_vec strings_make_split(const string *s, const string *sep, size_t n, cons
             continue;
         }
 
-        if (s->data[prev] == '\0') {
+        if (self->data[prev] == '\0') {
             continue;
         }
 
 		size_t capacity = maths_nearest_two_power(size);
-		string new_string = strings_init(capacity, mem);
+		string new_string = char_vecs_init(capacity, mem);
 
 		errors_panic("strings_make_split.new_string", new_string.data == NULL);
         new_string.size = size;
 
 		for (size_t j = 0; j < size; j++) {
-			new_string.data[j] = (s->data + prev)[j];
+			new_string.data[j] = (self->data + prev)[j];
 		}
 
         new_string.data[size - 1] = '\0';
 
-		bool error = false;
-        vectors_push(sentences, new_string, mem, &error);
-
+        bool error = string_vecs_push(&sentences, new_string, mem);
 		#if cels_debug
 			errors_panic("strings_make_split.vectors_push failed", error);
 		#endif
@@ -417,7 +450,7 @@ string_vec strings_make_split(const string *s, const string *sep, size_t n, cons
         prev = index + (sep->size - 1);
     }
 
-	vectors_free(indexes, mem);
+	size_vecs_free(&indexes, mem);
     return sentences;
 }
 
@@ -442,16 +475,16 @@ string strings_make_format(const char *const form, const allocator *mem, ...) {
     return (string){.data=text, .size=buff_size, .capacity=new_capacity};
 }
 
-size_t strings_hasherize(const string *s) {
+size_t strings_hasherize(const string *self) {
 	#if cels_debug
-		errors_panic("strings_hasherize.s", strings_check_extra(s));
+		errors_panic("strings_hasherize.self", strings_check_extra(self));
 	#endif
 
 	#define strings_hash 7
 
     size_t hash = 0;
-    for (size_t i = 0; i < s->size - 1; i++) {
-        unsigned char character = tolower((unsigned char)s->data[i]);
+    for (size_t i = 0; i < self->size - 1; i++) {
+        unsigned char character = tolower((unsigned char)self->data[i]);
 
         size_t power = pow(strings_hash, i + 1);
         hash += character * power;
@@ -460,53 +493,53 @@ size_t strings_hasherize(const string *s) {
     return hash;
 }
 
-void strings_lower(string *s) {
+void strings_lower(string *self) {
 	#if cels_debug
-		errors_panic("strings_lower.s", strings_check_extra(s));
+		errors_panic("strings_lower.self", strings_check_extra(self));
 	#endif
 
-	for (size_t i = 0; i < s->size - 1; i++) {
-		s->data[i] = tolower(s->data[i]);
+	for (size_t i = 0; i < self->size - 1; i++) {
+		self->data[i] = tolower(self->data[i]);
 	}
 }
 
-void strings_upper(string *s) {
+void strings_upper(string *self) {
 	#if cels_debug
-		errors_panic("strings_upper.s", strings_check_extra(s));
+		errors_panic("strings_upper.self", strings_check_extra(self));
 	#endif
 
-	for (size_t i = 0; i < s->size - 1; i++) {
-		s->data[i] = toupper(s->data[i]);
+	for (size_t i = 0; i < self->size - 1; i++) {
+		self->data[i] = toupper(self->data[i]);
 	}
 }
 
-bool strings_next(const string *s, const string *sep, string *next) {
+bool strings_next(const string *self, const string *sep, string *next) {
 	#if cels_debug
-		errors_panic("strings_next.s", strings_check(s));
+		errors_panic("strings_next.self", strings_check(self));
 		errors_panic("strings_next.sep", strings_check(sep));
 	#endif
 
 	bool has_data_been_setted = false;
 	if (next->data == NULL) {
-		next->data = s->data;
+		next->data = self->data;
 		next->size = 2;
 		has_data_been_setted = true;
 	}
 	
 	#if cels_debug
-		errors_panic("strings_next_token.(next < s)", next->data < s->data);
-		errors_panic("strings_next_token.(next > s.size)", next->data > s->data + s->size);
+		errors_panic("strings_next_token.(next < self)", next->data < self->data);
+		errors_panic("strings_next_token.(next > self.size)", next->data > self->data + self->size);
 	#endif
 
 	do {
-		size_t next_pos = next->data - s->data;
-		if (next_pos >= s->size) return true;
+		size_t next_pos = next->data - self->data;
+		if (next_pos >= self->size) return true;
 
 		if (has_data_been_setted) {
 			long new_size = 0;
-			ssize_t new_pos = strings_find(s, sep, next_pos);
+			ssize_t new_pos = strings_find(self, sep, next_pos);
 			if (new_pos == -1) {
-				new_size = (s->data + s->size) - next->data;
+				new_size = (self->data + self->size) - next->data;
 
 				has_data_been_setted = true;
 			} else {
@@ -562,7 +595,7 @@ void string_vecs_free(string_vec *sv, const allocator *mem) {
 	if (sv == NULL) return;
 
     for (size_t i = 0; i < sv->size; i++) {
-		vectors_free(sv->data[i], mem);
+		strings_free(&sv->data[i], mem);
 	}
 
 	free(sv->data);
@@ -571,32 +604,8 @@ void string_vecs_free(string_vec *sv, const allocator *mem) {
 
 //extras
 
-void string_bnode_sets_free(bnode *n, const allocator *mem) {
-	//TODO: checks
-	
-	bnodes_free(n, mem, (freefunc)strings_free);
-}
+sets_generate_implementation(string, string_set, strings_hasherize, strings_free)
 
-void string_map_items_free(string_key_pair *ss, const allocator *mem) {
-	//TODO: checks
+//maps
 
-	strings_free(&ss->key, mem);
-	strings_free(&ss->value, mem);
-
-	//free(ss);
-}
-
-void string_bnode_maps_free(bnode *n, const allocator *mem) {
-	//TODO: checks
-
-	bnodes_free(n, mem, (freefunc)string_map_items_free);
-}
-
-string *string_maps_get_value(string_map *s, size_t hash) {
-	string_map *node = (string_map *)bnodes_get((bnode *)s, hash);
-	if (node == null) {
-		return null;
-	} 
-
-	return &node->data.value;
-}
+maps_generate_implementation(string, string, string_key_pair, string_map, strings_hasherize, strings_free)

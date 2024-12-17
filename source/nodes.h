@@ -4,6 +4,7 @@
 
 #include <stddef.h>
 #include "utils.h"
+#include "mems.h"
 
 typedef enum bnodes_color {
 	bnodes_red_color,
@@ -16,21 +17,6 @@ typedef enum bnodes_color {
  * algorythm implementation, 
  * know as red-black tree.
  */
-typedef struct bnode {
-	bnodes_color color;
-	size_t hash;
-	ulong frequency;
-	struct bnode *parent;
-	struct bnode *right;
-	struct bnode *left;
-	void *data;
-} bnode;
-
-/*bnode (bbdnode? => bynary-bi-directional-node) => bynary-node
-mdnode? => multi-directional-node
-bdnode? => bidirectional-node
-mbdnode? => multi-bi-directional-node*/
-
 #define bnodes(t0, t1) struct t1 { \
 	bnodes_color color; \
 	size_t hash; \
@@ -40,6 +26,9 @@ mbdnode? => multi-bi-directional-node*/
 	typeof(t1) *left; \
 	typeof(t0) data; \
 }
+
+typedef struct bnode bnode;
+typedef bnodes(void *, bnode) bnode;
 
 #define nodes_max_recursion 30
 
@@ -78,7 +67,7 @@ void bnodes_free(bnode *n, const allocator *mem, freefunc cleanup);
  *
  * #to-edit
  */
-void bnodes_push(bnode **n, bnode *new_node, const allocator *mem, freefunc cleanup, bool *error);
+bool bnodes_push(bnode **n, bnode *new_node, const allocator *mem, freefunc cleanup);
 
 /*
  * Gets node with the same hash as hash, if 
@@ -103,22 +92,46 @@ void bnodes_free_all(bnode *n, const allocator *mem, freefunc cleanup);
 __attribute_warn_unused_result__
 size_t bnodes_length(bnode *n);
 
+//sets
+
 #define sets(t) bnodes(t, t ## _set)
 
-#define sets_push(s, item, hasher, mem, cleanup, error) { \
-	typeof(*s) *new_bnode = null; \
-	bnodes_make(new_bnode, item, hasher(&item), mem); \
-	bnodes_push((bnode **)&s, (bnode *)new_bnode, mem, (freefunc)cleanup, error); \
-}
+#define sets_generate_implementation(type, name, hasher, cleanup) \
+	bool name##s_push(name *self, type item, const allocator *mem) { \
+		name *new_bnode = null; \
+		bnodes_make(new_bnode, item, hasher(&item), mem); \
+		return bnodes_push((bnode **)self, (bnode *)new_bnode, mem, (freefunc)cleanup); \
+	} \
+	\
+	type *name##s_get(const name *self, type item) { \
+		return (type *)bnodes_get_data((bnode *)self, hasher(&item)); \
+	} \
+	void name##s_traverse(name *self, callfunc callback) { \
+		bnodes_traverse((bnode *)self, callback); \
+	} \
+	\
+	void name##s_free_private(name *self, const allocator *mem) { \
+		bnodes_free((bnode *)self, mem, (freefunc)cleanup); \
+	} \
+	\
+	void name##s_free(name *self, const allocator *mem) { \
+		bnodes_free_all((bnode *)self, mem, (freefunc)name##s_free_private); \
+	}
 
-#define sets_get(ib, it) \
-	(typeof(ib->data) *)bnodes_get_data((bnode *)ib, it)
-
-#define sets_traverse(ib, callback) \
-	bnodes_traverse((bnode *)ib, (callfunc)callback)
-
-#define sets_free(ib, mem, cleanup) \
-	bnodes_free_all((bnode *)ib, mem, (freefunc)cleanup)
+#define sets_generate_definition(type, name) \
+	typedef struct name name; \
+	typedef bnodes(type, name) name; \
+	\
+	bool name##s_push(name *self, type item, const allocator *mem); \
+	\
+	__attribute_warn_unused_result__ \
+	type *name##s_get(const name *self, type item); \
+	\
+	void name##s_traverse(name *self, callfunc callback); \
+	\
+	void name##s_free(name *self, const allocator *mem);
+	
+//maps
 
 #define key_pairs(t0, t1) struct { \
 	typeof(t0) key; \
@@ -127,18 +140,50 @@ size_t bnodes_length(bnode *n);
 
 #define maps(t0) bnodes(t0, t0 ## _map)
 
-#define maps_push(m, k, v, hasher, mem, cleanup, error) { \
-	typeof(m->data) item = {.key=k, .value=v}; \
-	typeof(*m) *new_bnode = null; \
-	bnodes_make(new_bnode, item, hasher(&item.key), mem); \
-	bnodes_push((bnode **)&m, (bnode *)new_bnode, mem, (freefunc)cleanup, error); \
-}
+#define maps_generate_implementation(type0, type1, type2, name, hasher, cleanup) \
+	bool name##s_push(name *self, type0 key, type1 value, const allocator *mem) { \
+		type2 item = {.key=key, .value=value}; \
+		name *new_bnode = null; \
+		bnodes_make(new_bnode, item, hasher(&item.key), mem); \
+		return bnodes_push((bnode **)self, (bnode *)new_bnode, mem, (freefunc)cleanup); \
+	} \
+	\
+	type1 *name##s_get(const name *self, type0 item) { \
+		return (type1 *)bnodes_get_data((bnode *)self, hasher(&item)); \
+	} \
+	\
+	size_t name##s_get_frequency(name *self, type0 item) { \
+		return bnodes_get_frequency((bnode *)self, hasher(&item)); \
+	} \
+	\
+	void name##s_traverse(name *self, callfunc callback) { \
+		bnodes_traverse((bnode *)self, callback); \
+	} \
+	\
+	void name##s_free_private(name *self, const allocator *mem) { \
+		bnodes_free((bnode *)self, mem, (freefunc)cleanup); \
+	} \
+	\
+	void name##s_free(name *self, const allocator *mem) { \
+		bnodes_free_all((bnode *)self, mem, (freefunc)name##s_free_private); \
+	}
 
-#define maps_get(ib, it) sets_get(ib, it)
-
-#define maps_traverse(ib, callback) sets_traverse(ib, callback)
-
-#define maps_free(ib, mem, callback) sets_free(ib, mem, callback)
+#define maps_generate_definition(type0, type1, type2, name) \
+	typedef key_pairs(type0, type1) type2; \
+	typedef struct name name; \
+	typedef bnodes(type2, name) name; \
+	\
+	bool name##s_push(name *self, type0 key, type1 value, const allocator *mem); \
+	\
+	__attribute_warn_unused_result__ \
+	type1 *name##s_get(const name *self, type0 item); \
+	\
+	__attribute_warn_unused_result__ \
+	size_t name##s_get_frequency(name *self, type0 item); \
+	\
+	void name##s_traverse(name *self, callfunc callback); \
+	\
+	void name##s_free(name *self, const allocator *mem);
 
 //
 

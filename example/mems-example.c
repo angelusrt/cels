@@ -1,9 +1,7 @@
 #include "../source/mems.h"
 #include "../source/mems.c"
 
-#include "../source/vectors.h"
 #include "../source/vectors.c"
-
 #include "../source/strings.h"
 #include "../source/strings.c"
 

@@ -14,6 +14,7 @@ typedef bool (*compfunc)(void *, void *);
 typedef bool (*compvecfunc)(void *, void *, void *);
 typedef size_t (*hashfunc)(void *);
 typedef void (*cleanfunc)(void *);
+typedef void (*printfunc)(void *);
 typedef error_report (*reportfunc)(void);
 typedef void (*printvecfunc)(void *, void *);
 typedef clock_t (*benchfunc) (size_t);
@@ -46,10 +47,12 @@ size_t maths_nearest_two_power(size_t a);
 
 //benchs
 
+/*
 #include "vectors.h"
 
 #define benchs_times 5
 
 void benchs_measure(const char *name, const size_vec *size_buckets, benchfunc callback);
+*/
 
 #endif
