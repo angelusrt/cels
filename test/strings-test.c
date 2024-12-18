@@ -473,20 +473,26 @@ error_report string_maps_test_get_and_push() {
 	string_map *json = null;
 	string namepredict = strings_premake("angelus");
 
-	string_maps_push(json, strings_make("name", null), strings_make("angelus", null), null);
-	string_maps_push(json, strings_make("age", null), strings_make("10", null), null);
+	string_maps_make_push(&json, "name", "angelus", null);
+	string_maps_make_push(&json, "age", "10", null);
 
-	string *name = string_maps_get(json, (string)strings_premake("name"));
+	string key = strings_premake("name");
+	string *name = string_maps_get(json, key);
 
 	bool is_valid = name != null;
-	if (is_valid) { is_valid = strings_equals(name, &namepredict); }
+	if (is_valid) { 
+		is_valid = strings_equals(name, &namepredict); 
+		printf("name: %s\n", name->data);
+	}
 
 	stat += errors_assert("string_maps_get(json, \"name\") == \"angelus\"", is_valid);
 	total++;
 
-	string_maps_push(json, strings_make("name", null), strings_make("angelus", null), null);
-	size_t name_freq = string_maps_get_frequency(json, (string)strings_premake("name"));
-	if (is_valid) { is_valid = name_freq == 2; }
+	string_maps_make_push(&json, "name", "angelus", null);
+
+	size_t name_freq = string_maps_get_frequency(json, key);
+	is_valid = name_freq == 2; 
+	printf("freq: %zu\n", name_freq);
 
 	stat += errors_assert("string_maps_push(json, \"name\", \"angelus\").frequency == 2", is_valid);
 	total++;

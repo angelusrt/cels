@@ -14,4 +14,6 @@ bool vectors_check(const vector *self) {
     return false;
 }
 
+/* implementations */
+
 vectors_generate_implementation(size_t, size_vec)

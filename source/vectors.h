@@ -156,7 +156,6 @@ typedef vectors(void *) vector;
 			print(&self->data[i]); \
 		} \
 	} \
-	\
 	bool name##s_equals(const name *v0, const name *v1) { \
 		if (v0->size != v1->size) { return false; } \
 		for (size_t i = 0; i < v0->size; i++) { \
@@ -212,7 +211,7 @@ typedef vectors(void *) vector;
 __attribute_warn_unused_result__
 bool vectors_check(const vector *self);
 
-//definions
+/* definitions */
 
 vectors_generate_definition(size_t, size_vec)
 

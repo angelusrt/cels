@@ -2,6 +2,8 @@
 
 vectors_generate_implementation(char, char_vec)
 
+//vectors_generate_implementation(string, string_vec)
+
 bool strings_check(const string *self) {
 	#if cels_debug
 		if (errors_check("strings_check.self", vectors_check((const vector *)self))) return true;
@@ -399,9 +401,11 @@ string_vec strings_make_split(const string *self, const string *sep, size_t n, c
 	if (indexes.size == 0) {
 		string scopy = strings_make_copy(self, mem);
 
-		bool error = string_vecs_push(&sentences, scopy, mem);
 		#if cels_debug
+			bool error = string_vecs_push(&sentences, scopy, mem);
 			errors_panic("strings_make_split.vectors_push failed", error);
+		#else
+			string_vecs_push(&sentences, scopy, mem);
 		#endif
 
 		size_vecs_free(&indexes, mem);
@@ -432,8 +436,7 @@ string_vec strings_make_split(const string *self, const string *sep, size_t n, c
 		errors_panic("strings_make_split.new_string", new_string.data == NULL);
         new_string.size = size;
 
-		for (size_t j = 0; j < size; j++) {
-			new_string.data[j] = (self->data + prev)[j];
+		for (size_t j = 0; j < size; j++) { new_string.data[j] = (self->data + prev)[j];
 		}
 
         new_string.data[size - 1] = '\0';
@@ -559,6 +562,77 @@ bool strings_next(const string *self, const string *sep, string *next) {
 	return false;
 }
 
+//string_vecs
+
+string_vec string_vecs_init(size_t len, const allocator *mem) {
+	return (string_vec){
+		.data = (string *)mems_alloc(mem, sizeof(string) * len),
+		.capacity = len
+	};
+}
+
+bool string_vecs_push(string_vec *self, string item, const allocator *mem) {
+	self->size++;
+	self->data[self->size - 1] = item;
+
+	if (self->size >= self->capacity) {
+		size_t new_capacity = self->capacity << 1;
+		void *new_data = mems_realloc(
+			mem, 
+			self->data, 
+			self->capacity * sizeof(string),
+			new_capacity * sizeof(string));
+
+		if (new_data == null) {
+			self->size--;
+			return 1;
+		}
+
+		self->capacity = new_capacity;
+		self->data = new_data;
+	}
+
+	return 0;
+}
+
+void string_vecs_free(string_vec *self, const allocator *mem) {
+  if (self->data != null) {
+    for (size_t i = 0; i < self->size; i++) {
+		strings_free(&self->data[i], mem);
+	}
+
+    mems_dealloc(mem, self->data, self->capacity * sizeof(*self->data));
+    self->data = null;
+  }
+}
+
+void string_vecs_sort(string_vec *self, compfunc compare) {
+	for (size_t i = self->size; i > 0; i--) {
+		for (size_t j = 1; j < i; j++) {
+			bool is_bigger = compare(&self->data[j - 1], &self->data[j]);
+
+			if (is_bigger) {
+				string temp = self->data[j - 1];
+				self->data[j - 1] = self->data[j];
+				self->data[j] = temp;
+			}
+		}
+	}
+}
+
+void string_vecs_debug(const string_vec *self) {
+	printf(
+		"<string_vec>{size: %zu, capacity: %zu, data: %p}\n",
+		self->size, self->capacity, (void *)self->data
+	);
+}
+
+void string_vecs_print(const string_vec *self) {
+	for (size_t i = 0; i < self->size; i++) {
+		strings_println(&self->data[i]);
+	}
+}
+
 bool string_vecs_equals(const string_vec *v0, const string_vec *v1) {
 	#if cels_debug
 		errors_panic("string_vecs_equals.v0", vectors_check((vector *)v0));
@@ -589,23 +663,33 @@ bool string_vecs_seems(const string_vec *v0, const string_vec *v1) {
 	return true;
 }
 
-void string_vecs_free(string_vec *sv, const allocator *mem) {
-	//TODO: checks
-
-	if (sv == NULL) return;
-
-    for (size_t i = 0; i < sv->size; i++) {
-		strings_free(&sv->data[i], mem);
-	}
-
-	free(sv->data);
-	sv = NULL;
-}
-
 //extras
 
 sets_generate_implementation(string, string_set, strings_hasherize, strings_free)
 
 //maps
 
-maps_generate_implementation(string, string, string_key_pair, string_map, strings_hasherize, strings_free)
+maps_generate_implementation(string, string, string_key_pair, string_map, strings_hasherize, strings_free, strings_free)
+
+bool string_maps_make_push(string_map **self, const char *key, const char *value, const allocator *mem) {
+	string skey = strings_make(key, mem);
+	string svalue = strings_make(value, mem);
+
+	string_key_pair item = {.key = skey, .value = svalue};
+
+	string_map node = {
+		.hash = strings_hasherize(&item.key),
+		.data = item,
+		.color = bnodes_black_color,
+		.frequency = 1};
+
+	string_map *new_bnode = mems_alloc(mem, sizeof(typeof(*new_bnode)));
+	errors_panic("bnodes_make.self", new_bnode == ((void *)0));
+
+	*new_bnode = node;
+
+	bool error = bnodes_push((bnode **)self, (bnode *)new_bnode);
+	if (error) { string_maps_free_private(new_bnode, mem); }
+
+	return error;
+}

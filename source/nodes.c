@@ -152,7 +152,7 @@ void bnodes_normalize_private(bnode *n, bnode *new_node) {
 	//keep n always black
 }
 
-void bnodes_free(bnode *n, const allocator *mem, freefunc cleanup) {
+/*void bnodes_free(bnode *n, const allocator *mem, freefunc cleanup) {
 	if (n == null) {
 		return;
 	}
@@ -163,7 +163,7 @@ void bnodes_free(bnode *n, const allocator *mem, freefunc cleanup) {
 
 	mems_dealloc(mem, n, sizeof(bnode));
 	n = null;
-}
+}*/
 
 bnode* bnodes_push_private(bnode *n, bnode *new_node, bool *error, size_t stackframe) {
 	//TODO: check new_node
@@ -190,25 +190,21 @@ bnode* bnodes_push_private(bnode *n, bnode *new_node, bool *error, size_t stackf
     return n;
 }
 
-void bnodes_push(bnode **n, bnode *new_node, const allocator *mem, freefunc cleanup, bool *error) {
-    if (n == null) { 
-		*n = new_node; 
+bool bnodes_push(bnode **self, bnode *new_node) {
+    if (self == null) { 
+		*self = new_node; 
 	}
 
 	bool err = false;
-	*n = bnodes_push_private(*n, new_node, &err, 0);
-
-	if (!err) {
-		bnodes_normalize_private(*n, new_node);
-	}
+	*self = bnodes_push_private(*self, new_node, &err, 0);
 
 	if (err) {
-		bnodes_free(new_node, mem, cleanup);
+		return true;
 	}
 
-	if (err && error) {
-		*error = err;	
-	}
+	bnodes_normalize_private(*self, new_node);
+
+	return false;
 }
 
 bnode* bnodes_get_private(bnode *n, size_t hash, size_t stackframe) {
@@ -270,6 +266,7 @@ void bnodes_traverse(bnode *n, callfunc callback) {
 	bnodes_traverse_private(n, callback, 0);
 }
 
+//TODO: convert to macro
 void bnodes_free_all_private(bnode *n, const allocator *mem, freefunc cleanup, size_t stackframe) {
     if (n == null || stackframe > nodes_max_recursion) { 
 		return; 

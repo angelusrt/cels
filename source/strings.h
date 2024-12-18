@@ -16,9 +16,7 @@
 vectors_generate_definition(char, char_vec)
 
 typedef char_vec string;
-
-vectors_generate_definition(string, string_vec)
-
+typedef vectors(string *) string_vec;                                                \
 typedef errors(string) string_with_error;
 
 typedef enum strings_size {
@@ -321,6 +319,26 @@ void strings_upper(string *s);
  */
 bool strings_next(const string *s, const string *sep, string *next);
 
+/**string_vecs**/
+
+__attribute_warn_unused_result__
+string_vec string_vecs_init(size_t len, const allocator *mem);
+
+/*
+ * Frees a string_vec deeply - sv.data[i].data must be allocated. 
+ *
+ * #to-edit
+ */
+void string_vecs_free(string_vec *self, const allocator *mem);
+
+bool string_vecs_push(string_vec *self, string item, const allocator *mem);
+
+void string_vecs_sort(string_vec *self, compfunc compare);
+
+void string_vecs_debug(const string_vec *self);
+
+void string_vecs_print(const string_vec *self);
+
 /*
  * Verifies if both vectors are equal.
  *
@@ -337,34 +355,17 @@ bool string_vecs_equals(const string_vec *v0, const string_vec *v1);
 __attribute_warn_unused_result__
 bool string_vecs_seems(const string_vec *v0, const string_vec *v1);
 
-/*
- * Frees a string_vec deeply - sv.data[i].data must be allocated. 
- *
- * #to-edit
- */
-void string_vecs_free(string_vec *sv, const allocator *mem);
-
-//extras #to-edit
+/* extras */
 
 #include "nodes.h"
 
-//sets 
-
-//void string_bnode_sets_free(bnode *n, const allocator *mem);
-
-//typedef struct string_set string_set;
-//sets(string);
-
-//#define string_sets_push(s, item, mem, err) sets_push(s, item, strings_hasherize, mem, strings_free, err)
-
-//#define string_sets_free(s, mem) sets_free(s, mem, string_bnode_sets_free)
-
-///new
+/* sets */
 
 sets_generate_definition(string, string_set)
 
-//maps
-
+/* maps */
 maps_generate_definition(string, string, string_key_pair, string_map)
+
+bool string_maps_make_push(string_map **self, const char *key, const char *value, const allocator *mem);
 
 #endif
