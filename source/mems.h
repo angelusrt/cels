@@ -6,6 +6,8 @@
 #include <sys/cdefs.h>
 #include "errors.h"
 
+/* allocators */
+
 typedef enum allocator_type {
 	allocators_individual_type,
 	allocators_group_type,
@@ -30,7 +32,14 @@ typedef struct allocator {
 typedef void (*freefunc)(void *, const allocator *);
 
 __attribute_warn_unused_result__
+bool allocators_check(const allocator *self);
+
+/* arenas */
+
+__attribute_warn_unused_result__
 allocator arenas_init(size_t capacity);
+
+/* stack_arenas */
 
 #define stack_arenas_init(cap) \
 	stack_arenas_make(cap, alloca(cap))
@@ -38,19 +47,23 @@ allocator arenas_init(size_t capacity);
 __attribute_warn_unused_result__
 allocator stack_arenas_make(size_t capacity, char *buffer);
 
+/* allocs */
+
 typedef void *(*mallocfunc)(size_t);
 
-typedef struct simple_allocator {
+typedef struct alloc {
 	allocator_type type;
 	__attribute_warn_unused_result__
 	mallocfunc alloc;
 	__attribute_warn_unused_result__
 	allocfunc realloc;
 	cleanfunc free;
-} simple_allocator;
+} alloc;
 
 __attribute_warn_unused_result__
-simple_allocator allocs_init(void);
+alloc allocs_init(void);
+
+/* mems */
 
 __attribute_warn_unused_result__
 void *mems_alloc(const allocator *mem, size_t len);

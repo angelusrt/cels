@@ -8,6 +8,14 @@
 
 #include "errors.h"
 
+//
+
+#ifndef cels_debug
+#define cels_debug false
+#endif
+
+//
+
 #define vectors(t) struct { \
     size_t size; \
     size_t capacity; \
@@ -96,7 +104,9 @@ typedef vectors(void *) vector;
  * Generates all type-specific functions for vectors.
  * #to-review
  */
-#define vectors_generate_implementation(type, name) \
+#define vectors_generate_implementation( \
+	type, name, check0, print0, compare0, compare1, cleanup0 \
+) \
 	name name##s_init(size_t len, const allocator *mem) { \
 		return (name) { \
 			.data=(type *)mems_alloc(mem, sizeof(type) * len), \
@@ -105,6 +115,11 @@ typedef vectors(void *) vector;
 	} \
 	\
 	bool name##s_push(name *self, type item, const allocator *mem) { \
+		if (cels_debug) { \
+			errors_panic(utils_fcat(".self"), vectors_check((const vector *)self)); \
+			errors_panic(utils_fcat(".item"), check0(&item)); \
+		} \
+		\
 		self->size++; \
 		self->data[self->size - 1] = item; \
 		if (self->size >= self->capacity) { \
@@ -128,13 +143,25 @@ typedef vectors(void *) vector;
 	} \
 	\
 	void name##s_free(name *self, const allocator *mem) { \
+		if (cels_debug) { \
+			errors_panic(utils_fcat(".self"), vectors_check((const vector *)self)); \
+		} \
+		\
 		if (self->data != null) { \
+			for (size_t i = 0; i < self->size; i++) { \
+				cleanup0(&self->data[i], mem); \
+			} \
+			\
 			mems_dealloc(mem, self->data, self->capacity * sizeof(*self->data)); \
 			self->data = null; \
 		} \
 	} \
 	\
 	void name##s_sort(name *self, compfunc compare) {\
+		if (cels_debug) { \
+			errors_panic(utils_fcat(".self"), vectors_check((const vector *)self)); \
+		} \
+		\
 		for (size_t i = self->size; i > 0; i--) { \
 			for (size_t j = 1; j < i; j++) { \
 				bool is_bigger = compare(&self->data[j - 1], &self->data[j]); \
@@ -146,20 +173,50 @@ typedef vectors(void *) vector;
 	} \
 	\
 	void name##s_debug(const name *self) { \
+		if (cels_debug) { \
+			errors_panic(utils_fcat(".self"), vectors_check((const vector *)self)); \
+		} \
+		\
 		printf( \
 			"<" #name ">{size: %zu, capacity: %zu, data: %p}\n", \
 			self->size, self->capacity, (void *)self->data); \
 	} \
 	\
-	void name##s_print(const name *self, printfunc print) { \
+	void name##s_print(const name *self) { \
+		if (cels_debug) { \
+			errors_panic(utils_fcat(".self"), vectors_check((const vector *)self)); \
+		} \
+		\
 		for (size_t i = 0; i < self->size; i++) { \
-			print(&self->data[i]); \
+			print0(&self->data[i]); \
 		} \
 	} \
+	\
 	bool name##s_equals(const name *v0, const name *v1) { \
+		if (cels_debug) { \
+			errors_panic(utils_fcat(".v0"), vectors_check((const vector *)v0)); \
+			errors_panic(utils_fcat(".v1"), vectors_check((const vector *)v1)); \
+		} \
+		\
 		if (v0->size != v1->size) { return false; } \
 		for (size_t i = 0; i < v0->size; i++) { \
-			if (v0->data[i] != v1->data[i]) { \
+			if (!compare0(&v0->data[i], &v1->data[i])) { \
+				return false; \
+			} \
+		} \
+		\
+		return true; \
+	} \
+	\
+	bool name##s_seems(const name *v0, const name *v1) { \
+		if (cels_debug) { \
+			errors_panic(utils_fcat(".v0"), vectors_check((const vector *)v0)); \
+			errors_panic(utils_fcat(".v1"), vectors_check((const vector *)v1)); \
+		} \
+		\
+		if (v0->size != v1->size) { return false; } \
+		for (size_t i = 0; i < v0->size; i++) { \
+			if (!compare1(&v0->data[i], &v1->data[i])) { \
 				return false; \
 			} \
 		} \
@@ -168,8 +225,28 @@ typedef vectors(void *) vector;
 	} \
 	\
 	ssize_t name##s_find(const name *self, type item) { \
+		if (cels_debug) { \
+			errors_panic(utils_fcat(".self"), vectors_check((const vector *)self)); \
+			errors_panic(utils_fcat(".item"), check0(&item)); \
+		} \
+		\
 		for (size_t i = 0; i < self->size; i++) { \
-			if (self->data[i] == item) { \
+			if (compare0(&self->data[i], &item)) { \
+				return i; \
+			} \
+		} \
+		\
+		return -1; \
+	} \
+	\
+	ssize_t name##s_search(const name *self, type item) { \
+		if (cels_debug) { \
+			errors_panic(utils_fcat(".self"), vectors_check((const vector *)self)); \
+			errors_panic(utils_fcat(".item"), check0(&item)); \
+		} \
+		\
+		for (size_t i = 0; i < self->size; i++) { \
+			if (compare1(&self->data[i], &item)) { \
 				return i; \
 			} \
 		} \
@@ -195,16 +272,22 @@ typedef vectors(void *) vector;
 	\
 	void name##s_debug(const name *self); \
 	\
-	void name##s_print(const name *self, printfunc print); \
+	void name##s_print(const name *self); \
 	\
 	__attribute_warn_unused_result__ \
 	bool name##s_equals(const name *v0, const name *v1); \
 	\
 	__attribute_warn_unused_result__ \
-	ssize_t name##s_find(const name *self, type item);
+	bool name##s_seems(const name *v0, const name *v1); \
+	\
+	__attribute_warn_unused_result__ \
+	ssize_t name##s_find(const name *self, type item); \
+	\
+	__attribute_warn_unused_result__ \
+	ssize_t name##s_search(const name *self, type item);
 
-/*
- * Checks shallowly if vecto was properly initialized.
+/**
+ * Checks shallowly if vector was properly initialized.
  *
  * #tested
  */

@@ -13,10 +13,13 @@
 #include "errors.h"
 #include "vectors.h"
 
-vectors_generate_definition(char, char_vec)
+/* char_vecs */
 
+vectors_generate_definition(char, char_vec)
 typedef char_vec string;
-typedef vectors(string *) string_vec;                                                \
+
+/* string_extras */
+
 typedef errors(string) string_with_error;
 
 typedef enum strings_size {
@@ -28,6 +31,12 @@ typedef enum strings_size {
 	strings_very_large_size = 1048576, 
 	strings_max_size = SIZE_MAX,
 } strings_size;
+
+/* string_vecs */
+
+vectors_generate_definition(string, string_vec)
+
+/* strings */
 
 /*
  * The module strings is about manipulating the 
@@ -319,42 +328,6 @@ void strings_upper(string *s);
  */
 bool strings_next(const string *s, const string *sep, string *next);
 
-/**string_vecs**/
-
-__attribute_warn_unused_result__
-string_vec string_vecs_init(size_t len, const allocator *mem);
-
-/*
- * Frees a string_vec deeply - sv.data[i].data must be allocated. 
- *
- * #to-edit
- */
-void string_vecs_free(string_vec *self, const allocator *mem);
-
-bool string_vecs_push(string_vec *self, string item, const allocator *mem);
-
-void string_vecs_sort(string_vec *self, compfunc compare);
-
-void string_vecs_debug(const string_vec *self);
-
-void string_vecs_print(const string_vec *self);
-
-/*
- * Verifies if both vectors are equal.
- *
- * #case-sensitive
- */
-__attribute_warn_unused_result__
-bool string_vecs_equals(const string_vec *v0, const string_vec *v1);
-
-/*
- * Verifies if both vectors are equal case-insensitively.
- *
- * #case-insensitive
- */
-__attribute_warn_unused_result__
-bool string_vecs_seems(const string_vec *v0, const string_vec *v1);
-
 /* extras */
 
 #include "nodes.h"
@@ -364,8 +337,17 @@ bool string_vecs_seems(const string_vec *v0, const string_vec *v1);
 sets_generate_definition(string, string_set)
 
 /* maps */
+
 maps_generate_definition(string, string, string_key_pair, string_map)
 
-bool string_maps_make_push(string_map **self, const char *key, const char *value, const allocator *mem);
+/*
+ * Push key and value over string_map allocating string's with mem.
+ * This function is a convenience over string_maps_push.
+ * 
+ * #to-review
+ */
+bool string_maps_make_push(
+	string_map **self, const char *key, const char *value, const allocator *mem
+);
 
 #endif

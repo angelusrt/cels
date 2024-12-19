@@ -34,6 +34,12 @@ bool functors_check(const functor *f);
 __attribute_warn_unused_result__
 bool size_equals(const size_t *a, const size_t *b, const size_t *i);
 
+#define utils_cat(a, b) (#a b)
+
+#define utils_fcat(a) utils_cat(__func__, a)
+
+/* maths */
+
 #define maths_min(a, b) a > b ? b : a
 
 #define maths_max(a, b) a > b ? a : b
@@ -45,7 +51,16 @@ bool size_equals(const size_t *a, const size_t *b, const size_t *i);
 
 size_t maths_nearest_two_power(size_t a);
 
-//benchs
+/* defaults */
+
+#define defaults_compare(a, b) (*a == *b)
+#define defaults_check(a) (false)
+
+#define defaults_seems(a, b) (tolower(*a) == tolower(*b))
+
+void defaults_free(void *a, const void *mem);
+
+/* benchs */
 
 /*
 #include "vectors.h"

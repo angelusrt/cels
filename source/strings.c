@@ -1,13 +1,26 @@
 #include "strings.h"
+#include "vectors.h"
 
-vectors_generate_implementation(char, char_vec)
+/* char_vecs */
+void chars_print_private(const char *letter) {
+	printf("%c\n", *letter);
+}
 
-//vectors_generate_implementation(string, string_vec)
+vectors_generate_implementation(
+	char, 
+	char_vec, 
+	defaults_check,
+	chars_print_private, 
+	defaults_compare, 
+	defaults_seems, 
+	defaults_free)
+
+/* strings */
 
 bool strings_check(const string *self) {
 	#if cels_debug
-		if (errors_check("strings_check.self", vectors_check((const vector *)self))) return true;
-		if (errors_check("strings_check.self.size == 0", self->size == 0)) return true;
+		if (errors_check(utils_fcat(".self"), vectors_check((const vector *)self))) return true;
+		if (errors_check(utils_fcat(".self.size == 0"), self->size == 0)) return true;
 	#else 
 		if (vectors_check((const vector *)self)) return true;
 		if (self->size == 0) return true;
@@ -18,9 +31,9 @@ bool strings_check(const string *self) {
 
 bool strings_check_extra(const string *self) {
 	#if cels_debug
-		if (errors_check("strings_check_extra.self", strings_check(self))) return true;
-		if (errors_check("strings_check_extra.self.data[0] == '\\0'", self->data[0] == '\0')) return true;
-		if (errors_check("strings_check_extra.self.size == 1", self->size == 1)) return true;
+		if (errors_check(utils_fcat(".self"), strings_check(self))) return true;
+		if (errors_check(utils_fcat(".self.data[0] == '\\0'"), self->data[0] == '\0')) return true;
+		if (errors_check(utils_fcat(".self.size == 1", self->size == 1))) return true;
 	#else
 		if (strings_check(self)) return true;
 		if (self->data[0] == '\0') return true;
@@ -32,8 +45,8 @@ bool strings_check_extra(const string *self) {
 
 bool strings_check_charset(const string *self, const string *charset) {
 	#if cels_debug
-		errors_panic("strings_check_charset.self", strings_check_extra(self));
-		errors_panic("strings_check_charset.charset", strings_check_extra(charset));
+		errors_panic(utils_fcat(".self"), strings_check_extra(self));
+		errors_panic(utils_fcat(".charset"), strings_check_extra(charset));
 	#endif
 
 	for (size_t i = 0; i < self->size - 1; i++) {
@@ -54,15 +67,13 @@ bool strings_check_charset(const string *self, const string *charset) {
 }
 
 string strings_init(size_t quantity, const allocator *mem) {
-	//TODO: checks
-
 	return char_vecs_init(quantity, mem);
 }
 
 string strings_make(const char *text, const allocator *mem) {
 	#if cels_debug
-		errors_panic("strings_make.text", text == NULL);
-		errors_panic("strings_make.text == '\\0'", text[0] == '\0');
+		errors_panic(utils.fcat(".text"), text == NULL);
+		errors_panic(utils.fcat(".text == '\\0'"), text[0] == '\0');
 		//perhaps convert panic to warn
 	#endif
 
@@ -81,12 +92,11 @@ string strings_make(const char *text, const allocator *mem) {
 
 string strings_make_copy(const string *self, const allocator *mem) {
 	#if cels_debug
-		errors_panic("strings_make_copy.self", strings_check(self));
+		errors_panic(utils_fcat(".self"), strings_check(self));
 	#endif
 
 	string dest = char_vecs_init(self->size, mem);
 	errors_panic("strings_make_copy.dest.data", dest.data == NULL);
-	//TODO?: convert panic to error return
 
 	strncpy(dest.data, self->data, self->size);
 	dest.size = self->size;
@@ -96,7 +106,7 @@ string strings_make_copy(const string *self, const allocator *mem) {
 
 bool strings_push(string *self, char item, const allocator *mem) {
 	#if cels_debug
-		errors_panic("strings_push.self", strings_check(self));
+		errors_panic(utils_fcat(".self"), strings_check(self));
 		//TODO: more checks
 	#endif
 
@@ -562,114 +572,38 @@ bool strings_next(const string *self, const string *sep, string *next) {
 	return false;
 }
 
-//string_vecs
+/* string_vecs */
 
-string_vec string_vecs_init(size_t len, const allocator *mem) {
-	return (string_vec){
-		.data = (string *)mems_alloc(mem, sizeof(string) * len),
-		.capacity = len
-	};
-}
+vectors_generate_implementation(
+	string, 
+	string_vec, 
+	strings_check,
+	strings_println, 
+	strings_equals, 
+	strings_seems, 
+	strings_free)
 
-bool string_vecs_push(string_vec *self, string item, const allocator *mem) {
-	self->size++;
-	self->data[self->size - 1] = item;
+/* sets */
 
-	if (self->size >= self->capacity) {
-		size_t new_capacity = self->capacity << 1;
-		void *new_data = mems_realloc(
-			mem, 
-			self->data, 
-			self->capacity * sizeof(string),
-			new_capacity * sizeof(string));
+sets_generate_implementation(
+	string, 
+	string_set, 
+	strings_check_extra, 
+	strings_hasherize, 
+	strings_free)
 
-		if (new_data == null) {
-			self->size--;
-			return 1;
-		}
+/* maps */
 
-		self->capacity = new_capacity;
-		self->data = new_data;
-	}
-
-	return 0;
-}
-
-void string_vecs_free(string_vec *self, const allocator *mem) {
-  if (self->data != null) {
-    for (size_t i = 0; i < self->size; i++) {
-		strings_free(&self->data[i], mem);
-	}
-
-    mems_dealloc(mem, self->data, self->capacity * sizeof(*self->data));
-    self->data = null;
-  }
-}
-
-void string_vecs_sort(string_vec *self, compfunc compare) {
-	for (size_t i = self->size; i > 0; i--) {
-		for (size_t j = 1; j < i; j++) {
-			bool is_bigger = compare(&self->data[j - 1], &self->data[j]);
-
-			if (is_bigger) {
-				string temp = self->data[j - 1];
-				self->data[j - 1] = self->data[j];
-				self->data[j] = temp;
-			}
-		}
-	}
-}
-
-void string_vecs_debug(const string_vec *self) {
-	printf(
-		"<string_vec>{size: %zu, capacity: %zu, data: %p}\n",
-		self->size, self->capacity, (void *)self->data
-	);
-}
-
-void string_vecs_print(const string_vec *self) {
-	for (size_t i = 0; i < self->size; i++) {
-		strings_println(&self->data[i]);
-	}
-}
-
-bool string_vecs_equals(const string_vec *v0, const string_vec *v1) {
-	#if cels_debug
-		errors_panic("string_vecs_equals.v0", vectors_check((vector *)v0));
-		errors_panic("string_vecs_equals.v1", vectors_check((vector *)v1));
-	#endif
-
-	if (v0->size != v1->size) return false;
-
-	for (size_t i = 0; i < v0->size; i++) {
-		if (!strings_equals(&v0->data[i], &v1->data[i])) return false;
-	}
-
-	return true;
-}
-
-bool string_vecs_seems(const string_vec *v0, const string_vec *v1) {
-	#if cels_debug
-		errors_panic("string_vecs_seems.v0", vectors_check((vector *)v0));
-		errors_panic("string_vecs_seems.v1", vectors_check((vector *)v1));
-	#endif
-
-	if (v0->size != v1->size) return false;
-
-	for (size_t i = 0; i < v0->size; i++) {
-		if (!strings_seems(&v0->data[i], &v1->data[i])) return false;
-	}
-
-	return true;
-}
-
-//extras
-
-sets_generate_implementation(string, string_set, strings_hasherize, strings_free)
-
-//maps
-
-maps_generate_implementation(string, string, string_key_pair, string_map, strings_hasherize, strings_free, strings_free)
+maps_generate_implementation(
+	string, 
+	string, 
+	string_key_pair, 
+	string_map, 
+	strings_check_extra, 
+	strings_check_extra, 
+	strings_hasherize, 
+	strings_free, 
+	strings_free)
 
 bool string_maps_make_push(string_map **self, const char *key, const char *value, const allocator *mem) {
 	string skey = strings_make(key, mem);

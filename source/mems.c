@@ -1,6 +1,29 @@
 #include "mems.h"
 #include "utils.h"
 
+/* allocators */
+
+bool allocators_check(const allocator *self) {
+	#if cels_debug
+		if (errors_check("allocators_check.self", self == NULL)) return true;
+
+		if (self->type == allocators_group_type) {
+			if (errors_check("allocators_check.self.storage", self->storage == NULL)) {
+				return true;
+			}
+		}
+	#else
+		if (self == NULL) return true;
+		if (self->type == allocators_group_type) {
+			if (self->storage == NULL) return true;
+		} 
+	#endif
+
+    return false;
+}
+
+/* arenas */
+
 typedef struct fat_pointer {
 	void *position;
 	size_t size;
@@ -14,7 +37,21 @@ typedef struct arena {
 	struct arena *next;
 } arena;
 
-//
+bool arenas_check(const arena *self) {
+	#if cels_debug
+		if (errors_check(utils_fcat(".self"), self == null)) return true;
+		if (errors_check(utils_fcat(".self.data"), self->data == null)) return true;
+
+		bool is_bigger = self->capacity > self->size;
+		if (errors_check(utils_fcat(".self.capacity > self.size"), is_bigger)) return true;
+	#else
+		if (self == null) return true;
+		if (self->data == null) return true;
+		if (self->capacity > self->size) return true;
+	#endif
+
+    return false;
+}
 
 void *arenas_init_private(size_t capacity) {
 	arena a = { .capacity=capacity, .data=malloc(capacity), .next=null };
@@ -28,7 +65,9 @@ void *arenas_init_private(size_t capacity) {
 }
 
 void *arenas_allocate_private(arena *self, size_t size) {
-	//TODO: checks
+	#ifdef cels_debug
+		errors_panic(utils_fcat(".self"), arenas_check(self));
+	#endif
 
 	if (size == 0) { return null; }
 
@@ -70,10 +109,10 @@ void *arenas_allocate_private(arena *self, size_t size) {
 }
 
 bool arenas_deallocate_private(arena *self, void *block, size_t block_size) {
-	if (!block) {
-		return true;
-	}
-
+	#ifdef cels_debug
+		errors_panic(utils_fcat(".self"), arenas_check(self));
+		errors_panic(utils_fcat(".block"), block == null);
+	#endif
 
 	bool found_block = false;
 	arena *blockin = self;
@@ -89,7 +128,6 @@ bool arenas_deallocate_private(arena *self, void *block, size_t block_size) {
 	if (!found_block) {
 		return true;
 	}
-
 
 	bool is_last = (char *)block + block_size == (char *)blockin->data + blockin->size;
 
@@ -126,10 +164,13 @@ bool arenas_deallocate_private(arena *self, void *block, size_t block_size) {
 	return true;
 }
 
-void *arenas_reallocate_private(arena *self, void *block, size_t prev_block_size, size_t new_block_size) {
-	if (!block) {
-		return arenas_allocate_private(self, new_block_size);
-	}
+void *arenas_reallocate_private(
+	arena *self, void *block, size_t prev_block_size, size_t new_block_size
+) {
+	#ifdef cels_debug
+		errors_panic(utils_fcat(".self"), arenas_check(self));
+		errors_panic(utils_fcat(".block"), block == null);
+	#endif
 
 	bool found_block = false;
 	arena *blockin = self;
@@ -159,7 +200,6 @@ void *arenas_reallocate_private(arena *self, void *block, size_t prev_block_size
 		blockin->size -= prev_block_size;
 	} else if (!is_last){
 		arenas_deallocate_private(blockin, block, prev_block_size);
-
 
 		bool may_fit_all = rest >= new_block_size;
 		if (may_fit_all) {
@@ -202,6 +242,10 @@ void *arenas_reallocate_private(arena *self, void *block, size_t prev_block_size
 }
 
 void arenas_debug_private(arena *self) {
+	#ifdef cels_debug
+		errors_panic(utils_fcat(".self"), arenas_check(self));
+	#endif
+
 	arena *next = self;
 
 	while ((next)) {
@@ -219,6 +263,10 @@ void arenas_debug_private(arena *self) {
 }
 
 void arenas_free_private(arena *self) {
+	#ifdef cels_debug
+		errors_panic(utils_fcat(".self"), arenas_check(self));
+	#endif
+
 	arena *next = self->next;
 	
 	free(self->data);
@@ -247,7 +295,7 @@ allocator arenas_init(size_t capacity) {
 	};
 }
 
-//
+/* stack_arenas */
 
 typedef struct stack_arena {
 	size_t size;
@@ -255,6 +303,8 @@ typedef struct stack_arena {
 	fat_pointer hole;
 	void *data;
 } stack_arena;
+
+/* TODO stack_arena_checks */
 
 void *stack_arenas_allocate_private(stack_arena *self, size_t size) {
 	if (size > self->capacity) { 
@@ -344,7 +394,9 @@ bool stack_arenas_deallocate_private(stack_arena *self, void *block, size_t bloc
 	return true;
 }
 
-void *stack_arenas_reallocate_private(stack_arena *self, void *block, size_t prev_block_size, size_t new_block_size) {
+void *stack_arenas_reallocate_private(
+	stack_arena *self, void *block, size_t prev_block_size, size_t new_block_size
+) {
 	if (block == null) {
 		return stack_arenas_allocate_private(self, new_block_size);
 	}
@@ -389,7 +441,7 @@ void stack_arenas_debug_private(stack_arena *self) {
 	printf("\n");
 }
 
-void stack_arenas_free_private(unused stack_arena *self) {
+void stack_arenas_free_private(stack_arena *self) {
 	free(self);
 }
 
@@ -410,7 +462,7 @@ allocator stack_arenas_make(size_t capacity, char *buffer) {
 	};
 }
 
-//
+/* allocs */
 
 void *allocs_allocate_private(size_t size) {
 	return malloc(size);
@@ -424,8 +476,8 @@ void allocs_free_private(void *data) {
 	free(data);
 }
 
-simple_allocator allocs_init(void) {
-	return (simple_allocator) {
+alloc allocs_init(void) {
+	return (alloc) {
 		.type=allocators_individual_type,
 		.alloc=(mallocfunc)allocs_allocate_private,
 		.realloc=(allocfunc)allocs_reallocate_private,
@@ -433,13 +485,13 @@ simple_allocator allocs_init(void) {
 	};
 }
 
-//
+/* mems */
 
 void *mems_alloc(const allocator *mem, size_t len) {
 	if (!mem) { return malloc(len); } 
 
 	if (mem->type == allocators_individual_type) {
-		return ((simple_allocator *)mem)->alloc(len);
+		return ((alloc *)mem)->alloc(len);
 	} else if (mem->type == allocators_group_type) {
 		return mem->alloc(mem->storage, len);
 	}
@@ -451,7 +503,7 @@ void *mems_realloc(const allocator *mem, void *data, size_t old_size, size_t new
 	if (!mem) { return realloc(data, new_size); } 
 
 	if (mem->type == allocators_individual_type) {
-		return ((simple_allocator *)mem)->realloc(data, new_size);
+		return ((alloc *)mem)->realloc(data, new_size);
 	} else if (mem->type == allocators_group_type) {
 		return mem->realloc(mem->storage, data, old_size, new_size);
 	}
@@ -466,7 +518,7 @@ bool mems_dealloc(const allocator *mem, void *data, size_t block_size) {
 	} 
 
 	if (mem->type == allocators_individual_type) {
-		((simple_allocator *)mem)->free(data);
+		((alloc *)mem)->free(data);
 		return true;
 	} else if (mem->type == allocators_group_type) {
 		return mem->dealloc(mem->storage, data, block_size);
@@ -479,8 +531,9 @@ void mems_free(const allocator *mem, void *data) {
 	if (!mem) { free(data); } 
 
 	if (mem->type == allocators_individual_type) {
-		((simple_allocator *)mem)->free(data);
+		((alloc *)mem)->free(data);
 	} else if (mem->type == allocators_group_type) {
 		mem->free(mem->storage);
 	}
 }
+

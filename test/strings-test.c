@@ -482,7 +482,6 @@ error_report string_maps_test_get_and_push() {
 	bool is_valid = name != null;
 	if (is_valid) { 
 		is_valid = strings_equals(name, &namepredict); 
-		printf("name: %s\n", name->data);
 	}
 
 	stat += errors_assert("string_maps_get(json, \"name\") == \"angelus\"", is_valid);
@@ -492,7 +491,6 @@ error_report string_maps_test_get_and_push() {
 
 	size_t name_freq = string_maps_get_frequency(json, key);
 	is_valid = name_freq == 2; 
-	printf("freq: %zu\n", name_freq);
 
 	stat += errors_assert("string_maps_push(json, \"name\", \"angelus\").frequency == 2", is_valid);
 	total++;

@@ -4,9 +4,9 @@
 
 #include "../source/nodes.h"
 #include "../source/utils.h"
+#include "../source/vectors.h"
 #include "../source/benchs.h"
 
-void defaults_free(unused void *a, unused const allocator *mem) { }
 size_t ints_hasherize(int *a) { return *a; }
 void *ints_free(int *self, const allocator *mem) {
 	mems_dealloc(mem, self, sizeof(int));
@@ -14,7 +14,7 @@ void *ints_free(int *self, const allocator *mem) {
 }
 
 sets_generate_definition(int, int_set)
-sets_generate_implementation(int, int_set, ints_hasherize, defaults_free)
+sets_generate_implementation(int, int_set, defaults_check, ints_hasherize, defaults_free)
 
 clock_t sets_bench(size_t size) {
 	clock_t start = clock();
