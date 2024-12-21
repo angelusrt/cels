@@ -116,8 +116,8 @@ typedef vectors(void *) vector;
 	\
 	bool name##s_push(name *self, type item, const allocator *mem) { \
 		if (cels_debug) { \
-			errors_panic(utils_fcat(".self"), vectors_check((const vector *)self)); \
-			errors_panic(utils_fcat(".item"), check0(&item)); \
+			errors_panic(#name"s_push.self", vectors_check((const vector *)self)); \
+			errors_panic(#name"s_push.item", check0(&item)); \
 		} \
 		\
 		self->size++; \
@@ -144,7 +144,7 @@ typedef vectors(void *) vector;
 	\
 	void name##s_free(name *self, const allocator *mem) { \
 		if (cels_debug) { \
-			errors_panic(utils_fcat(".self"), vectors_check((const vector *)self)); \
+			errors_panic(#name"s_free.self", vectors_check((const vector *)self)); \
 		} \
 		\
 		if (self->data != null) { \
@@ -159,7 +159,7 @@ typedef vectors(void *) vector;
 	\
 	void name##s_sort(name *self, compfunc compare) {\
 		if (cels_debug) { \
-			errors_panic(utils_fcat(".self"), vectors_check((const vector *)self)); \
+			errors_panic(#name"s_sort.self", vectors_check((const vector *)self)); \
 		} \
 		\
 		for (size_t i = self->size; i > 0; i--) { \
@@ -174,7 +174,7 @@ typedef vectors(void *) vector;
 	\
 	void name##s_debug(const name *self) { \
 		if (cels_debug) { \
-			errors_panic(utils_fcat(".self"), vectors_check((const vector *)self)); \
+			errors_panic(#name"s_debug.self", vectors_check((const vector *)self)); \
 		} \
 		\
 		printf( \
@@ -184,7 +184,7 @@ typedef vectors(void *) vector;
 	\
 	void name##s_print(const name *self) { \
 		if (cels_debug) { \
-			errors_panic(utils_fcat(".self"), vectors_check((const vector *)self)); \
+			errors_panic(#name"s_print.self", vectors_check((const vector *)self)); \
 		} \
 		\
 		for (size_t i = 0; i < self->size; i++) { \
@@ -194,8 +194,8 @@ typedef vectors(void *) vector;
 	\
 	bool name##s_equals(const name *v0, const name *v1) { \
 		if (cels_debug) { \
-			errors_panic(utils_fcat(".v0"), vectors_check((const vector *)v0)); \
-			errors_panic(utils_fcat(".v1"), vectors_check((const vector *)v1)); \
+			errors_panic(#name"s_equals.v0", vectors_check((const vector *)v0)); \
+			errors_panic(#name"s_equals.v1", vectors_check((const vector *)v1)); \
 		} \
 		\
 		if (v0->size != v1->size) { return false; } \
@@ -210,8 +210,8 @@ typedef vectors(void *) vector;
 	\
 	bool name##s_seems(const name *v0, const name *v1) { \
 		if (cels_debug) { \
-			errors_panic(utils_fcat(".v0"), vectors_check((const vector *)v0)); \
-			errors_panic(utils_fcat(".v1"), vectors_check((const vector *)v1)); \
+			errors_panic(#name"s_seems.v0", vectors_check((const vector *)v0)); \
+			errors_panic(#name"s_seems.v1", vectors_check((const vector *)v1)); \
 		} \
 		\
 		if (v0->size != v1->size) { return false; } \
@@ -226,8 +226,8 @@ typedef vectors(void *) vector;
 	\
 	ssize_t name##s_find(const name *self, type item) { \
 		if (cels_debug) { \
-			errors_panic(utils_fcat(".self"), vectors_check((const vector *)self)); \
-			errors_panic(utils_fcat(".item"), check0(&item)); \
+			errors_panic(#name"s_find.self", vectors_check((const vector *)self)); \
+			errors_panic(#name"s_find.item", check0(&item)); \
 		} \
 		\
 		for (size_t i = 0; i < self->size; i++) { \
@@ -241,8 +241,8 @@ typedef vectors(void *) vector;
 	\
 	ssize_t name##s_search(const name *self, type item) { \
 		if (cels_debug) { \
-			errors_panic(utils_fcat(".self"), vectors_check((const vector *)self)); \
-			errors_panic(utils_fcat(".item"), check0(&item)); \
+			errors_panic(#name"s_search.self", vectors_check((const vector *)self)); \
+			errors_panic(#name"s_search.item", check0(&item)); \
 		} \
 		\
 		for (size_t i = 0; i < self->size; i++) { \
@@ -293,6 +293,13 @@ typedef vectors(void *) vector;
  */
 __attribute_warn_unused_result__
 bool vectors_check(const vector *self);
+
+/*
+ * Print's a debug-friendly message of vector's struct. 
+ *
+ * #to-review
+ */
+void vectors_debug(const vector *self);
 
 /* definitions */
 

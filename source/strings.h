@@ -86,6 +86,8 @@ vectors_generate_definition(string, string_vec)
 #define strings_premake(lit) \
 	{.data=lit, .size=sizeof(lit), .capacity=sizeof(lit)}
 
+//#define s(lit) strings_premake(lit)
+
 /* 
  * Checks if string was properly initialized 
  * returning true if something illegal happened.

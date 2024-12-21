@@ -5,6 +5,7 @@
 #include <stddef.h>
 #include "utils.h"
 #include "mems.h"
+#include "errors.h"
 
 //
 
@@ -128,10 +129,16 @@ size_t bnodes_length(bnode *self);
 
 #define sets(type, name) bnodes(type, name) 
 
+/*
+ * A macro-template code-generator to create 
+ * set's functions for a certain type.
+ *
+ * #to-review
+ */
 #define sets_generate_implementation(type, name, check0, hasher, cleanup) \
 	void name##s_free_private(name *self, const allocator *mem) { \
 		if (cels_debug) { \
-			errors_panic(utils_fcat(".self"), bnodes_check((const bnode *)self)); \
+			errors_panic(#name"s_free_private.self", bnodes_check((const bnode *)self)); \
 		} \
 		\
 		cleanup(&self->data, mem); \
@@ -152,7 +159,7 @@ size_t bnodes_length(bnode *self);
 	\
 	bool name##s_push(name **self, type item, const allocator *mem) { \
 		if (cels_debug) { \
-			errors_panic(utils_fcat(".item"), check0(&item)); \
+			errors_panic(#name"s_push.item", check0(&item)); \
 		} \
 		\
 		name *new_bnode = null; \
@@ -166,8 +173,8 @@ size_t bnodes_length(bnode *self);
 	\
 	type *name##s_get(const name *self, type item) { \
 		if (cels_debug) { \
-			errors_panic(utils_fcat(".self"), bnodes_check((const bnode *)self)); \
-			errors_panic(utils_fcat(".item"), check0(&item)); \
+			errors_panic(#name"s_get.self", bnodes_check((const bnode *)self)); \
+			errors_panic(#name"s_get.item", check0(&item)); \
 		} \
 		\
 		return (type *)bnodes_get_data((bnode *)self, hasher(&item)); \
@@ -175,7 +182,7 @@ size_t bnodes_length(bnode *self);
 	\
 	void name##s_traverse(name *self, callfunc callback) { \
 		if (cels_debug) { \
-			errors_panic(utils_fcat(".self"), bnodes_check((const bnode *)self)); \
+			errors_panic(#name"s_traverse.self", bnodes_check((const bnode *)self)); \
 		} \
 		\
 		bnodes_traverse((bnode *)self, callback); \
@@ -183,12 +190,18 @@ size_t bnodes_length(bnode *self);
 	\
 	void name##s_free(name *self, const allocator *mem) { \
 		if (cels_debug) { \
-			errors_panic(utils_fcat(".self"), bnodes_check((const bnode *)self)); \
+			errors_panic(#name"s_free.self", bnodes_check((const bnode *)self)); \
 		} \
 		\
 		name##s_free_all_private(self, mem, 0); \
 	}
 
+/*
+ * A macro-template code-generator to create 
+ * set's definitions for a certain type.
+ *
+ * #to-review
+ */
 #define sets_generate_definition(type, name) \
 	typedef struct name name; \
 	typedef bnodes(type, name) name; \
@@ -211,12 +224,18 @@ size_t bnodes_length(bnode *self);
 
 #define maps(type, name) bnodes(type, name) 
 
+/*
+ * A macro-template code-generator to create 
+ * set's functions for a certain type.
+ *
+ * #to-review
+ */
 #define maps_generate_implementation( \
 	type0, type1, type2, name, check0, check1, hasher0, cleanup0, cleanup1 \
 ) \
 	void name##s_free_private(name *self, const allocator *mem) { \
 		if (cels_debug) { \
-			errors_panic(utils_fcat(".self"), bnodes_check((const bnode *)self)); \
+			errors_panic(#name"s_free_private.self", bnodes_check((const bnode *)self)); \
 		} \
 		\
 		cleanup0(&self->data.key, mem); \
@@ -238,8 +257,8 @@ size_t bnodes_length(bnode *self);
 	\
 	bool name##s_push(name **self, type0 key, type1 value, const allocator *mem) { \
 		if (cels_debug) { \
-			errors_panic(utils_fcat(".key"), check0(&key)); \
-			errors_panic(utils_fcat(".value"), check1(&value)); \
+			errors_panic(#name"s_push.key", check0(&key)); \
+			errors_panic(#name"s_push.value", check1(&value)); \
 		} \
 		\
 		type2 item = {.key=key, .value=value}; \
@@ -254,8 +273,8 @@ size_t bnodes_length(bnode *self);
 	\
 	type1 *name##s_get(const name *self, type0 item) { \
 		if (cels_debug) { \
-			errors_panic(utils_fcat(".self"), bnodes_check((const bnode *)self)); \
-			errors_panic(utils_fcat(".item"), check0(&item)); \
+			errors_panic(#name"s_get.self", bnodes_check((const bnode *)self)); \
+			errors_panic(#name"s_get.item", check0(&item)); \
 		} \
 		\
 		type2 *temp = bnodes_get_data((bnode *)self, hasher0(&item)); \
@@ -267,8 +286,8 @@ size_t bnodes_length(bnode *self);
 	\
 	size_t name##s_get_frequency(name *self, type0 item) { \
 		if (cels_debug) { \
-			errors_panic(utils_fcat(".self"), bnodes_check((const bnode *)self)); \
-			errors_panic(utils_fcat(".item"), check0(&item)); \
+			errors_panic(#name"s_get_frequency.self", bnodes_check((const bnode *)self)); \
+			errors_panic(#name"s_get_frequency.item", check0(&item)); \
 		} \
 		\
 		return bnodes_get_frequency((bnode *)self, hasher0(&item)); \
@@ -276,7 +295,7 @@ size_t bnodes_length(bnode *self);
 	\
 	void name##s_traverse(name *self, callfunc callback) { \
 		if (cels_debug) { \
-			errors_panic(utils_fcat(".self"), bnodes_check((const bnode *)self)); \
+			errors_panic(#name"s_traverse.self", bnodes_check((const bnode *)self)); \
 		} \
 		\
 		bnodes_traverse((bnode *)self, callback); \
@@ -284,12 +303,18 @@ size_t bnodes_length(bnode *self);
 	\
 	void name##s_free(name *self, const allocator *mem) { \
 		if (cels_debug) { \
-			errors_panic(utils_fcat(".self"), bnodes_check((const bnode *)self)); \
+			errors_panic(#name"s_free.self", bnodes_check((const bnode *)self)); \
 		} \
 		\
 		name##s_free_all_private(self, mem, 0); \
 	}
 
+/*
+ * A macro-template code-generator to create 
+ * set's definitions for a certain type.
+ *
+ * #to-review
+ */
 #define maps_generate_definition(type0, type1, type2, name) \
 	typedef key_pairs(type0, type1) type2; \
 	typedef struct name name; \

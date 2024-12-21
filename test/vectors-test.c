@@ -3,7 +3,9 @@
 #include "../source/utils.h"
 
 error_report vectors_test_init_and_check() {
-	printf("vectors_test_init_and_check\n");
+	printf(__func__);
+	printf("\n");
+
 	size_t stat = 0, total = 0;
 
 	size_vec v0 = size_vecs_init(vectors_min, null);
@@ -21,7 +23,9 @@ error_report vectors_test_init_and_check() {
 }
 
 error_report vectors_test_push_and_free() {
-	printf("vectors_test_push_and_free\n");
+	printf(__func__);
+	printf("\n");
+
 	size_t stat = 0, total = 0;
 
 	size_vec v0 = size_vecs_init(vectors_min, null);
@@ -40,7 +44,9 @@ error_report vectors_test_push_and_free() {
 bool _size_compare(size_t *i0, size_t *i1) { return *i0 > *i1; }
 
 error_report vectors_test_premake_and_sort() {
-	printf("vectors_test_sort\n");
+	printf(__func__);
+	printf("\n");
+
 	size_t stat = 0, total = 0;
 
 	size_vec v0 = vectors_premake(size_t, 4, 4, 3, 2, 1);
@@ -55,7 +61,9 @@ error_report vectors_test_premake_and_sort() {
 }
 
 error_report vectors_test_equals() {
-	printf("vectors_test_sort\n");
+	printf(__func__);
+	printf("\n");
+
 	size_t stat = 0, total = 0;
 
 	size_vec v0 = vectors_premake(size_t, 2, 4, 3);
@@ -73,7 +81,9 @@ error_report vectors_test_equals() {
 }
 
 error_report vectors_test_find() {
-	printf("vectors_test_find\n");
+	printf(__func__);
+	printf("\n");
+
 	size_t stat = 0, total = 0;
 
 	size_vec v0 = vectors_premake(size_t, 4, 4, 3, 1, 9);

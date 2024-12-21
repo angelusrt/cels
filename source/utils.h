@@ -19,24 +19,19 @@ typedef error_report (*reportfunc)(void);
 typedef void (*printvecfunc)(void *, void *);
 typedef clock_t (*benchfunc) (size_t);
 
+#define unused __attribute__((unused))
+
+#define null NULL
+
+/* functor */
+
 typedef struct functor {
 	callfunc func;
 	void *params;
 } functor;
 
-#define unused __attribute_maybe_unused__
-
-#define null NULL
-
 __attribute_warn_unused_result__
 bool functors_check(const functor *f);
-
-__attribute_warn_unused_result__
-bool size_equals(const size_t *a, const size_t *b, const size_t *i);
-
-#define utils_cat(a, b) (#a b)
-
-#define utils_fcat(a) utils_cat(__func__, a)
 
 /* maths */
 

@@ -14,7 +14,6 @@ bool error_reports_check(const error_report *report) {
 	return false;
 }
 
-//returns true if assert was successfull otherwise false
 bool errors_assert(const char *message, bool statement){
 	if (!statement) {
 		printf(colors_error("'%s' failed!"), message);

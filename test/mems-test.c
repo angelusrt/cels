@@ -5,7 +5,9 @@
 
 __attribute_warn_unused_result__
 error_report arenas_test_init(void) {
-	printf("arenas_test_init\n");
+	printf(__func__);
+	printf("\n");
+
 	size_t stat = 0, total = 0;
 
 	allocator mem = arenas_init(2048);
@@ -25,7 +27,8 @@ error_report arenas_test_init(void) {
 
 void mems_test(void) {
 	printf("=======\n");
-	printf("mems\n");
+	printf(__func__);
+	printf("\n");
 	printf("=======\n\n");
 
 	error_report rep;

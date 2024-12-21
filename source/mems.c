@@ -39,11 +39,11 @@ typedef struct arena {
 
 bool arenas_check(const arena *self) {
 	#if cels_debug
-		if (errors_check(utils_fcat(".self"), self == null)) return true;
-		if (errors_check(utils_fcat(".self.data"), self->data == null)) return true;
+		if (errors_check("arenas_check.self", self == null)) return true;
+		if (errors_check("arenas_check.self.data", self->data == null)) return true;
 
 		bool is_bigger = self->capacity > self->size;
-		if (errors_check(utils_fcat(".self.capacity > self.size"), is_bigger)) return true;
+		if (errors_check("arenas_check.(self.capacity > self.size)", is_bigger)) return true;
 	#else
 		if (self == null) return true;
 		if (self->data == null) return true;
@@ -65,8 +65,8 @@ void *arenas_init_private(size_t capacity) {
 }
 
 void *arenas_allocate_private(arena *self, size_t size) {
-	#ifdef cels_debug
-		errors_panic(utils_fcat(".self"), arenas_check(self));
+	#if cels_debug
+		errors_panic("arenas_allocate_private.self", arenas_check(self));
 	#endif
 
 	if (size == 0) { return null; }
@@ -109,9 +109,9 @@ void *arenas_allocate_private(arena *self, size_t size) {
 }
 
 bool arenas_deallocate_private(arena *self, void *block, size_t block_size) {
-	#ifdef cels_debug
-		errors_panic(utils_fcat(".self"), arenas_check(self));
-		errors_panic(utils_fcat(".block"), block == null);
+	#if cels_debug
+		errors_panic("arenas_deallocate_private.self", arenas_check(self));
+		errors_panic("arenas_deallocate_private.block", block == null);
 	#endif
 
 	bool found_block = false;
@@ -167,9 +167,9 @@ bool arenas_deallocate_private(arena *self, void *block, size_t block_size) {
 void *arenas_reallocate_private(
 	arena *self, void *block, size_t prev_block_size, size_t new_block_size
 ) {
-	#ifdef cels_debug
-		errors_panic(utils_fcat(".self"), arenas_check(self));
-		errors_panic(utils_fcat(".block"), block == null);
+	#if cels_debug
+		errors_panic("arenas_reallocate_private.self", arenas_check(self));
+		errors_panic("arenas_reallocate_private.block", block == null);
 	#endif
 
 	bool found_block = false;
@@ -242,8 +242,8 @@ void *arenas_reallocate_private(
 }
 
 void arenas_debug_private(arena *self) {
-	#ifdef cels_debug
-		errors_panic(utils_fcat(".self"), arenas_check(self));
+	#if cels_debug
+		errors_panic("arenas_debug_private.self", arenas_check(self));
 	#endif
 
 	arena *next = self;
@@ -252,7 +252,7 @@ void arenas_debug_private(arena *self) {
 		char *data = next->data;
 
 		for (size_t i = 0; i < next->size; i++) {
-			printf("%d ", data[i]);
+			printf("%c ", data[i]);
 		}
 		printf("\n");
 
@@ -263,8 +263,8 @@ void arenas_debug_private(arena *self) {
 }
 
 void arenas_free_private(arena *self) {
-	#ifdef cels_debug
-		errors_panic(utils_fcat(".self"), arenas_check(self));
+	#if cels_debug
+		errors_panic("arenas_free_private.self", arenas_check(self));
 	#endif
 
 	arena *next = self->next;
@@ -435,7 +435,11 @@ void stack_arenas_debug_private(stack_arena *self) {
 	char *data = self->data;
 
 	for (size_t i = 0; i < self->size; i++) {
-		printf("%d ", data[i]);
+		if (data[i] >= 20 && data[i] <= 126) {
+			printf("%c ", data[i]);
+		} else {
+			printf("%d ", data[i]);
+		}
 	}
 
 	printf("\n");
@@ -477,12 +481,14 @@ void allocs_free_private(void *data) {
 }
 
 alloc allocs_init(void) {
-	return (alloc) {
+	static alloc alloc_private = {
 		.type=allocators_individual_type,
 		.alloc=(mallocfunc)allocs_allocate_private,
 		.realloc=(allocfunc)allocs_reallocate_private,
 		.free=(cleanfunc)allocs_free_private,
 	};
+
+	return alloc_private;
 }
 
 /* mems */

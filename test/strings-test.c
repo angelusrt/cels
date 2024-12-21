@@ -3,7 +3,9 @@
 
 __attribute_warn_unused_result__
 error_report strings_test_init_and_push() {
-	printf("strings_test_init_and_push\n");
+	printf(__func__);
+	printf("\n");
+
 	size_t stat = 0, total = 0;
 
 	string text = strings_init(vectors_min, null);
@@ -21,7 +23,9 @@ error_report strings_test_init_and_push() {
 
 __attribute_warn_unused_result__
 error_report strings_test_premake_and_check() {
-	printf("strings_test_premake_and_check\n");
+	printf(__func__);
+	printf("\n");
+
 	size_t stat = 0, total = 0;
 
 	string a = {0};
@@ -41,7 +45,9 @@ error_report strings_test_premake_and_check() {
 
 __attribute_warn_unused_result__
 error_report strings_test_check_extra() {
-	printf("strings_test_check_extra\n");
+	printf(__func__);
+	printf("\n");
+
 	size_t stat = 0, total = 0;
 
 	string a = {0};
@@ -61,7 +67,9 @@ error_report strings_test_check_extra() {
 
 __attribute_warn_unused_result__
 error_report strings_test_check_charset() {
-	printf("strings_test_check_charset\n");
+	printf(__func__);
+	printf("\n");
+
 	size_t stat = 0, total = 0;
 
 	string text = strings_premake("exemplo");
@@ -91,7 +99,9 @@ error_report strings_test_check_charset() {
 
 __attribute_warn_unused_result__
 error_report strings_test_make_and_free() {
-	printf("strings_test_make\n");
+	printf(__func__);
+	printf("\n");
+
 	size_t stat = 0, total = 0;
 
 	string textlit = strings_premake("texto");
@@ -110,7 +120,9 @@ error_report strings_test_make_and_free() {
 }
 
 error_report strings_test_compare() {
-	printf("strings_test_compare\n");
+	printf(__func__);
+	printf("\n");
+
 	size_t stat = 0, total = 0;
 
 	string text0 = strings_premake("caro");
@@ -138,7 +150,9 @@ error_report strings_test_compare() {
 }
 
 error_report strings_test_equals() {
-	printf("strings_test_equals\n");
+	printf(__func__);
+	printf("\n");
+
 	size_t stat = 0, total = 0;
 
 	string text0 = strings_premake("caro");
@@ -166,7 +180,9 @@ error_report strings_test_equals() {
 }
 
 error_report strings_test_seems() {
-	printf("strings_test_seems\n");
+	printf(__func__);
+	printf("\n");
+
 	size_t stat = 0, total = 0;
 
 	string text0 = strings_premake("caro");
@@ -194,7 +210,9 @@ error_report strings_test_seems() {
 }
 
 error_report strings_test_find() {
-	printf("strings_test_find\n");
+	printf(__func__);
+	printf("\n");
+
 	size_t stat = 0, total = 0;
 
 	string text0 = strings_premake("Um 'um'");
@@ -219,7 +237,9 @@ error_report strings_test_find() {
 bool _sizes_equals(size_t *s0, size_t *s1) { return &s0 == &s1; }
 
 error_report strings_test_make_find() {
-	printf("strings_test_make_find\n");
+	printf(__func__);
+	printf("\n");
+
 	size_t stat = 0, total = 0;
 
 	string text0 = strings_premake("Um 'um' mais do que um.");
@@ -253,7 +273,9 @@ error_report strings_test_make_find() {
 }
 
 error_report strings_test_replace() {
-	printf("strings_test_replace\n");
+	printf(__func__);
+	printf("\n");
+
 	size_t stat = 0, total = 0;
 
 	string charset0 = strings_premake("an");
@@ -284,7 +306,9 @@ error_report strings_test_replace() {
 }
 
 error_report strings_test_make_replace() {
-	printf("strings_test_make_replace\n");
+	printf(__func__);
+	printf("\n");
+
 	size_t stat = 0, total = 0;
 
 	string text0 = strings_premake("o bão bom.");
@@ -329,7 +353,9 @@ error_report strings_test_make_replace() {
 }
 
 error_report strings_test_make_split() {
-	printf("strings_test_make_split\n");
+	printf(__func__);
+	printf("\n");
+
 	size_t stat = 0, total = 0;
 
 	string text0 = strings_premake("aumbumcumd");
@@ -368,7 +394,9 @@ error_report strings_test_make_split() {
 }
 
 error_report strings_test_make_format() {
-	printf("strings_test_make_format\n");
+	printf(__func__);
+	printf("\n");
+
 	size_t stat = 0, total = 0;
 
 	string json = strings_make_format("{\"age\": %d}", null, 10);
@@ -383,7 +411,9 @@ error_report strings_test_make_format() {
 }
 
 error_report strings_test_hasherize() {
-	printf("strings_test_hasherize\n");
+	printf(__func__);
+	printf("\n");
+
 	size_t stat = 0, total = 0;
 
 	size_t hash = strings_hasherize(&(string)strings_premake("idea"));
@@ -394,7 +424,9 @@ error_report strings_test_hasherize() {
 }
 
 error_report strings_test_lower_and_upper() {
-	printf("strings_test_lower_and_upper\n");
+	printf(__func__);
+	printf("\n");
+
 	size_t stat = 0, total = 0;
 
 	string text = strings_make("eXeMpLo", null);
@@ -416,7 +448,9 @@ error_report strings_test_lower_and_upper() {
 }
 
 error_report strings_test_next() {
-	printf("strings_test_next\n");
+	printf(__func__);
+	printf("\n");
+
 	size_t stat = 0, total = 0;
 
 	string text0 = strings_premake("a, b, c");
@@ -467,7 +501,9 @@ void string_maps_print(string_map *self) {
 }
 
 error_report string_maps_test_get_and_push() {
-	printf("string_maps_test_get_and_push\n");
+	printf(__func__);
+	printf("\n");
+
 	size_t stat = 0, total = 0;
 
 	string_map *json = null;

@@ -2,10 +2,10 @@
 
 bool bnodes_check(const bnode *self) {
 	#if cels_debug
-		if (errors_panic(utils_fcat(".self"), self == null)) return true;
+		if (errors_check("bnodes_check.self", self == null)) return true;
 
 		bool is_color_out_of_range = self->color > bnodes_black_color;
-		if (errors_panic(utils_fcat(".self.color"), is_color_out_of_range) return true;
+		if (errors_check("bnodes_check.self.color", is_color_out_of_range)) return true;
 	#else
 		if (self == null) return true;
 		if (self->color > bnodes_black_color) return true;
@@ -16,8 +16,8 @@ bool bnodes_check(const bnode *self) {
 
 void bnodes_right_rotate_private(unused bnode *self, bnode *new_node) {
 	#if cels_debug
-		errors_panic(utils_fcat(".self"), bnodes_check(self));
-		errors_panic(utils_fcat(".new_node"), bnodes_check(new_node));
+		errors_panic("bnodes_right_rotate_private.self", bnodes_check(self));
+		errors_panic("bnodes_right_rotate_private.new_node", bnodes_check(new_node));
 	#endif
 
     bnode* left = new_node->left;
@@ -42,8 +42,8 @@ void bnodes_right_rotate_private(unused bnode *self, bnode *new_node) {
  
 void bnodes_left_rotate_private(unused bnode *self, bnode *new_node) {
 	#if cels_debug
-		errors_panic(utils_fcat(".self"), bnodes_check(self));
-		errors_panic(utils_fcat(".new_node"), bnodes_check(new_node));
+		errors_panic("bnodes_left_rotate_private.self", bnodes_check(self));
+		errors_panic("bnodes_left_rotate_private.new_node", bnodes_check(new_node));
 	#endif
 
     bnode* right = new_node->right;
@@ -70,12 +70,12 @@ void bnodes_left_rotate_private(unused bnode *self, bnode *new_node) {
  * This function normalizes the red-black tree 
  * violentions made by insertion by bnodes_push.
  *
- * I've robbed this from gist.github.com/VictorGarritano/5f894be162d39e9bdd5c
+ * I've got this from gist.github.com/VictorGarritano/5f894be162d39e9bdd5c
  */
 void bnodes_normalize_private(bnode *self, bnode *new_node) {
 	#if cels_debug
-		errors_panic(utils_fcat(".self"), bnodes_check(self));
-		errors_panic(utils_fcat(".new_node"), bnodes_check(new_node));
+		errors_panic("bnodes_normalize_private.self", bnodes_check(self));
+		errors_panic("bnodes_normalize_private.new_node", bnodes_check(new_node));
 	#endif
 
 	bool is_new_node_unique =  new_node != self && new_node != self->left && new_node != self->right;
@@ -180,8 +180,8 @@ void bnodes_normalize_private(bnode *self, bnode *new_node) {
 
 bnode* bnodes_push_private(bnode *self, bnode *new_node, bool *error, size_t stackframe) {
 	#if cels_debug
-		errors_panic(utils_fcat(".new_node"), bnodes_check(new_node));
-		errors_panic(utils_fcat(".error"), error == null);
+		errors_panic("bnodes_push_private.new_node", bnodes_check(new_node));
+		errors_panic("bnodes_push_private.error", error == null);
 	#endif
 
     if (self == null) { return new_node; }
@@ -208,7 +208,7 @@ bnode* bnodes_push_private(bnode *self, bnode *new_node, bool *error, size_t sta
 
 bool bnodes_push(bnode **self, bnode *new_node) {
 	#if cels_debug
-		errors_panic(utils_fcat(".new_node"), bnodes_check(new_node));
+		errors_panic("bnodes_push.new_node", bnodes_check(new_node));
 	#endif
 
     if (self == null) { 
@@ -249,7 +249,7 @@ bnode* bnodes_get_private(bnode *self, size_t hash, size_t stackframe) {
 
 bnode *bnodes_get(bnode *self, size_t hash) {
 	#if cels_debug
-		errors_panic(utils_fcat(".self"), bnodes_check(self));
+		errors_panic("bnodes_get.self", bnodes_check(self));
 	#endif
 
 	return bnodes_get_private(self, hash, 0);
@@ -257,7 +257,7 @@ bnode *bnodes_get(bnode *self, size_t hash) {
 
 void *bnodes_get_data(bnode *self, size_t hash) {
 	#if cels_debug
-		errors_panic(utils_fcat(".self"), bnodes_check(self));
+		errors_panic("bnodes_get_data.self", bnodes_check(self));
 	#endif
 
 	bnode *node = bnodes_get_private(self, hash, 0);
@@ -270,7 +270,7 @@ void *bnodes_get_data(bnode *self, size_t hash) {
 
 size_t bnodes_get_frequency(bnode *self, size_t hash) {
 	#if cels_debug
-		errors_panic(utils_fcat(".self"), bnodes_check(self));
+		errors_panic("bnodes_get_frequency.self", bnodes_check(self));
 	#endif
 
 	bnode *node = bnodes_get_private(self, hash, 0);
@@ -294,13 +294,12 @@ void bnodes_traverse_private(bnode *self, callfunc callback, size_t stackframe) 
 
 void bnodes_traverse(bnode *self, callfunc callback) {
 	#if cels_debug
-		errors_panic(utils_fcat(".self"), bnodes_check(self));
+		errors_panic("bnodes_traverse.self", bnodes_check(self));
 	#endif
 
 	bnodes_traverse_private(self, callback, 0);
 }
 
-//TODO: convert to macro
 void bnodes_free_all_private(
 	bnode *self, const allocator *mem, freefunc cleanup, size_t stackframe
 ) {
@@ -318,7 +317,7 @@ void bnodes_free_all_private(
 
 void bnodes_free_all(bnode *self, const allocator *mem, freefunc cleanup) {
 	#if cels_debug
-		errors_panic(utils_fcat(".self"), bnodes_check(self));
+		errors_panic("bnodes_free_all.self", bnodes_check(self));
 	#endif
 
 	bnodes_free_all_private(self, mem, cleanup, 0);
@@ -338,7 +337,7 @@ size_t bnodes_length_private(bnode *self, size_t stackframe) {
 
 size_t bnodes_length(bnode *self) {
 	#if cels_debug
-		errors_panic(utils_fcat(".self"), bnodes_check(self));
+		errors_panic("bnodes_length.self", bnodes_check(self));
 	#endif
 
 	return bnodes_length_private(self, 0);
