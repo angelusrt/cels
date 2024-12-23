@@ -24,7 +24,7 @@
 
 typedef vectors(void *) vector;
 
-#define vectors_min 8
+#define vectors_min 4 
 
 #include "mems.h"
 #include "utils.h"
@@ -108,10 +108,14 @@ typedef vectors(void *) vector;
 	type, name, check0, print0, compare0, compare1, cleanup0 \
 ) \
 	name name##s_init(size_t len, const allocator *mem) { \
-		return (name) { \
+		name self = { \
 			.data=(type *)mems_alloc(mem, sizeof(type) * len), \
 			.capacity=len \
 		}; \
+		\
+		errors_panic(#name"s_init.self.data", self.data == null); \
+		\
+		return self; \
 	} \
 	\
 	bool name##s_push(name *self, type item, const allocator *mem) { \
@@ -130,7 +134,11 @@ typedef vectors(void *) vector;
 				self->capacity * sizeof(type), \
 				new_capacity * sizeof(type)); \
 			\
-			if (new_data == NULL) { \
+			if (cels_debug) { \
+				errors_warn(#name"s_push.new_data", !new_data); \
+			} \
+			\
+			if (!new_data) { \
 				self->size--; \
 				return true; \
 			} \

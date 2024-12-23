@@ -42,12 +42,12 @@ bool arenas_check(const arena *self) {
 		if (errors_check("arenas_check.self", self == null)) return true;
 		if (errors_check("arenas_check.self.data", self->data == null)) return true;
 
-		bool is_bigger = self->capacity > self->size;
-		if (errors_check("arenas_check.(self.capacity > self.size)", is_bigger)) return true;
+		bool is_bigger = self->size > self->capacity;
+		if (errors_check("arenas_check.(self.size > self.capacity)", is_bigger)) return true;
 	#else
 		if (self == null) return true;
 		if (self->data == null) return true;
-		if (self->capacity > self->size) return true;
+		if (self->size > self->capacity) return true;
 	#endif
 
     return false;
@@ -94,6 +94,8 @@ void *arenas_allocate_private(arena *self, size_t size) {
 
 			next->size += size;
 			return old_pos;
+		} else {
+			break;
 		}
 	}
 
@@ -105,7 +107,7 @@ void *arenas_allocate_private(arena *self, size_t size) {
 	}
 
 	next->size += size;
-	return self->next->data;
+	return next->data;
 }
 
 bool arenas_deallocate_private(arena *self, void *block, size_t block_size) {
@@ -175,13 +177,17 @@ void *arenas_reallocate_private(
 	bool found_block = false;
 	arena *blockin = self;
 	while ((blockin)) {
-		if (block > self->data && block < (void *)((char *)self->data + self->size)) {
+		if (block >= self->data && block <= (void *)((char *)self->data + self->capacity)) {
 			found_block = true;
 			break;
 		} 
 
 		blockin = blockin->next;
 	}
+
+	#if cels_debug
+		errors_panic("arenas_reallocate_private.!found_block (block not within)", !found_block);
+	#endif
 
 	if (!found_block) {
 		return null;
@@ -211,19 +217,27 @@ void *arenas_reallocate_private(
 		}
 	} 
 
-	arena *new_block = blockin;
-	while ((new_block)) {
-		bool may_fit_all = (new_block->capacity - new_block->size) >= new_block_size;
+	bool create_new = true;
+	arena *lastblock = block;
+	while (true) {
+		bool may_fit_all = (lastblock->capacity - lastblock->size) >= new_block_size;
 
 		if (may_fit_all) {
+			create_new = false;
+			break;
+		}
+
+		if (lastblock->next) {
+			lastblock = lastblock->next;
+		} else {
 			break;
 		}
 	}
 
-	if (new_block) {
-		void *pos = (char *)new_block->data + new_block->size;
+	if (!create_new) {
+		void *pos = (char *)lastblock->data + lastblock->size;
 		memcpy(pos, block, prev_block_size);
-		new_block->size += new_block_size;
+		lastblock->size += new_block_size;
 
 		return pos;
 	}
@@ -231,14 +245,14 @@ void *arenas_reallocate_private(
 	size_t standard_capacity = blockin->capacity;
 
 	if (new_block_size <= standard_capacity) {
-		new_block = arenas_init_private(standard_capacity);
+		lastblock->next = arenas_init_private(standard_capacity);
 	} else {
 		size_t new_capacity = maths_nearest_two_power(new_block_size);
-		new_block = arenas_init_private(new_capacity);
+		lastblock->next = arenas_init_private(new_capacity);
 	}
 
-	new_block->size += new_block_size;
-	return new_block->data;
+	lastblock->next->size += new_block_size;
+	return lastblock->next->data;
 }
 
 void arenas_debug_private(arena *self) {
@@ -252,7 +266,11 @@ void arenas_debug_private(arena *self) {
 		char *data = next->data;
 
 		for (size_t i = 0; i < next->size; i++) {
-			printf("%c ", data[i]);
+			if (data[i] >= 33 && data[i] <= 126) {
+				printf("%c ", (unsigned char)data[i]);
+			} else {
+				printf("%d ", (unsigned char)data[i]);
+			}
 		}
 		printf("\n");
 
@@ -435,10 +453,10 @@ void stack_arenas_debug_private(stack_arena *self) {
 	char *data = self->data;
 
 	for (size_t i = 0; i < self->size; i++) {
-		if (data[i] >= 20 && data[i] <= 126) {
-			printf("%c ", data[i]);
+		if (data[i] >= 33 && data[i] <= 126) {
+			printf("%c ", (unsigned char)data[i]);
 		} else {
-			printf("%d ", data[i]);
+			printf("%d ", (unsigned char)data[i]);
 		}
 	}
 

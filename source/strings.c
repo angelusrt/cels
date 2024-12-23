@@ -352,7 +352,7 @@ string strings_make_replace(const string *self, const string *text, const string
 	#endif
 
 	long diff_size = - (text->size - 1);
-	if (rep != NULL) {
+	if (rep != null) {
 		#if cels_debug
 			errors_panic("strings_make_replace.rep", strings_check_extra(rep));
 		#endif
@@ -417,7 +417,7 @@ string_vec strings_make_split(const string *self, const string *sep, size_t n, c
 
 		#if cels_debug
 			bool error = string_vecs_push(&sentences, scopy, mem);
-			errors_panic("strings_make_split.vectors_push failed", error);
+			errors_panic("strings_make_split.string_vecs_push failed", error);
 		#else
 			string_vecs_push(&sentences, scopy, mem);
 		#endif
