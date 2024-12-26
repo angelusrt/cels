@@ -135,7 +135,7 @@ size_t bnodes_length(bnode *self);
  *
  * #to-review
  */
-#define sets_generate_implementation(type, name, check0, hasher, cleanup) \
+#define sets_generate_implementation(type, name, check0, print0, hasher, cleanup) \
 	void name##s_free_private(name *self, const allocator *mem) { \
 		if (cels_debug) { \
 			errors_panic(#name"s_free_private.self", bnodes_check((const bnode *)self)); \
@@ -155,6 +155,12 @@ size_t bnodes_length(bnode *self);
 		name##s_free_all_private(left, mem, ++stackframe); \
 		name##s_free_private(self, mem); \
 		name##s_free_all_private(right, mem, ++stackframe); \
+	} \
+	\
+	void *name##s_print_private(const name *self) { \
+		print0(&self->data); \
+		printf("\n"); \
+		return null; \
 	} \
 	\
 	bool name##s_push(name **self, type item, const allocator *mem) { \
@@ -188,6 +194,14 @@ size_t bnodes_length(bnode *self);
 		bnodes_traverse((bnode *)self, callback); \
 	} \
 	\
+	void name##s_print(const name *self) { \
+		if (cels_debug) { \
+			errors_panic(#name"s_print.self", bnodes_check((const bnode *)self)); \
+		} \
+		\
+		bnodes_traverse((bnode *)self, (callfunc)name##s_print_private); \
+	} \
+	\
 	void name##s_free(name *self, const allocator *mem) { \
 		if (cels_debug) { \
 			errors_panic(#name"s_free.self", bnodes_check((const bnode *)self)); \
@@ -213,6 +227,8 @@ size_t bnodes_length(bnode *self);
 	\
 	void name##s_traverse(name *self, callfunc callback); \
 	\
+	void name##s_print(const name *self); \
+	\
 	void name##s_free(name *self, const allocator *mem);
 	
 /* maps */
@@ -231,7 +247,7 @@ size_t bnodes_length(bnode *self);
  * #to-review
  */
 #define maps_generate_implementation( \
-	type0, type1, type2, name, check0, check1, hasher0, cleanup0, cleanup1 \
+	type0, type1, type2, name, check0, check1, print0, print1, hasher0, cleanup0, cleanup1 \
 ) \
 	void name##s_free_private(name *self, const allocator *mem) { \
 		if (cels_debug) { \
@@ -253,6 +269,15 @@ size_t bnodes_length(bnode *self);
 		name##s_free_all_private(left, mem, ++stackframe); \
 		name##s_free_private(self, mem); \
 		name##s_free_all_private(right, mem, ++stackframe); \
+	} \
+	\
+	void *name##s_print_private(const name *self) { \
+		printf("{key: "); \
+		print0(&self->data.key); \
+		printf(", value: "); \
+		print1(&self->data.value); \
+		printf("}\n"); \
+		return null; \
 	} \
 	\
 	bool name##s_push(name **self, type0 key, type1 value, const allocator *mem) { \
@@ -301,6 +326,14 @@ size_t bnodes_length(bnode *self);
 		bnodes_traverse((bnode *)self, callback); \
 	} \
 	\
+	void name##s_print(const name *self) { \
+		if (cels_debug) { \
+			errors_panic(#name"s_print.self", bnodes_check((const bnode *)self)); \
+		} \
+		\
+		bnodes_traverse((bnode *)self, (callfunc)name##s_print_private); \
+	} \
+	\
 	void name##s_free(name *self, const allocator *mem) { \
 		if (cels_debug) { \
 			errors_panic(#name"s_free.self", bnodes_check((const bnode *)self)); \
@@ -329,6 +362,8 @@ size_t bnodes_length(bnode *self);
 	size_t name##s_get_frequency(name *self, type0 item); \
 	\
 	void name##s_traverse(name *self, callfunc callback); \
+	\
+	void name##s_print(const name *self); \
 	\
 	void name##s_free(name *self, const allocator *mem);
 

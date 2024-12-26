@@ -14,6 +14,6 @@
 typedef FILE file;
 
 __attribute_warn_unused_result__
-string_with_error files_read(file *f);
+estring files_read(file *f);
 
 #endif

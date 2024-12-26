@@ -21,10 +21,10 @@ vectors_generate_implementation(
 bool strings_check(const string *self) {
 	#if cels_debug
 		if (errors_check("strings_check.self", vectors_check((const vector *)self))) return true;
-		if (errors_check("strings_check.self.size == 0", self->size == 0)) return true;
+		//if (errors_check("strings_check.self.size == 0", self->size == 0)) return true;
 	#else 
 		if (vectors_check((const vector *)self)) return true;
-		if (self->size == 0) return true;
+		//if (self->size == 0) return true;
 	#endif
 
 	return false;
@@ -485,9 +485,8 @@ string strings_make_format(const char *const form, const allocator *mem, ...) {
 
     size_t buff_size = vsnprintf(NULL, 0, form, args) + 1;
 	size_t new_capacity = buff_size;
-	//size_t new_capacity = maths_nearest_two_power(buff_size);
 
-    char *text = calloc(new_capacity, sizeof(char));
+    char *text = mems_alloc(mem, sizeof(char) * new_capacity);
     errors_panic("strings_make_format.text", text == NULL);
 
     vsnprintf(text, buff_size, form, args2);
@@ -599,6 +598,7 @@ sets_generate_implementation(
 	string, 
 	string_set, 
 	strings_check_extra, 
+	strings_print,
 	strings_hasherize, 
 	strings_free)
 
@@ -611,6 +611,8 @@ maps_generate_implementation(
 	string_map,
 	strings_check_extra,
 	strings_check_extra,
+	strings_print,
+	strings_print,
 	strings_hasherize,
 	strings_free,
 	strings_free)

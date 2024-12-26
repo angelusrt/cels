@@ -74,7 +74,7 @@ void *arenas_allocate_private(arena *self, size_t size) {
 	arena *next = self;
 	size_t standard_capacity = self->capacity;
 
-	while ((next)) {
+	while (true) {
 		if (next->hole.position && next->hole.size >= size) {
 			void *old_pos = next->hole.position;
 
@@ -94,20 +94,24 @@ void *arenas_allocate_private(arena *self, size_t size) {
 
 			next->size += size;
 			return old_pos;
-		} else {
+		} 
+
+		if (!next->next) {
 			break;
 		}
+
+		next = next->next;
 	}
 
 	if (size > standard_capacity) {
 		size_t new_capacity = maths_nearest_two_power(size);
-		next = arenas_init_private(new_capacity);
+		next->next = arenas_init_private(new_capacity);
 	} else {
-		next = arenas_init_private(standard_capacity);
+		next->next = arenas_init_private(standard_capacity);
 	}
 
-	next->size += size;
-	return next->data;
+	next->next->size += size;
+	return next->next->data;
 }
 
 bool arenas_deallocate_private(arena *self, void *block, size_t block_size) {
@@ -177,7 +181,15 @@ void *arenas_reallocate_private(
 	bool found_block = false;
 	arena *blockin = self;
 	while ((blockin)) {
-		if (block >= self->data && block <= (void *)((char *)self->data + self->capacity)) {
+		#if cels_debug
+			errors_panic("arenas_reallocate_private.blockin", arenas_check(blockin));
+		#endif
+
+		bool is_within = block >= blockin->data && 
+			(void *)((char *)block + prev_block_size) <= 
+			(void *)((char *)blockin->data + blockin->capacity);
+
+		if (is_within) {
 			found_block = true;
 			break;
 		} 
@@ -196,12 +208,26 @@ void *arenas_reallocate_private(
 	long rest_block_size = new_block_size - prev_block_size;
 	size_t rest = blockin->capacity - blockin->size;
 
+	bool is_alone = block == blockin->data && prev_block_size == blockin->size;
 	bool is_last = (char *)block + prev_block_size == (char *)blockin->data + blockin->size;
 	bool may_fit_rest = (long)rest >= rest_block_size;
 
 	if (is_last && may_fit_rest) {
 		blockin->size += rest_block_size;
 		return block;
+	} else if (is_alone) {
+		size_t new_capacity = maths_nearest_two_power(new_block_size);
+		void *new_data = realloc(blockin->data, new_capacity);
+
+		if (!new_data) {
+			return null;
+		}
+		
+		blockin->data = new_data;
+		blockin->capacity = new_capacity;
+		blockin->size += rest_block_size;
+
+		return blockin->data;
 	} else if (is_last && !may_fit_rest) {
 		blockin->size -= prev_block_size;
 	} else if (!is_last){
@@ -218,8 +244,12 @@ void *arenas_reallocate_private(
 	} 
 
 	bool create_new = true;
-	arena *lastblock = block;
+	arena *lastblock = self;
 	while (true) {
+		#if cels_debug
+			errors_panic("arenas_reallocate_private.lastblock", arenas_check(lastblock));
+		#endif
+
 		bool may_fit_all = (lastblock->capacity - lastblock->size) >= new_block_size;
 
 		if (may_fit_all) {
@@ -227,16 +257,16 @@ void *arenas_reallocate_private(
 			break;
 		}
 
-		if (lastblock->next) {
-			lastblock = lastblock->next;
-		} else {
+		if (!lastblock->next) {
 			break;
-		}
+		} 
+
+		lastblock = lastblock->next;
 	}
 
 	if (!create_new) {
 		void *pos = (char *)lastblock->data + lastblock->size;
-		memcpy(pos, block, prev_block_size);
+		memcpy(pos, block, prev_block_size + 1);
 		lastblock->size += new_block_size;
 
 		return pos;
@@ -251,6 +281,11 @@ void *arenas_reallocate_private(
 		lastblock->next = arenas_init_private(new_capacity);
 	}
 
+	if (lastblock->next == null) {
+		return null;
+	}
+
+	memcpy(lastblock->next->data, block, prev_block_size);
 	lastblock->next->size += new_block_size;
 	return lastblock->next->data;
 }
@@ -263,16 +298,20 @@ void arenas_debug_private(arena *self) {
 	arena *next = self;
 
 	while ((next)) {
+		#if cels_debug
+			errors_panic("arenas_debug_private.next", arenas_check(next));
+		#endif
+
 		char *data = next->data;
 
-		for (size_t i = 0; i < next->size; i++) {
+		for (size_t i = 0; i < next->capacity; i++) {
 			if (data[i] >= 33 && data[i] <= 126) {
 				printf("%c ", (unsigned char)data[i]);
 			} else {
 				printf("%d ", (unsigned char)data[i]);
 			}
 		}
-		printf("\n");
+		printf("\n\n");
 
 		next = next->next;
 	}

@@ -20,7 +20,7 @@ typedef char_vec string;
 
 /* string_extras */
 
-typedef errors(string) string_with_error;
+typedef errors(string) estring;
 
 typedef enum strings_size {
 	strings_min_size = 16,

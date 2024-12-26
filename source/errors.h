@@ -30,7 +30,7 @@ typedef enum errors_mode {
 	errors_none_mode
 } errors_mode;
 
-#define errors(t) struct { t value; int error; }
+#define errors(t) struct { int error; t value; }
 
 /*
  * Tests if an assertion is true, 
