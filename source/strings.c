@@ -97,8 +97,8 @@ string strings_make_copy(const string *self, const allocator *mem) {
 		errors_panic("strings_make_copy.self", strings_check(self));
 	#endif
 
-	string dest = char_vecs_init(self->size, mem);
-	errors_panic("strings_make_copy.dest.data", dest.data == NULL);
+	string dest = char_vecs_init(self->capacity, mem);
+	errors_panic("strings_make_copy.dest.data", dest.data == null);
 
 	strncpy(dest.data, self->data, self->size);
 	dest.size = self->size;
@@ -106,7 +106,7 @@ string strings_make_copy(const string *self, const allocator *mem) {
 	return dest;
 }
 
-bool strings_push(string *self, char item, const allocator *mem) {
+/*bool strings_push(string *self, char item, const allocator *mem) {
 	#if cels_debug
 		errors_panic("strings_push.self", strings_check(self));
 		//TODO: more checks
@@ -121,6 +121,42 @@ bool strings_push(string *self, char item, const allocator *mem) {
 	}
 
 	error = char_vecs_push(self, '\0', mem);
+
+	return error;
+}*/
+
+bool strings_pop(string *self, const allocator *mem) {
+	#if cels_debug
+		errors_panic("strings_pop.self", strings_check(self));
+	#endif
+
+	bool error = char_vecs_pop(self, mem);
+	if (!error) {
+		self->data[self->size - 1] = '\0';
+	}
+
+	return error;
+}
+
+bool strings_push(string *self, string item, const allocator *mem) {
+	#if cels_debug
+		errors_panic("strings_push.self", strings_check(self));
+		errors_panic("strings_push.item", strings_check(&item));
+		//TODO: more checks
+	#endif
+
+	if (self->size > 0) {
+		self->size--;
+	}
+
+	for (size_t i = 0; i < item.size - 1; i++) {
+		bool error = char_vecs_push(self, item.data[i], mem);
+		if (error) {
+			return true;
+		}
+	}
+
+	bool error = char_vecs_push(self, '\0', mem);
 
 	return error;
 }
@@ -237,10 +273,10 @@ ssize_t strings_find(const string *self, const string *sep, size_t pos) {
     for (size_t i = pos, j = 0; i < self->size - 1; i++) {
 		char slower = tolower(self->data[i]);
 
-        if (slower == tolower(sep->data[0])) {
-            j = 1;
-		} else if (tolower(self->data[i]) == tolower(sep->data[j])) {
+        if (slower == tolower(sep->data[j])) {
             j++;
+		} else if (slower == tolower(sep->data[0])) {
+            j = 1;
 		} else {
             j = 0;
         }
@@ -265,10 +301,10 @@ size_vec strings_make_find(const string *self, const string *sep, size_t n, cons
     for (size_t i = 0, j = 0; i < self->size - 1; i++) {
 		char slower = tolower(self->data[i]);
 
-        if (slower == tolower(sep->data[0])) {
-            j = 1;
-		} else if (tolower(self->data[i]) == tolower(sep->data[j])) {
+        if (slower == tolower(sep->data[j])) {
             j++;
+		} else if (slower == tolower(sep->data[0])) {
+            j = 1;
 		} else {
             j = 0;
         }
@@ -276,7 +312,7 @@ size_vec strings_make_find(const string *self, const string *sep, size_t n, cons
         if (j == sep->size - 1) {
 			bool err = size_vecs_push(&indexes, i - (j - 1), mem);
 			#if cels_debug
-				errors_panic("strings_make_find.vectors_push failed", err);
+				errors_panic("strings_make_find.size_vecs_push failed", err);
 			#endif
 
 			if (err == true) {
@@ -291,6 +327,56 @@ size_vec strings_make_find(const string *self, const string *sep, size_t n, cons
 
     return indexes;
 }
+
+ssize_t strings_find_closing_tag(const string *self, const string open_tag, const string close_tag, size_t pos) {
+	#if cels_debug
+		errors_panic("strings_find_closing_tag.self", strings_check_extra(self));
+		errors_panic("strings_find_closing_tag.open_tag", strings_check_extra(&open_tag));
+		errors_panic("strings_find_closing_tag.close_tag", strings_check_extra(&close_tag));
+	#endif
+
+	if ((long)pos > (long)(self->size - 2)) {
+		return -1;
+	}
+
+	bool has_startet = false;
+	ssize_t count = 0;
+	for (size_t i = pos, j = 0, k = 0; i < self->size; i++) {
+		if (self->data[i] == open_tag.data[j]) {
+			j++;
+		} else {
+			j = 0;
+		}
+
+		if (j == open_tag.size - 1) {
+			j = 0;
+			count++;
+			has_startet = true;
+		}
+
+		//
+
+		if (has_startet) {
+			if (self->data[i] == close_tag.data[k]) {
+				k++;
+			} else {
+				k = 0;
+			}
+
+			if (k == close_tag.size - 1) {
+				k = 0;
+				count--;
+			}
+
+			if (count == 0) {
+				return i;
+			}
+		}
+	}
+
+	return -1;
+}
+
 
 void strings_replace(string *self, const string *seps, const char rep, size_t n) {
 	#if cels_debug

@@ -140,21 +140,26 @@ string strings_make(const char *lit, const allocator *mem);
  * Allocates string from another string.
  *
  * #allocates #may-panic 
- * #depends:string.h #posix-reliant #to-edit
+ * #depends:string.h #posix-reliant #to-review
  */
 __attribute_warn_unused_result__
 string strings_make_copy(const string *s, const allocator *mem);
 
 /*
- * Pushes char into s - s being an allocated variable.
- * The err variable is a pointer to a boolean 
- * initialized by false, in which, if an error 
- * happens, it will be put to true. 
- * It may be null to be silently ignored.
+ * Pops a character from string.
+ * Returns true if any error happend.
  *
- * #allocates #may-fail #depends:stdio.h #posix-reliant #test #to-review
+ * #allocates #may-fail #depends:stdio.h #posix-reliant #to-review
  */
-bool strings_push(string *self, char item, const allocator *mem);
+bool strings_pop(string *self, const allocator *mem);
+
+/*
+ * Concatenates item into 'self' string.
+ * Returns true if any error happend.
+ *
+ * #allocates #may-fail #depends:stdio.h #posix-reliant #to-review
+ */
+bool strings_push(string *self, string item, const allocator *mem);
 
 /*
  * Frees alocated string.
@@ -235,10 +240,22 @@ ssize_t strings_find(const string *s, const string *sep, size_t pos);
  *
  * If n is 0 the search is unrestricted.
  *
- * #case-insensitive #may-panic #may-fail #allocates #tested #to-edit
+ * #case-insensitive #may-panic #may-fail #allocates #tested #to-review
  */
 __attribute_warn_unused_result__
 size_vec strings_make_find(const string *s, const string *sep, size_t n, const allocator *mem);
+
+/*
+ * Finds the respective closing-tag of the provided 
+ * opening-tag by counting their occurrences and 
+ * returning the found position.
+ *
+ * If pos is given, the search happens by this mark.
+ *
+ * #case-sensitive #to-review
+ */
+__attribute_warn_unused_result__
+ssize_t strings_find_closing_tag(const string *self, const string open_tag, const string close_tag, size_t pos);
 
 /*
  * Replaces at most n ocurrences of any character in seps in s to rep.
@@ -341,6 +358,8 @@ sets_generate_definition(string, string_set)
 /* maps */
 
 maps_generate_definition(string, string, string_key_pair, string_map)
+
+typedef errors(string_map *) estring_map;
 
 /*
  * Push key and value over string_map allocating string's with mem.
