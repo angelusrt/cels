@@ -10,6 +10,7 @@
 #include "errors.h"
 
 typedef void *(*callfunc) (void *);
+typedef void *(*selffunc)(void *, void *);
 typedef bool (*compfunc)(void *, void *);
 typedef bool (*compvecfunc)(void *, void *, void *);
 typedef size_t (*hashfunc)(void *);
@@ -29,6 +30,11 @@ typedef struct functor {
 	callfunc func;
 	void *params;
 } functor;
+
+typedef struct enfunctor {
+	selffunc func;
+	void *params;
+} enfunctor;
 
 __attribute_warn_unused_result__
 bool functors_check(const functor *f);
