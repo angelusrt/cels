@@ -300,6 +300,27 @@ void bnodes_traverse(bnode *self, callfunc callback) {
 	bnodes_traverse_private(self, callback, 0);
 }
 
+void bnodes_iterate_private(bnode *self, enfunctor func, size_t stackframe) {
+    if (self == null || stackframe > nodes_max_recursion) { 
+		return; 
+	}
+
+	bnode *left = self->left;
+	bnode *right = self->right;
+
+    bnodes_iterate_private(left, func, ++stackframe);
+	func.func(self, func.params);
+    bnodes_iterate_private(right, func, ++stackframe);
+}
+
+void bnodes_iterate(bnode *self, enfunctor func) {
+	#if cels_debug
+		errors_panic("bnodes_traverse.self", bnodes_check(self));
+	#endif
+
+	bnodes_iterate_private(self, func, 0);
+}
+
 void bnodes_free_all_private(
 	bnode *self, const allocator *mem, freefunc cleanup, size_t stackframe
 ) {

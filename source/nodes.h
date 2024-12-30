@@ -111,6 +111,13 @@ size_t bnodes_get_frequency(bnode *self, size_t hash);
 void bnodes_traverse(bnode *self, callfunc callback);
 
 /*
+ * Iterates self in-order executing callback.
+ *
+ * #to-review
+ */
+void bnodes_iterate(bnode *self, enfunctor func);
+
+/*
  * Traverses self in-order to free all nodes
  *
  * #to-review
