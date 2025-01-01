@@ -1,5 +1,6 @@
 #include "strings.h"
 #include "vectors.h"
+#include <limits.h>
 
 /* char_vecs */
 
@@ -586,13 +587,13 @@ size_t strings_hasherize(const string *self) {
 		errors_panic("strings_hasherize.self", strings_check_extra(self));
 	#endif
 
-	#define strings_hash 7
+	#define strings_hash 3
 
     size_t hash = 0;
     for (size_t i = 0; i < self->size - 1; i++) {
         unsigned char character = tolower((unsigned char)self->data[i]);
 
-        size_t power = pow(strings_hash, i + 1);
+        size_t power = pow(i + 1, strings_hash);
         hash += character * power;
     }
 

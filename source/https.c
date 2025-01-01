@@ -7,8 +7,7 @@ const string attribute_sep = strings_premake(": ");
 const string route_sep = strings_premake("/");
 const string route_var_sep = strings_premake(":");
 
-const string variable_charset = strings_premake(
-	"abcdefghijklmnopqrstuvwxyz0123456789_");
+const string variable_charset = strings_premake("abcdefghijklmnopqrstuvwxyz0123456789_");
 const string regex_charset = strings_premake(
 	"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789+[]|()\\-*._");
 
@@ -198,17 +197,37 @@ long router_node_vecs_find_hash(const router_node_vec *self, size_t hash) {
 
 /* https */
 
-#define https_header_size 3
-static const string https_header_attributes[https_header_size] = {
-	strings_premake("Method"), strings_premake("Location"), strings_premake("Protocol") };
+#define header_size 3
+static const string headers[header_size] = {
+	strings_premake("Method"), 
+	strings_premake("Location"), 
+	strings_premake("Protocol") 
+};
 
-/*GET, POST, PUT, DELETE*/
-static const size_vec https_possible_methods = vectors_premake(
-	size_t, 4, 45458, 324184, 46305, 14117355,);
+static const size_vec methods = vectors_premake(size_t, 4);
+static const size_vec protocols = vectors_premake(size_t, 2);
 
-/*HTTP/1.1*/
-static const size_vec https_possible_protocols = vectors_premake(
-	size_t, 1, 327228069);
+void https_initialize_private(void) {
+	string get = strings_premake("GET");
+	methods.data[0] = strings_hasherize(&get);
+
+	string post = strings_premake("POST");
+	methods.data[1] = strings_hasherize(&post);
+
+	string put = strings_premake("PUT");
+	methods.data[2] = strings_hasherize(&put);
+	
+	string delete = strings_premake("DELETE");
+	methods.data[3] = strings_hasherize(&delete);
+
+	//
+
+	string http1 = strings_premake("HTTP/1.0");
+	protocols.data[0] = strings_hasherize(&http1);
+
+	string http1dot1 = strings_premake("HTTP/1.1");
+	protocols.data[1] = strings_hasherize(&http1dot1);
+}
 
 __attribute_warn_unused_result__
 bool https_head_check(const string_map *head) {
@@ -219,28 +238,28 @@ bool https_head_check(const string_map *head) {
 	//TODO: improve validation
 
 	size_t length = bnodes_length((bnode *)head);
-	errors_panic("https_head_check.head.size != 3", length != 3);
+	errors_panic("https_head_check.head.size != 3", length != header_size);
 
 	bool is_method_valid = false;
-	string *method_value = string_maps_get(head, https_header_attributes[0]);
+	string *method_value = string_maps_get(head, headers[0]);
 	if (method_value != null) {
 		size_t hash = strings_hasherize(method_value);
-		ssize_t pos = size_vecs_find(&https_possible_methods, hash);
+		ssize_t pos = size_vecs_find(&methods, hash);
 
 		if (pos > -1) { is_method_valid = true; }
 	}
 
 	bool is_location_valid = false;
-	string *location_value = string_maps_get(head, https_header_attributes[1]);
+	string *location_value = string_maps_get(head, headers[1]);
 	if (location_value != null && location_value->data[0] == '/') {
 		is_location_valid = true;
 	}
 
 	bool is_protocol_valid = false;
-	string *protocol_value = string_maps_get(head, https_header_attributes[2]);
+	string *protocol_value = string_maps_get(head, headers[2]);
 	if (protocol_value != null) {
 		size_t hash = strings_hasherize(protocol_value);
-		ssize_t pos = size_vecs_find(&https_possible_protocols, hash);
+		ssize_t pos = size_vecs_find(&protocols, hash);
 
 		if (pos > -1) { is_protocol_valid = true; }
 	}
@@ -260,13 +279,13 @@ string_map *https_tokenize(string *request, const allocator *mem) {
 	}
 
 	string_vec header = strings_make_split(&attributes.data[0], &token_sep, 0, mem);
-	if (errors_check("https_tokenize.header invalid", header.size != https_header_size)) {
+	if (errors_check("https_tokenize.header invalid", header.size != header_size)) {
 		goto invalid_request2;
 	}
 
 	string_map *requests_attributes = null;
-	for (size_t i = 0; i < https_header_size; i++) {
-		string key = strings_make_copy(&https_header_attributes[i], mem);
+	for (size_t i = 0; i < header_size; i++) {
+		string key = strings_make_copy(&headers[i], mem);
 		bool push_status = string_maps_push(
 			&requests_attributes, key, header.data[i], mem);
 
@@ -335,7 +354,7 @@ __attribute_warn_unused_result__
 router_private *https_find_route(router_node *router, string_map *request, const allocator *mem) {
 	//TODO: check params
 
-	string *location_value = string_maps_get(request, https_header_attributes[1]);
+	string *location_value = string_maps_get(request, headers[1]);
 	if (!location_value) { return &router->data; }
 
 	string_vec routes = strings_make_split(location_value, &route_sep, 0, mem);
@@ -685,6 +704,7 @@ void https_serve(short port, router_vec *callbacks, const allocator *mem) {
 			vectors_check((const vector *)callbacks));
 	#endif
 
+	https_initialize_private();
 	router_node routes = https_create_routes_private(callbacks, mem);
 
 	#if cels_debug
@@ -902,6 +922,14 @@ estring https_request_securely_private(
 			}
 		}
     } while (response.size < response.capacity);
+
+	bool push_error = char_vecs_push(&response, '\0', mem);
+	if (push_error) {
+		strings_free(&response, mem);
+		SSL_free(ssl);
+		SSL_CTX_free(ctx);
+		return (estring){.error=requests_upscaling_error};
+	}
 
 	//
 
