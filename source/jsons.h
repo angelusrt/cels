@@ -4,40 +4,23 @@
 #include <stdbool.h>
 #include <sys/cdefs.h>
 #include <sys/types.h>
+#include <stdlib.h>
 
 #include "strings.h"
 
 typedef enum json_error {
 	json_successfull,
+	json_missing_colon_error,
+	json_missing_comma_error,
+	json_misplaced_colon_error,
+	json_misplaced_comma_error,
+	json_key_size_error,
+	json_value_size_error,
+	json_invalid_naked_value_error,
 	json_invalid_error,
 	json_invalid_state_error,
+	json_impossible_state_error,
 } json_error;
-
-
-/*
- * Creates a intermediary representation of a 
- * json which is the basis of the json parser.
- *
- * Places a json_error into '.error' if 
- * an error happened.
- *
- * #to-review
- */
-__attribute_warn_unused_result__
-estring jsons_describe(const string *json, const allocator *mem);
-
-/*
- * Takes a description given by 'jsons_describe' 
- * function and resumes it, so that a shallow 
- * parsing may take place.
- *
- * Places a json_error into '.error' if 
- * an error happened.
- *
- * #to-review
- */
-__attribute_warn_unused_result__
-estring jsons_resume(const string *description, const allocator *mem);
 
 /*
  * Takes a json and returns a map with 
@@ -45,6 +28,8 @@ estring jsons_resume(const string *description, const allocator *mem);
  *
  * Places a json_error into '.error' if 
  * an error happened.
+ *
+ * It only checks if json is valid shallowly. 
  *
  * #to-review
  */
