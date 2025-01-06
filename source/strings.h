@@ -18,23 +18,37 @@
 vectors_generate_definition(char, char_vec)
 typedef char_vec string;
 
+/*
+ * Verifies if character is a either 
+ * a space, a carriage-return, a 
+ * line-feed or a tab.
+ *
+ * #to-review
+ */
+__attribute_warn_unused_result__
+bool chars_is_whitespace(char letter);
+
 /* string_extras */
 
 typedef errors(string) estring;
 
-typedef enum strings_size {
-	strings_min_size = 16,
-	strings_petit_size = 128,
-	strings_small_size = 1024,
-	strings_big_size = 4096,
-	strings_large_size = 65536,
-	strings_very_large_size = 1048576, 
-	strings_max_size = SIZE_MAX,
-} strings_size;
+typedef enum string_size {
+	string_min_size = 16,
+	string_petit_size = 128,
+	string_small_size = 1024,
+	string_big_size = 4096,
+	string_large_size = 65536,
+	string_very_large_size = 1048576, 
+	string_max_size = SIZE_MAX,
+} string_size;
 
 /* string_vecs */
 
 vectors_generate_definition(string, string_vec)
+typedef errors(string_vec) estring_vec;
+
+__attribute_warn_unused_result__
+string string_vecs_join(string_vec *self, string sep, const allocator *mem);
 
 /* strings */
 
@@ -347,6 +361,22 @@ void strings_upper(string *s);
  */
 bool strings_next(const string *s, const string *sep, string *next);
 
+/*
+ * Shifts whole string eliminating a character.
+ * Does nothing if position is invalid.
+ *
+ * #to-review
+ */
+void strings_shift(string *self, size_t position);
+
+/*
+ * Trims leading white-spaces on both 
+ * ends of string.
+ *
+ * #to-review
+ */
+void strings_trim(string *self);
+
 /* extras */
 
 #include "nodes.h"
@@ -358,7 +388,6 @@ sets_generate_definition(string, string_set)
 /* maps */
 
 maps_generate_definition(string, string, string_key_pair, string_map)
-
 typedef errors(string_map *) estring_map;
 
 /*

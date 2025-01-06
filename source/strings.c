@@ -1,11 +1,14 @@
 #include "strings.h"
 #include "vectors.h"
-#include <limits.h>
 
 /* char_vecs */
 
 void chars_print_private(const char *letter) {
 	printf("%c\n", *letter);
+}
+
+bool chars_is_whitespace(char letter) {
+	return letter == ' ' || letter == '\r' || letter == '\n' || letter == '\t';
 }
 
 vectors_generate_implementation(
@@ -101,30 +104,11 @@ string strings_make_copy(const string *self, const allocator *mem) {
 	string dest = char_vecs_init(self->capacity, mem);
 	errors_panic("strings_make_copy.dest.data", dest.data == null);
 
-	strncpy(dest.data, self->data, self->size);
+	memcpy(dest.data, self->data, self->size);
 	dest.size = self->size;
 
 	return dest;
 }
-
-/*bool strings_push(string *self, char item, const allocator *mem) {
-	#if cels_debug
-		errors_panic("strings_push.self", strings_check(self));
-		//TODO: more checks
-	#endif
-
-	bool error = false;
-
-	if (self->size == 0) {
-		error = char_vecs_push(self, item, mem);
-	} else {
-		self->data[self->size - 1] = item;
-	}
-
-	error = char_vecs_push(self, '\0', mem);
-
-	return error;
-}*/
 
 bool strings_pop(string *self, const allocator *mem) {
 	#if cels_debug
@@ -668,6 +652,47 @@ bool strings_next(const string *self, const string *sep, string *next) {
 	return false;
 }
 
+void strings_shift(string *self, size_t position) {
+	#if cels_debug 
+		errors_panic("strings_shift.self", strings_check_extra(self));
+	#endif
+
+
+	if (position + 1 >= self->size) {
+		return;
+	}
+
+	for (size_t i = position; i < self->size - 1; i++) {
+		self->data[i] = self->data[i + 1];
+	}
+
+	self->size--;
+}
+
+void strings_trim(string *self) {
+	#if cels_debug
+		errors_panic("strings_trim.self", strings_check_extra(self));
+	#endif
+
+	for (size_t i = 0; i < self->size; i++) {
+		if (chars_is_whitespace(self->data[i])) {
+			strings_shift(self, i);
+			continue;
+		} 
+		
+		break;
+	}
+
+	for (ssize_t i = self->size - 2; i >= 0; i--) {
+		if (chars_is_whitespace(self->data[i])) {
+			strings_shift(self, i);
+			continue;
+		} 
+		
+		break;
+	}
+}
+
 /* string_vecs */
 
 vectors_generate_implementation(
@@ -678,6 +703,36 @@ vectors_generate_implementation(
 	strings_equals, 
 	strings_seems, 
 	strings_free)
+
+string string_vecs_join(string_vec *self, string sep, const allocator *mem) {
+	#if cels_debug
+		errors_panic("string_vecs_join.self", vectors_check((vector *)self));
+	#endif
+
+	if (sep.size == 0) {
+		sep.size++;
+	}
+	
+	size_t capacity = 0;
+	for (size_t i = 0; i < self->size; i++) {
+		capacity += self->data[i].size - 1;
+		capacity += sep.size - 1;
+	}
+
+	capacity -= sep.size - 1;
+	capacity++;
+
+	string joined = strings_init(capacity, mem);
+	for (size_t i = 0; i < self->size; i++) {
+		strings_push(&joined, self->data[i], mem);
+
+		if (i < self->size - 1) {
+			strings_push(&joined, sep, mem);
+		}
+	}
+
+	return joined;
+}
 
 /* sets */
 
@@ -729,8 +784,10 @@ bool string_maps_make_push(string_map **self, const char *key, const char *value
 
 	*new_bnode = node;
 
-	bool error = bnodes_push((bnode **)self, (bnode *)new_bnode);
-	if (error) { string_maps_free_private(new_bnode, mem); }
+	bool push_error = bnodes_push((bnode **)self, (bnode *)new_bnode);
+	if (push_error) { 
+		string_maps_free_private(new_bnode, mem); 
+	}
 
-	return error;
+	return push_error;
 }
