@@ -24,6 +24,8 @@ typedef clock_t (*benchfunc) (size_t);
 
 #define null NULL
 
+typedef u_char uchar;
+
 /* functor */
 
 typedef struct functor {

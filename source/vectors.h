@@ -25,6 +25,7 @@
 typedef vectors(void *) vector;
 
 #define vectors_min 4 
+#define vector_min 4
 
 #include "mems.h"
 #include "utils.h"

@@ -30,6 +30,8 @@ typedef enum errors_mode {
 	errors_none_mode
 } errors_mode;
 
+typedef int error;
+
 #define errors(t) struct { int error; t value; }
 
 /*
