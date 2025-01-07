@@ -100,6 +100,16 @@ string string_vecs_join(string_vec *self, string sep, const allocator *mem);
 #define strings_premake(lit) \
 	{.data=lit, .size=sizeof(lit), .capacity=sizeof(lit)}
 
+/*
+ * Convenience macro that receives 
+ * a char literal and returns 
+ * a size_t hash.
+ *
+ * #to-review
+ */
+#define strings_prehash(lit) \
+	strings_hasherize(&(string)strings_premake(lit))
+
 //#define s(lit) strings_premake(lit)
 
 /* 

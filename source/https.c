@@ -208,25 +208,12 @@ static const size_vec methods = vectors_premake(size_t, 4);
 static const size_vec protocols = vectors_premake(size_t, 2);
 
 void https_initialize_private(void) {
-	string get = strings_premake("GET");
-	methods.data[0] = strings_hasherize(&get);
-
-	string post = strings_premake("POST");
-	methods.data[1] = strings_hasherize(&post);
-
-	string put = strings_premake("PUT");
-	methods.data[2] = strings_hasherize(&put);
-	
-	string delete = strings_premake("DELETE");
-	methods.data[3] = strings_hasherize(&delete);
-
-	//
-
-	string http1 = strings_premake("HTTP/1.0");
-	protocols.data[0] = strings_hasherize(&http1);
-
-	string http1dot1 = strings_premake("HTTP/1.1");
-	protocols.data[1] = strings_hasherize(&http1dot1);
+	methods.data[0] = strings_prehash("GET");
+	methods.data[1] = strings_prehash("POST");
+	methods.data[2] = strings_prehash("PUT");
+	methods.data[3] = strings_prehash("DELETE");
+	protocols.data[0] = strings_prehash("HTTP/1.0");
+	protocols.data[1] = strings_prehash("HTTP/1.1");
 }
 
 __attribute_warn_unused_result__
