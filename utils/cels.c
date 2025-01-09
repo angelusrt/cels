@@ -1,19 +1,17 @@
 #include "../source/strings.h"
 #include "../source/strings.c"
 
+#include "../source/files.h"
+#include "../source/files.c"
+
 #include "../source/utils.c"
 #include "../source/vectors.c"
 #include "../source/mems.c"
 #include "../source/errors.c"
 #include "../source/nodes.c"
 
-void menus_print_help(void) {
-	printf(
-		"cels is a tool to make c more convenient.\n\n"
-		"commands:\n"
-		"\tinit - starts a cel project\n"
-		"\tbuild - builds the project\n");
-}
+#include "./menus/menus.h"
+#include "./menus/menus.c"
 
 int main(int arg, char **argc) {
 	if (arg != 2) {
@@ -31,7 +29,7 @@ int main(int arg, char **argc) {
 	size_t command_hash = strings_hasherize(&command);
 
 	if (command_hash == init_hash) {
-		printf("init - work in progress\n");
+		menus_handle_init();
 	} else if (command_hash == build_hash) {
 		printf("build - work in progress\n");
 	} else if (command_hash == help_hash) {
