@@ -45,8 +45,17 @@ estring files_read(file *self, const allocator *mem) {
 	return (estring){.error=error};
 }
 
+error files_write(file *self, const string text) {
+	long write_error = fwrite(text.data, 1, text.size - 1, self);
+	if (write_error < (long)text.size - 1) {
+		return file_writing_error;
+	}
+
+	return file_successfull;
+}
+
 estring_vec files_list(const string path, const allocator *mem) {
-	DIR *directory = opendir(path.data);
+	dir *directory = opendir(path.data);
 	if (!directory) {
 		return (estring_vec){.error=file_directory_not_opened_error};
 	}
