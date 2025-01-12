@@ -11,6 +11,22 @@ bool chars_is_whitespace(char letter) {
 	return letter == ' ' || letter == '\r' || letter == '\n' || letter == '\t';
 }
 
+void chars_print_special(char letter) {
+	switch(letter) {
+		case '\n': printf("\\n"); break;
+		case '\t': printf("\\t"); break;
+		case '\r': printf("\\r"); break;
+		case '\b': printf("\\b"); break;
+		case '\a': printf("\\a"); break;
+		case '\v': printf("\\v"); break;
+		case '\f': printf("\\f"); break;
+		case '\\': printf("\\\\"); break;
+		case '\'': printf("\\'"); break;
+		case '\"': printf("\\\""); break;
+		default: printf("\\x%02X", letter); break;
+	}
+}
+
 vectors_generate_implementation(
 	char, 
 	char_vec, 
@@ -110,6 +126,17 @@ string strings_make_copy(const string *self, const allocator *mem) {
 	return dest;
 }
 
+string strings_unview(const string *self, const allocator *mem) {
+	string view = *self;
+	view.capacity++;
+
+	string not_view = strings_make_copy(&view, mem);
+	not_view.data[not_view.capacity - 1] = '\0';
+
+	return not_view;
+}
+
+
 bool strings_pop(string *self, const allocator *mem) {
 	#if cels_debug
 		errors_panic("strings_pop.self", strings_check(self));
@@ -185,6 +212,21 @@ void strings_println(const string *self) {
     printf("\n");
 }
 
+void strings_print_clean(const string *self) {
+	#if cels_debug
+		errors_panic("strings_print.self", strings_check(self));
+	#endif
+
+	for (size_t i = 0; i < self->size - 1; i++) {
+		if (self->data[i] >= 32 && self->data[i] <= 126) {
+			printf("%c", (unsigned char)self->data[i]);
+		} else {
+			chars_print_special(self->data[i]);
+		}
+	}
+
+	fflush(stdout);
+}
 
 bool strings_compare(const string *first, const string *second) {
 	#if cels_debug
@@ -644,7 +686,7 @@ bool strings_next(const string *self, const string *sep, string *next) {
 			next->capacity = next->size;
 			break;
 		} else {
-			next->data += sep->size;
+			next->data += sep->size + next->size - 2;
 			has_data_been_setted = true;
 		}
 	} while (true);
@@ -733,6 +775,36 @@ string string_vecs_join(string_vec *self, string sep, const allocator *mem) {
 
 	return joined;
 }
+
+bool string_vecs_check_private(const string_vec *self) {
+	return vectors_check((const vector *)self);
+}
+
+void string_vecs_print_private(const string_vec *self) {
+	if (cels_debug) {
+		errors_panic("string_vecs_print_private.self", vectors_check((const vector *)self));
+	}
+
+	for (size_t i = 0; i < self->size; i++) {
+		strings_print_clean(&self->data[i]);
+		if (i != self->size - 1) {
+			printf(", ");
+		}
+	}
+
+	printf("\n");
+}
+
+/* string_bivecs */
+
+vectors_generate_implementation(
+	string_vec, 
+	string_bivec,
+	string_vecs_check_private,
+	string_vecs_print_private,
+	string_vecs_equals,
+	string_vecs_seems,
+	string_vecs_free)
 
 /* sets */
 

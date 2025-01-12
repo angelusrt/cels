@@ -28,6 +28,14 @@ typedef char_vec string;
 __attribute_warn_unused_result__
 bool chars_is_whitespace(char letter);
 
+/*
+ * Prints non-printable-characters only, 
+ * defaulting to hexadecimal-char-code-printing.
+ *
+ * #to-review
+ */
+void chars_print_special(char letter);
+
 /* string_extras */
 
 typedef errors(string) estring;
@@ -170,6 +178,15 @@ __attribute_warn_unused_result__
 string strings_make_copy(const string *s, const allocator *mem);
 
 /*
+ * Makes a null-terminated string copy 
+ * of 'self' - being a string_view.
+ *
+ * #to-review
+ */
+__attribute_warn_unused_result__
+string strings_unview(const string *self, const allocator *mem);
+
+/*
  * Pops a character from string.
  * Returns true if any error happend.
  *
@@ -217,6 +234,14 @@ void strings_print(const string *s);
  * #depends:stdio.h #posix-reliant 
  */
 void strings_println(const string *s);
+
+/*
+ * Prints string to terminal, having it's 
+ * non-printable-characters printed symbolically.
+ *
+ * #to-review
+ */
+void strings_print_clean(const string *self);
 
 /*
  * Compares if first string is bigger than the second 
@@ -360,7 +385,7 @@ void strings_upper(string *s);
 /*
  * Iterates through s where each token is separated 
  * by sep and indicates when the iteration has ended 
- * return true. 
+ * returning true. 
  *
  * Each substring is 'assigned' to next which is a view.
  * The next string should be an automatic variable initialy empty. 
@@ -386,6 +411,10 @@ void strings_shift(string *self, size_t position);
  * #to-review
  */
 void strings_trim(string *self);
+
+/* string_bivecs */
+
+vectors_generate_definition(string_vec, string_bivec)
 
 /* extras */
 
