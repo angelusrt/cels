@@ -179,6 +179,20 @@ typedef vectors(void *) vector;
 		return false; \
 	} \
 	\
+	type name##s_get(const name *self, size_t position) { \
+		if (cels_debug) { \
+			errors_panic(#name"s_get.self", vectors_check((const vector *)self)); \
+		} \
+		\
+		if (self->size == 0) { \
+			return (type){0}; \
+		} else if (position > self->size - 1) { \
+			return self->data[self->size - 1]; \
+		} \
+		\
+		return self->data[position]; \
+	} \
+	\
 	bool name##s_pop(name *self, const allocator *mem) { \
 		if (cels_debug) { \
 			errors_panic(#name"s_pop.self", vectors_check((const vector *)self)); \
@@ -340,6 +354,25 @@ typedef vectors(void *) vector;
 		} \
 		\
 		return -1; \
+	} \
+	\
+	bool name##s_shift(name *self, size_t position, const allocator *mem) { \
+		if (cels_debug) { \
+			errors_panic(#name"s_shift.self", vectors_check((const vector *)self)); \
+		} \
+		\
+		if (position + 1 >= self->size) { \
+			return true; \
+		} \
+		\
+		cleanup0(&self->data[position], mem); \
+		\
+		for (size_t i = position; i < self->size - 1; i++) { \
+			self->data[i] = self->data[i + 1]; \
+		} \
+		\
+		self->size--; \
+		return false; \
 	}
 
 /*
@@ -355,6 +388,8 @@ typedef vectors(void *) vector;
 	bool name##s_upscale(name *self, const allocator *mem); \
 	\
 	bool name##s_downscale(name *self, const allocator *mem); \
+	\
+	type name##s_get(const name *self, size_t position); \
 	\
 	bool name##s_pop(name *self, const allocator *mem); \
 	\
@@ -382,7 +417,9 @@ typedef vectors(void *) vector;
 	ssize_t name##s_find(const name *self, type item); \
 	\
 	__attribute_warn_unused_result__ \
-	ssize_t name##s_search(const name *self, type item);
+	ssize_t name##s_search(const name *self, type item); \
+	\
+	bool name##s_shift(name *self, size_t position, const allocator *mem);
 
 /**
  * Checks shallowly if vector was properly initialized.
