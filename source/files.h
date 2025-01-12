@@ -61,4 +61,32 @@ error files_write(file *self, const string text);
 __attribute_warn_unused_result__
 estring_vec files_list(const string path, const allocator *mem);
 
+/*
+ * Finds first of any character in seps within 
+ * file starting from position pos and returns 
+ * the position where it was found.
+ *
+ * If pos is negative, the search begins where 
+ * the file position is set.
+ *
+ * If nothing is found or this function is 
+ * mal-used, it returns -1.
+ *
+ * #to-review
+ */
+ssize_t files_find(file *self, string seps, ssize_t pos);
+
+/*
+ * Gets next line and puts it in buffer 'line'.
+ *
+ * If string is not allocated or a new-line 
+ * is too big, mem is used to allocate the 
+ * sufficient space.
+ *
+ * It returns false when it ends.
+ *
+ * #to-review
+ */
+bool files_next(file *self, string *line, const allocator *mem);
+
 #endif
