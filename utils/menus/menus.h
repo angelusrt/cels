@@ -1,9 +1,10 @@
 #ifndef menus_h
 #define menus_h
 
-#include <stdio.h>
 #include "../../source/strings.h"
 #include "../../source/files.h"
+#include "../../source/ios.h"
+#include "../../source/jsons.h"
 
 /*
  * Prints the typical help 
@@ -21,5 +22,12 @@ void menus_print_help(void);
  * #to-review
  */
 void menus_handle_init(void);
+
+/*
+ * Builds project
+ *
+ * #to-review
+ */
+void menus_handle_build(bool is_build_mode);
 
 #endif
