@@ -55,8 +55,35 @@ typedef enum string_size {
 vectors_generate_definition(string, string_vec)
 typedef errors(string_vec) estring_vec;
 
+/*
+ * Makes string_vecs from char* list.
+ *
+ * #allocates #to-review
+ */
+/*#define string_vecs_make(mem, args...) ({ \
+  char *_args[] = {args}; \
+  string_vecs_make_helper(_args, sizeof(_args)/sizeof(char*), mem); \
+})*/
+#define string_vecs_make(mem, ...) \
+  string_vecs_make_helper((char*[]){__VA_ARGS__}, sizeof((char*[]){__VA_ARGS__})/sizeof(char*), mem)
+
+/*
+ * Concatenates strings inside 'self' 
+ * with 'sep' in between.
+ *
+ * #to-review
+ */
 __attribute_warn_unused_result__
 string string_vecs_join(string_vec *self, string sep, const allocator *mem);
+
+/*
+ * Use string_vecs_make instead.
+ *
+ * #not-to-use #to-review
+ */
+__attribute_warn_unused_result__
+string_vec string_vecs_make_helper(char *args[], size_t argn, const allocator *mem);
+
 
 /* strings */
 

@@ -326,7 +326,7 @@ size_vec strings_make_find(const string *self, const string *sep, size_t n, cons
 	errors_panic("strings_make_find.indexes", vectors_check((vector *)&indexes));
 
     for (size_t i = 0, j = 0; i < self->size - 1; i++) {
-		char slower = tolower(self->data[i]);
+		u_char slower = tolower(self->data[i]);
 
         if (slower == tolower(sep->data[j])) {
             j++;
@@ -775,6 +775,18 @@ string string_vecs_join(string_vec *self, string sep, const allocator *mem) {
 
 	return joined;
 }
+
+string_vec string_vecs_make_helper(char *args[], size_t argn, const allocator *mem) {
+	string_vec self = string_vecs_init(vector_min, mem);
+
+	for (size_t i = 0; i < argn; i++) {
+		string text = strings_make(args[i], mem);
+		string_vecs_push(&self, text, mem);
+	}
+
+	return self;
+}
+
 
 bool string_vecs_check_private(const string_vec *self) {
 	return vectors_check((const vector *)self);

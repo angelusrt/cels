@@ -98,8 +98,11 @@ typedef vectors(void *) vector;
  *
  * #automatic #tested
  */
-#define vectors_premake(type, len, ...) \
-	{.capacity=len, .size=len, .data=(type [len]){__VA_ARGS__}}
+#define vectors_premake(type, ...) { \
+	.capacity=sizeof((type[]){__VA_ARGS__})/sizeof(type), \
+	.size=sizeof((type[]){__VA_ARGS__})/sizeof(type), \
+	.data=(type []){__VA_ARGS__} \
+}
 
 /*
  * Generates all type-specific functions for vectors.
