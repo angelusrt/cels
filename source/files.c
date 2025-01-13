@@ -25,7 +25,7 @@ estring files_read(file *self, const allocator *mem) {
 	string buffer = strings_init(new_capacity, mem);
 
 	long bytes_read = fread(buffer.data, 1, buffer.capacity, self);
-	buffer.size = bytes_read;
+	buffer.size = bytes_read + 1;
 
 	int error = 0;
 	if (feof(self)) {
@@ -121,17 +121,17 @@ ssize_t files_find(file *self, string seps, ssize_t pos) {
 	return -1;
 }
 
-bool files_next(file *self, string *line, const allocator *mem) {
-	//check self and line
+bool files_next(file *self, string *line_view, const allocator *mem) {
+	//check self and line_view
 
 	long current_position = ftell(self);
 	if (current_position == -1) {
 		return file_telling_position_error;
 	}
 
-	if (line->data == null) {
+	if (line_view->data == null) {
 		string buffer = strings_init(string_small_size, mem);
-		*line = buffer;
+		*line_view = buffer;
 
 		if (current_position != 0) {
 			long pos = fseek(self, 0, SEEK_SET);
@@ -153,8 +153,8 @@ bool files_next(file *self, string *line, const allocator *mem) {
 	}
 
 	size_t capacity = next_position + 1 - current_position;
-	while (capacity > line->capacity) {
-		bool upscale_error = char_vecs_upscale(line, mem);
+	while (capacity > line_view->capacity) {
+		bool upscale_error = char_vecs_upscale(line_view, mem);
 		if (upscale_error) {
 			return file_allocation_error;
 		}
@@ -165,8 +165,8 @@ bool files_next(file *self, string *line, const allocator *mem) {
 		return file_seeking_position_error;
 	}
 
-	size_t bytes_read = fread(line->data, 1, capacity, self);
-	line->size = bytes_read;
+	size_t bytes_read = fread(line_view->data, 1, capacity, self);
+	line_view->size = bytes_read;
 
 	if (feof(self)) {
 		return file_did_not_end_error;
