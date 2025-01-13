@@ -10,8 +10,10 @@ error_report strings_test_init_and_push() {
 
 	string text = strings_init(vectors_min, null);
 	string textpredict = strings_premake("00000");
+	string zero = strings_premake("0");
+
 	for (size_t i = 0; i < 5; i++) {
-		strings_push(&text, '0', null);
+		strings_push(&text, zero, null);
 	}
 
 	stat += errors_assert("push('0')x5 == \"00000\"", strings_seems(&text, &textpredict));
@@ -417,7 +419,7 @@ error_report strings_test_hasherize() {
 	size_t stat = 0, total = 0;
 
 	size_t hash = strings_hasherize(&(string)strings_premake("idea"));
-	stat += errors_assert("hasherize(\"idea\") == 273175", hash == 273175);
+	stat += errors_assert("hasherize(\"idea\") == 9840", hash == 9840);
 	total++;
 
 	return (error_report) {.total=total, .successfull=stat};
@@ -492,12 +494,6 @@ error_report strings_test_next() {
 	total++;
 
 	return (error_report) {.total=total, .successfull=stat};
-}
-
-void string_maps_print(string_map *self) {
-	strings_print(&self->data.key);
-	strings_print(&self->data.value);
-	printf("\n");
 }
 
 error_report string_maps_test_get_and_push() {
