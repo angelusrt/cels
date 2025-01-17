@@ -41,6 +41,13 @@ void routers_debug(const router *self) {
 		self->location.data, self->func, self->params);*/
 }
 
+router routers_clone(router *self, const allocator *mem) {
+	router other = *self;
+	other.location = strings_clone(&self->location, mem);
+
+	return other;
+}
+
 void routers_print(const router *self) {
 	#if cels_debug
 		errors_panic("routers_print.self", routers_check(self));
@@ -73,6 +80,7 @@ vectors_generate_implementation(
 	router, 
 	router_vec, 
 	routers_check, 
+	routers_clone,
 	routers_print,
 	routers_equals, 
 	routers_seems,
@@ -164,6 +172,7 @@ vectors_generate_implementation(
 	router_node, 
 	router_node_vec,
 	router_nodes_check,
+	defaults_clone, //placeholder
 	router_nodes_print,
 	router_nodes_equals,
 	router_nodes_seems,
@@ -260,19 +269,19 @@ string_map *https_tokenize(string *request, const allocator *mem) {
 		goto invalid_request0;
 	}
 
-	string_vec attributes = strings_make_split(request, &line_sep, 0, mem);
+	string_vec attributes = strings_split(request, &line_sep, 0, mem);
 	if (errors_check("https_tokenize.attributes empty", attributes.size < 2)) {
 		goto invalid_request1;
 	}
 
-	string_vec header = strings_make_split(&attributes.data[0], &token_sep, 0, mem);
+	string_vec header = strings_split(&attributes.data[0], &token_sep, 0, mem);
 	if (errors_check("https_tokenize.header invalid", header.size != header_size)) {
 		goto invalid_request2;
 	}
 
 	string_map *requests_attributes = null;
 	for (size_t i = 0; i < header_size; i++) {
-		string key = strings_make_copy(&headers[i], mem);
+		string key = strings_clone(&headers[i], mem);
 		bool push_status = string_maps_push(
 			&requests_attributes, key, header.data[i], mem);
 
@@ -288,11 +297,11 @@ string_map *https_tokenize(string *request, const allocator *mem) {
 	}
 
 	for (size_t i = 1; i < attributes.size; i++) {
-		string_vec attribute = strings_make_split(&attributes.data[i], &attribute_sep, 0, mem);
+		string_vec attribute = strings_split(&attributes.data[i], &attribute_sep, 0, mem);
 
 		if (i == attributes.size - 1 && attribute.size < 2) {
 			string body_key = strings_make("Body", mem);
-			string value = strings_make_copy(&attributes.data[i], mem);
+			string value = strings_clone(&attributes.data[i], mem);
 
 			bool push_status = string_maps_push(
 				&requests_attributes, body_key, value, mem);
@@ -344,7 +353,7 @@ router_private *https_find_route(router_node *router, string_map *request, const
 	string *location_value = string_maps_get(request, headers[1]);
 	if (!location_value) { return &router->data; }
 
-	string_vec routes = strings_make_split(location_value, &route_sep, 0, mem);
+	string_vec routes = strings_split(location_value, &route_sep, 0, mem);
 	if (routes.size == 0) { goto cleanup; }
 
 	if (location_value->data[0] == '/' && location_value->size == 2) {
@@ -369,8 +378,8 @@ router_private *https_find_route(router_node *router, string_map *request, const
 				has_matched = regex_status == 0;
 
 				if (has_matched) {
-					string key = strings_make_copy(&route->data.name, mem);
-					string value = strings_make_copy(&routes.data[i], mem);
+					string key = strings_clone(&route->data.name, mem);
+					string value = strings_clone(&routes.data[i], mem);
 					bool push_status = string_maps_push(&request, key, value, mem);
 
 					if (push_status) {
@@ -509,7 +518,7 @@ router_node https_create_routes_private(router_vec *callbacks, const allocator *
 			vectors_check((const vector *)callbacks));
 	#endif
 
-	router_node_vec rnv = router_node_vecs_init(vectors_min, mem);
+	router_node_vec rnv = router_node_vecs_init(vector_min, mem);
 	router_node_vec *rnv_capsule = mems_alloc(mem, sizeof(router_node_vec));
 
 	errors_panic("https_create_routes_private.rnv_capsule", rnv_capsule == null);
@@ -522,17 +531,17 @@ router_node https_create_routes_private(router_vec *callbacks, const allocator *
 			printf("callback: %zu/%zu\n", i, callbacks->size);
 		#endif
 
-		string location_normalized = strings_make_replace(
+		string location_normalized = strings_replace(
 			&callbacks->data[i].location, 
 			&(string)strings_premake(" "), 
 			null, 0, mem);
 
-		string_vec location_terms = strings_make_split(&location_normalized, &route_sep, 0, mem);
+		string_vec location_terms = strings_split(&location_normalized, &route_sep, 0, mem);
 		if (location_terms.size < 1) { goto cleanup0; }
 
 		router_node *router_current = &r;
 		for (size_t j = 0; j < location_terms.size; j++) {
-			string_vec var_terms = strings_make_split(&location_terms.data[j], &route_var_sep, 0, mem);
+			string_vec var_terms = strings_split(&location_terms.data[j], &route_var_sep, 0, mem);
 			#if cels_debug
 				string_vecs_debug(&var_terms);
 			#endif
@@ -558,7 +567,7 @@ router_node https_create_routes_private(router_vec *callbacks, const allocator *
 						errors_panic("https_create_routes_private.(func != null) (already exists)", has_func);
 					}
 				} else if (hash_pos <= -1) {
-					router_node_vec rnv = router_node_vecs_init(vectors_min, mem);
+					router_node_vec rnv = router_node_vecs_init(vector_min, mem);
 					router_node_vec *rnv_capsule = mems_alloc(mem, sizeof(router_node_vec));
 					errors_panic("https_create_routes_private.rnv_capsule", rnv_capsule == null);
 					*rnv_capsule = rnv;
@@ -570,7 +579,7 @@ router_node https_create_routes_private(router_vec *callbacks, const allocator *
 					router_node node = {
 						.next=rnv_capsule,
 						.data={
-							.location=strings_make_copy(&location_terms.data[j], mem), //Why?
+							.location=strings_clone(&location_terms.data[j], mem), //Why?
 							.has_regex=false,
 							.hash=hash,
 						}
@@ -605,7 +614,7 @@ router_node https_create_routes_private(router_vec *callbacks, const allocator *
 			errors_panic("https_create_routes_private.!is_regex_valid", !is_regex_valid);
 
 			size_t hash = strings_hasherize(&var_terms.data[0]);
-			string name = strings_make_format("vars_%s", mem, var_terms.data[0].data);
+			string name = strings_format("vars_%s", mem, var_terms.data[0].data);
 
 			errors_panic("https_create_routes_private.router_current.next", !router_current->next);
 			long hash_pos = router_node_vecs_find_hash(router_current->next, hash);
@@ -628,7 +637,7 @@ router_node https_create_routes_private(router_vec *callbacks, const allocator *
 					strings_free(&name, mem);
 				}
 			} else if (hash_pos <= -1 && is_empty){
-				router_node_vec rnv = router_node_vecs_init(vectors_min, mem);
+				router_node_vec rnv = router_node_vecs_init(vector_min, mem);
 				router_node_vec *rnv_capsule = mems_alloc(mem, sizeof(router_node_vec));
 				errors_panic("https_create_routes_private.rnv_capsule", rnv_capsule == null);
 				*rnv_capsule = rnv;
@@ -636,7 +645,7 @@ router_node https_create_routes_private(router_vec *callbacks, const allocator *
 				router_node node = {
 					.next=rnv_capsule,
 					.data={
-						.location=strings_make_copy(&var_terms.data[0], null),
+						.location=strings_clone(&var_terms.data[0], null),
 						.has_regex=true,
 						.regex=regex,
 						.hash=hash,
@@ -750,7 +759,7 @@ void https_serve(short port, router_vec *callbacks, const allocator *mem) {
     close(socket_descriptor);
 }
 
-void https_default_not_found(unused string_map *request, int client_connection, unused void *params) {
+void https_default_not_found(notused string_map *request, int client_connection, notused void *params) {
 	string not_found_page = strings_premake(
 		"HTTP/1.1 404 Not Found\r\nContent-Type: text/html\r\n\r\n"
 		"<html>"
@@ -864,7 +873,7 @@ estring https_request_securely_private(
 
 	//
 
-	string message = strings_make_format(
+	string message = strings_format(
 		"%s\r\n\r\n%s\r\n", mem, header->data, body->data);
 
 	//
@@ -929,7 +938,7 @@ estring https_request_securely_private(
 estring https_request_insecurely_private(
 	int socket_descriptor, const string *header, const string *body, const allocator *mem
 ) {
-	string message = strings_make_format(
+	string message = strings_format(
 		"%s\r\n\r\n%s\r\n", mem, header->data, body->data);
     long sent = 0;
 
@@ -1041,7 +1050,7 @@ estring https_request(
 		char ip[INET6_ADDRSTRLEN];
 		inet_ntop(server->ai_family, address, ip, sizeof(ip)); 
 
-		string address_formated = strings_make_format(
+		string address_formated = strings_format(
 			"https_request.address = %s", mem, ip);
 
 		errors_note(address_formated.data, errors_success_mode, null);

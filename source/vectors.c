@@ -36,6 +36,7 @@ vectors_generate_implementation(
 	size_t, 
 	size_vec, 
 	defaults_check,
+	defaults_clone,
 	size_print_private,
 	defaults_compare, 
 	defaults_compare, 

@@ -4,9 +4,9 @@ string_bivec csvs_unmake(const string *text, const string column_sep, const allo
 	string_bivec csv = string_bivecs_init(vector_min, mem);
 	const string row_sep = strings_premake("\n");
 
-	string_vec row = strings_make_split(text, &row_sep, 0, mem);
+	string_vec row = strings_split(text, &row_sep, 0, mem);
 	for (size_t i = 0; i < row.size; i++) {
-		string_vec column = strings_make_split(&row.data[i], &column_sep, 0, mem);
+		string_vec column = strings_split(&row.data[i], &column_sep, 0, mem);
 		string_bivecs_push(&csv, column, mem);
 	}
 

@@ -64,7 +64,7 @@ string jsons_get_section_private(const string *json, range interval, const alloc
 		.capacity=(interval.end-interval.start)+1,
 	};
 
-	string section = strings_make_copy(&section_view, mem);
+	string section = strings_clone(&section_view, mem);
 	section.size++;
 	section.data[section.capacity] = '\0';
 
@@ -441,7 +441,7 @@ estring_map jsons_unmake_list_private(const string *json, const allocator *mem) 
 		}
 
 		if (value.size != 0) {
-			string key = strings_make_format("%zu", mem, count);
+			string key = strings_format("%zu", mem, count);
 			bool push_error = string_maps_push(&map, key, value, mem);
 			if (push_error) {
 				error = json_invalid_state_error;

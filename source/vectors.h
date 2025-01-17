@@ -23,8 +23,6 @@
 }
 
 typedef vectors(void *) vector;
-
-#define vectors_min 4 
 #define vector_min 4
 
 #include "mems.h"
@@ -109,7 +107,7 @@ typedef vectors(void *) vector;
  * #to-review
  */
 #define vectors_generate_implementation( \
-	type, name, check0, print0, compare0, compare1, cleanup0 \
+	type, name, check0, clone0, print0, compare0, compare1, cleanup0 \
 ) \
 	name name##s_init(size_t len, const allocator *mem) { \
 		name self = { \
@@ -120,6 +118,21 @@ typedef vectors(void *) vector;
 		errors_panic(#name"s_init.self.data", self.data == null); \
 		\
 		return self; \
+	} \
+	\
+	name name##s_clone(name *self, const allocator *mem) { \
+		if (cels_debug) { \
+			errors_panic(#name"s_clone.self", vectors_check((const vector *)self)); \
+		} \
+		\
+		name other = name##s_init(vector_min, mem); \
+		\
+		for (size_t i = 0; i < self->size; i++) { \
+			type item = clone0(&self->data[i], mem); \
+			name##s_push(&other, item, mem); \
+		} \
+		\
+		return other; \
 	} \
 	\
 	bool name##s_upscale(name *self, const allocator *mem) { \
@@ -277,6 +290,67 @@ typedef vectors(void *) vector;
 		} \
 	} \
 	\
+	bool name##s_filter(name *self, const allocator *mem, filterfunc filter) { \
+		if (cels_debug) { \
+			errors_panic(#name"s_filter.self", vectors_check((const vector *)self)); \
+		} \
+		\
+		name other = name##s_init(vector_min, mem); \
+		\
+		for (size_t i = 0; i < self->size; i++) { \
+			if (filter(&self->data[i])) { \
+				bool push_error = name##s_push(&other, self->data[i], mem); \
+				if (push_error) { \
+					return true; \
+				} \
+			} else { \
+				cleanup0(&self->data[i], mem); \
+			} \
+		} \
+		\
+		bool dealloc_error = mems_dealloc(mem, self->data, self->capacity); \
+		if (dealloc_error) { \
+			return true; \
+		} \
+		\
+		*self = other; \
+		\
+		return false; \
+	} \
+	\
+	bool name##s_filter_unique(name *self, const allocator *mem) { \
+		if (cels_debug) { \
+			errors_panic(#name"s_filter_unique.self", vectors_check((const vector *)self)); \
+		} \
+		\
+		name other = name##s_init(vector_min, mem); \
+ 		\
+		for (size_t i = 0; i < self->size; i++) { \
+			bool match = false; \
+			for (size_t j = 0; j < other.size; j++) { \
+				if (compare0(&self->data[i], &other.data[j])) { \
+					cleanup0(&self->data[i], mem); \
+					match = true; \
+					break; \
+				} \
+			} \
+ 			\
+			if (!match) { \
+				bool push_error = name##s_push(&other, self->data[i], mem); \
+				if (push_error) { \
+					return true; \
+				} \
+			} \
+		} \
+ 		\
+		bool dealloc_error = mems_dealloc(mem, self->data, self->capacity); \
+		if (dealloc_error) { \
+			return true; \
+		} \
+ 		\
+		return false; \
+	} \
+	\
 	void name##s_debug(const name *self) { \
 		if (cels_debug) { \
 			errors_panic(#name"s_debug.self", vectors_check((const vector *)self)); \
@@ -375,8 +449,28 @@ typedef vectors(void *) vector;
 		} \
 		\
 		self->size--; \
+		\
 		return false; \
-	}
+	} \
+	\
+	/* #to-review */ \
+	bool name##s_unite(name *self, name* other, notused const allocator *mem) { \
+		for (size_t i = 0; i < other->size; i++) { \
+			bool push_error = name##s_push(self, other->data[i], mem); \
+			if (push_error) { \
+				return true; \
+			} \
+		} \
+ 		\
+		bool dealloc_error = mems_dealloc(mem, other->data, other->capacity); \
+		if (dealloc_error) { \
+			return true; \
+		} \
+		\
+		other->size = 0; \
+ 		\
+		return false; \
+	} \
 
 /*
  * Generates all type-specific function-definitions for vectors.
@@ -388,10 +482,14 @@ typedef vectors(void *) vector;
 	__attribute_warn_unused_result__ \
 	name name##s_init(size_t len, const allocator *mem); \
 	\
+	__attribute_warn_unused_result__ \
+	name name##s_clone(name *self, const allocator *mem); \
+	\
 	bool name##s_upscale(name *self, const allocator *mem); \
 	\
 	bool name##s_downscale(name *self, const allocator *mem); \
 	\
+	__attribute_warn_unused_result__ \
 	type name##s_get(const name *self, size_t position); \
 	\
 	bool name##s_pop(name *self, const allocator *mem); \
@@ -405,6 +503,10 @@ typedef vectors(void *) vector;
 	void name##s_free(name *self, const allocator *mem); \
 	\
 	void name##s_sort(name *self, compfunc compare); \
+	\
+	bool name##s_filter(name *self, const allocator *mem, filterfunc filter); \
+	\
+	bool name##s_filter_unique(name *self, const allocator *mem); \
 	\
 	void name##s_debug(const name *self); \
 	\
@@ -422,7 +524,9 @@ typedef vectors(void *) vector;
 	__attribute_warn_unused_result__ \
 	ssize_t name##s_search(const name *self, type item); \
 	\
-	bool name##s_shift(name *self, size_t position, const allocator *mem);
+	bool name##s_shift(name *self, size_t position, const allocator *mem); \
+	\
+	bool name##s_unite(name *self, name* other, const allocator *mem);
 
 /**
  * Checks shallowly if vector was properly initialized.

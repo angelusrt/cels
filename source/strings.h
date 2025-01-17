@@ -108,8 +108,6 @@ string_vec string_vecs_make_helper(char *args[], size_t argn, const allocator *m
  * terminated strings.
  *
  * TODO:
- * - trim
- * - join
  * - simplify
  * - revise case-insensitivity
  */
@@ -145,7 +143,7 @@ string_vec string_vecs_make_helper(char *args[], size_t argn, const allocator *m
 #define strings_prehash(lit) \
 	strings_hasherize(&(string)strings_premake(lit))
 
-//#define s(lit) strings_premake(lit)
+//#define self(lit) strings_premake(lit)
 
 /* 
  * Checks if string was properly initialized 
@@ -154,7 +152,7 @@ string_vec string_vecs_make_helper(char *args[], size_t argn, const allocator *m
  * #tested
  */
 __attribute_warn_unused_result__
-bool strings_check(const string *s);
+bool strings_check(const string *self);
 
 /* 
  * Checks if string was properly assigned
@@ -163,7 +161,7 @@ bool strings_check(const string *s);
  * #tested
  */
 __attribute_warn_unused_result__
-bool strings_check_extra(const string *s);
+bool strings_check_extra(const string *self);
 
 /* 
  * Checks if string is properly within charset.
@@ -171,7 +169,7 @@ bool strings_check_extra(const string *s);
  * #tested
  */
 __attribute_warn_unused_result__
-bool strings_check_charset(const string *s, const string *charset);
+bool strings_check_charset(const string *self, const string *charset);
 
 /*
  * Allocates string (aka vectors(char)) with 
@@ -196,13 +194,13 @@ __attribute_warn_unused_result__
 string strings_make(const char *lit, const allocator *mem);
 
 /*
- * Allocates string from another string.
+ * Allocates a new string hard-copying 'self'.
  *
  * #allocates #may-panic 
  * #depends:string.h #posix-reliant #to-review
  */
 __attribute_warn_unused_result__
-string strings_make_copy(const string *s, const allocator *mem);
+string strings_clone(const string *self, const allocator *mem);
 
 /*
  * Makes a null-terminated string copy 
@@ -237,33 +235,33 @@ bool strings_push(string *self, string item, const allocator *mem);
  * #may-fail #depends:string.h #posix-reliant 
  * #tested #to-edit
  */
-void strings_free(string *s, const allocator *mem);
+void strings_free(string *self, const allocator *mem);
 
 /*
  * Prints a debug-friendly message of 
- * string's information.
+ * string'self information.
  *
  * #debug #depends:stdio.h #posix-reliant #to-review
  */
 void strings_debug(const string *self);
 
 /*
- * Prints the string to the terminal respecting it's size.
+ * Prints the string to the terminal respecting it'self size.
  *
  * #depends:stdio.h #posix-reliant 
  */
-void strings_print(const string *s);
+void strings_print(const string *self);
 
 /*
- * Prints the string to the terminal respecting it's size 
+ * Prints the string to the terminal respecting it'self size 
  * and terminated by a line break.
  *
  * #depends:stdio.h #posix-reliant 
  */
-void strings_println(const string *s);
+void strings_println(const string *self);
 
 /*
- * Prints string to terminal, having it's 
+ * Prints string to terminal, having it'self 
  * non-printable-characters printed symbolically.
  *
  * #to-review
@@ -281,7 +279,7 @@ __attribute_warn_unused_result__
 bool strings_compare(const string *first, const string *second);
 
 /*
- * Compares if first string equals the second completely 
+ * Compares if first string equals the second completely,
  * returning true in that case.
  *
  * #case-sensitive #tested
@@ -291,7 +289,7 @@ bool strings_equals(const string *first, const string *second);
 
 /*
  * Compares case-insensitivitely if first string 
- * equals the second completely returning true 
+ * equals the second completely, returning true 
  * in that case.
  *
  * #case-insensitive #tested
@@ -301,17 +299,17 @@ bool strings_seems(const string *first, const string *second);
 
 
 /*
- * Finds first ocurrence of sep string inside s from pos and returns 
+ * Finds first ocurrence of sep string inside self from pos and returns 
  * the position, where -1 indicates misuse or that sep wasn't found 
- * within s.
+ * within self.
  *
  * #case-insensitive #tested
  */
 __attribute_warn_unused_result__
-ssize_t strings_find(const string *s, const string *sep, size_t pos);
+ssize_t strings_find_from(const string *self, const string *seps, size_t pos);
 
 /*
- * Finds at most n ocurrences of sep string inside s and returns 
+ * Finds at most n ocurrences of sep string inside self and returns 
  * an allocated vector with all positions where sep was found in.
  *
  * If n is 0 the search is unrestricted.
@@ -319,7 +317,7 @@ ssize_t strings_find(const string *s, const string *sep, size_t pos);
  * #case-insensitive #may-panic #may-fail #allocates #tested #to-review
  */
 __attribute_warn_unused_result__
-size_vec strings_make_find(const string *s, const string *sep, size_t n, const allocator *mem);
+size_vec strings_find(const string *self, const string *substring, size_t n, const allocator *mem);
 
 /*
  * Finds the respective closing-tag of the provided 
@@ -334,7 +332,7 @@ __attribute_warn_unused_result__
 ssize_t strings_find_closing_tag(const string *self, const string open_tag, const string close_tag, size_t pos);
 
 /*
- * Replaces at most n ocurrences of any character in seps in s to rep.
+ * Replaces at most n ocurrences of any character in seps in self to rep.
  *
  * If n is 0, then the replacement is unrestricted.
  * If rep is less than 0, then the characters matched are deleted 
@@ -342,37 +340,37 @@ ssize_t strings_find_closing_tag(const string *self, const string open_tag, cons
  *
  * #case-sensitive #tested
  */
-void strings_replace(string *s, const string *seps, const char rep, size_t n);
+void strings_replace_from(string *self, const string *seps, const char rep, size_t n);
 
 /*
- * Creates a new string where the ocurrences of text whithin s 
+ * Creates a new string where the ocurrences of text whithin self 
  * are replaced by rep at most n times.
  *
  * If n is 0, then the replacement is unrestricted.
  * If rep is null, then the text found are simply 
  * not copy'd over to the new string.
  *
- * If no ocurrence of text is found in s, s is 
+ * If no ocurrence of text is found in self, self is 
  * copy'd completely to the new string.
  * 
  * #case-insensitive #allocates #may-fail #tested #to-edit
  */
 __attribute_warn_unused_result__
-string strings_make_replace(const string *s, const string *text, const string *rep, size_t n, const allocator *mem);
+string strings_replace(const string *self, const string *text, const string *rep, size_t n, const allocator *mem);
 
 /*
  * Creates a string_vec (aka vectors(string)) containing the 
- * split of s by separator sep at most n times.
+ * split of self by separator sep at most n times.
  *
  * If n is 0, then the split is unrestricted.
- * If sep is not found, a string_vec with a copy of s 
+ * If sep is not found, a string_vec with a copy of self 
  * is returned.
  *
  * #case-insensitive #allocates #may-fail #may-panic 
  * #depends:string.h #posix-reliant #tested #to-edit
  */
 __attribute_warn_unused_result__
-string_vec strings_make_split(const string *s, const string *sep, size_t n, const allocator *mem);
+string_vec strings_split(const string *self, const string *sep, size_t n, const allocator *mem);
 
 /*
  * Formats the string in form with arguments and 
@@ -385,7 +383,7 @@ string_vec strings_make_split(const string *s, const string *sep, size_t n, cons
  */
 __attribute_warn_unused_result__
 __attribute__ ((__format__ (printf, 1, 3)))
-string strings_make_format(const char *const form, const allocator *mem, ...);
+string strings_format(const char *const form, const allocator *mem, ...);
 
 /*
  * Hashes string. 
@@ -393,24 +391,24 @@ string strings_make_format(const char *const form, const allocator *mem, ...);
  * #case-insensitive #depends:math.h,ctype.h #tested
  */
 __attribute_warn_unused_result__
-size_t strings_hasherize(const string *s);
+size_t strings_hasherize(const string *self);
 
 /*
- * Converts characters in s to lowercase.
+ * Converts characters in self to lowercase.
  *
  * #tested
  */
-void strings_lower(string *s);
+void strings_lower(string *self);
 
 /*
- * Converts characters in s to uppercase.
+ * Converts characters in self to uppercase.
  *
  * #tested
  */
-void strings_upper(string *s);
+void strings_upper(string *self);
 
 /*
- * Iterates through s where each token is separated 
+ * Iterates through self where each token is separated 
  * by sep and indicates when the iteration has ended 
  * returning true. 
  *
@@ -421,7 +419,7 @@ void strings_upper(string *s);
  *
  * #case-insensitive #iterator #tested
  */
-bool strings_next(const string *s, const string *sep, string *next);
+bool strings_next(const string *self, const string *sep, string *next);
 
 /*
  * Shifts whole string eliminating a character.
@@ -438,6 +436,25 @@ void strings_shift(string *self, size_t position);
  * #to-review
  */
 void strings_trim(string *self);
+
+/*
+ * Checks if 'self' has suffix (naturaly, at 
+ * the end), returning true if it has.
+ *
+ * #to-review
+ */
+__attribute_warn_unused_result__
+bool strings_has_suffix(const string *self, const string suffix);
+
+
+/*
+ * Checks if 'self' has prefix (naturaly, at 
+ * the beginning), returning true if it has.
+ *
+ * #to-review
+ */
+__attribute_warn_unused_result__
+bool strings_has_prefix(const string *self, const string prefix);
 
 /* string_bivecs */
 
@@ -457,7 +474,7 @@ maps_generate_definition(string, string, string_key_pair, string_map)
 typedef errors(string_map *) estring_map;
 
 /*
- * Push key and value over string_map allocating string's with mem.
+ * Push key and value over string_map allocating string'self with mem.
  * This function is a convenience over string_maps_push.
  * 
  * #to-review

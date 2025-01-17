@@ -31,6 +31,7 @@ vectors_generate_implementation(
 	char, 
 	char_vec, 
 	defaults_check,
+	defaults_clone,
 	chars_print_private, 
 	defaults_compare, 
 	defaults_seems, 
@@ -112,13 +113,13 @@ string strings_make(const char *text, const allocator *mem) {
 	return self;
 }
 
-string strings_make_copy(const string *self, const allocator *mem) {
+string strings_clone(const string *self, const allocator *mem) {
 	#if cels_debug
-		errors_panic("strings_make_copy.self", strings_check(self));
+		errors_panic("strings_clone.self", strings_check(self));
 	#endif
 
 	string dest = char_vecs_init(self->capacity, mem);
-	errors_panic("strings_make_copy.dest.data", dest.data == null);
+	errors_panic("strings_clone.dest.data", dest.data == null);
 
 	memcpy(dest.data, self->data, self->size);
 	dest.size = self->size;
@@ -130,12 +131,11 @@ string strings_unview(const string *self, const allocator *mem) {
 	string view = *self;
 	view.capacity++;
 
-	string not_view = strings_make_copy(&view, mem);
+	string not_view = strings_clone(&view, mem);
 	not_view.data[not_view.capacity - 1] = '\0';
 
 	return not_view;
 }
-
 
 bool strings_pop(string *self, const allocator *mem) {
 	#if cels_debug
@@ -287,10 +287,10 @@ bool strings_seems(const string *first, const string *second) {
 	return true;
 }
 
-ssize_t strings_find(const string *self, const string *sep, size_t pos) {
+ssize_t strings_find_from(const string *self, const string *sep, size_t pos) {
 	#if cels_debug
-		errors_panic("strings_find.self", strings_check_extra(self));
-		errors_panic("strings_find.sep", strings_check_extra(sep));
+		errors_panic("strings_find_from.self", strings_check_extra(self));
+		errors_panic("strings_find_from.sep", strings_check_extra(sep));
 	#endif
 
 	if (pos >= self->size - 1) {
@@ -316,30 +316,30 @@ ssize_t strings_find(const string *self, const string *sep, size_t pos) {
 	return -1;
 }
 
-size_vec strings_make_find(const string *self, const string *sep, size_t n, const allocator *mem) {
+size_vec strings_find(const string *self, const string *substring, size_t n, const allocator *mem) {
 	#if cels_debug
-		errors_panic("strings_make_find.self", strings_check_extra(self));
-		errors_panic("strings_make_find.sep", strings_check_extra(sep));
+		errors_panic("strings_find.self", strings_check_extra(self));
+		errors_panic("strings_find.substring", strings_check_extra(substring));
 	#endif
 
-	size_vec indexes = size_vecs_init(vectors_min, mem);
-	errors_panic("strings_make_find.indexes", vectors_check((vector *)&indexes));
+	size_vec indexes = size_vecs_init(vector_min, mem);
+	errors_panic("strings_find.indexes", vectors_check((vector *)&indexes));
 
     for (size_t i = 0, j = 0; i < self->size - 1; i++) {
 		u_char slower = tolower(self->data[i]);
 
-        if (slower == tolower(sep->data[j])) {
+        if (slower == tolower(substring->data[j])) {
             j++;
-		} else if (slower == tolower(sep->data[0])) {
+		} else if (slower == tolower(substring->data[0])) {
             j = 1;
 		} else {
             j = 0;
         }
 
-        if (j == sep->size - 1) {
+        if (j == substring->size - 1) {
 			bool err = size_vecs_push(&indexes, i - (j - 1), mem);
 			#if cels_debug
-				errors_panic("strings_make_find.size_vecs_push failed", err);
+				errors_panic("strings_find.size_vecs_push failed", err);
 			#endif
 
 			if (err == true) {
@@ -405,10 +405,10 @@ ssize_t strings_find_closing_tag(const string *self, const string open_tag, cons
 }
 
 
-void strings_replace(string *self, const string *seps, const char rep, size_t n) {
+void strings_replace_from(string *self, const string *seps, const char rep, size_t n) {
 	#if cels_debug
-		errors_panic("strings_replace.self", strings_check_extra(self));
-		errors_panic("strings_replace.seps", strings_check_extra(seps));
+		errors_panic("strings_replace_from.self", strings_check_extra(self));
+		errors_panic("strings_replace_from.seps", strings_check_extra(seps));
 	#endif
 
 	size_t n_rep = 0;
@@ -458,25 +458,25 @@ void strings_replace(string *self, const string *seps, const char rep, size_t n)
 	}
 }
 
-string strings_make_replace(const string *self, const string *text, const string *rep, size_t n, const allocator *mem) {
+string strings_replace(const string *self, const string *text, const string *rep, size_t n, const allocator *mem) {
 	#if cels_debug
-		errors_panic("strings_make_replace.self", strings_check_extra(self));
-		errors_panic("strings_make_replace.text", strings_check_extra(text));
+		errors_panic("strings_replace.self", strings_check_extra(self));
+		errors_panic("strings_replace.text", strings_check_extra(text));
 	#endif
 
 	long diff_size = - (text->size - 1);
 	if (rep != null) {
 		#if cels_debug
-			errors_panic("strings_make_replace.rep", strings_check_extra(rep));
+			errors_panic("strings_replace.rep", strings_check_extra(rep));
 		#endif
 
 		diff_size += (rep->size - 1);
 	}
 
-	size_vec indexes = strings_make_find(self, text, n, mem);
+	size_vec indexes = strings_find(self, text, n, mem);
 	if (indexes.size == 0) {
 		size_vecs_free(&indexes, mem);
-		return strings_make_copy(self, mem);
+		return strings_clone(self, mem);
 	}
 
 	size_t size = self->size + diff_size * indexes.size;
@@ -484,7 +484,7 @@ string strings_make_replace(const string *self, const string *text, const string
 	//size_t capacity = maths_nearest_two_power(size);
 	
 	string new_string = char_vecs_init(capacity, mem);
-	errors_panic("strings_make_replace.new_string", new_string.data == NULL);
+	errors_panic("strings_replace.new_string", new_string.data == NULL);
 
     new_string.size = size;
     size_t prev = 0, i = 0, j = 0;
@@ -516,21 +516,21 @@ string strings_make_replace(const string *self, const string *text, const string
     return new_string;
 }
 
-string_vec strings_make_split(const string *self, const string *sep, size_t n, const allocator *mem) {
+string_vec strings_split(const string *self, const string *sep, size_t n, const allocator *mem) {
 	#if cels_debug
-		errors_panic("strings_make_split.self", strings_check_extra(self));
-		errors_panic("strings_make_split.sep", strings_check_extra(sep));
+		errors_panic("strings_split.self", strings_check_extra(self));
+		errors_panic("strings_split.sep", strings_check_extra(sep));
 	#endif
 
-	size_vec indexes = strings_make_find(self, sep, n, mem);
-    string_vec sentences = string_vecs_init(vectors_min, mem);
+	size_vec indexes = strings_find(self, sep, n, mem);
+    string_vec sentences = string_vecs_init(vector_min, mem);
 
 	if (indexes.size == 0) {
-		string scopy = strings_make_copy(self, mem);
+		string scopy = strings_clone(self, mem);
 
 		#if cels_debug
 			bool error = string_vecs_push(&sentences, scopy, mem);
-			errors_panic("strings_make_split.string_vecs_push failed", error);
+			errors_panic("strings_split.string_vecs_push failed", error);
 		#else
 			string_vecs_push(&sentences, scopy, mem);
 		#endif
@@ -562,7 +562,7 @@ string_vec strings_make_split(const string *self, const string *sep, size_t n, c
 		
 		string new_string = char_vecs_init(capacity, mem);
 
-		errors_panic("strings_make_split.new_string", new_string.data == NULL);
+		errors_panic("strings_split.new_string", new_string.data == NULL);
         new_string.size = size;
 
 		for (size_t j = 0; j < size; j++) { new_string.data[j] = (self->data + prev)[j];
@@ -572,7 +572,7 @@ string_vec strings_make_split(const string *self, const string *sep, size_t n, c
 
         bool error = string_vecs_push(&sentences, new_string, mem);
 		#if cels_debug
-			errors_panic("strings_make_split.vectors_push failed", error);
+			errors_panic("strings_split.vectors_push failed", error);
 		#endif
 
         if (error || i > indexes.size - 1) {
@@ -586,10 +586,10 @@ string_vec strings_make_split(const string *self, const string *sep, size_t n, c
     return sentences;
 }
 
-string strings_make_format(const char *const form, const allocator *mem, ...) {
+string strings_format(const char *const form, const allocator *mem, ...) {
 	#if cels_debug
-		errors_panic("strings_make_format.form", form == NULL);
-		errors_panic("strings_make_format.form < 1", strlen(form) < 1);
+		errors_panic("strings_format.form", form == NULL);
+		errors_panic("strings_format.form < 1", strlen(form) < 1);
 	#endif
 
     va_list args, args2;
@@ -600,7 +600,7 @@ string strings_make_format(const char *const form, const allocator *mem, ...) {
 	size_t new_capacity = buff_size;
 
     char *text = mems_alloc(mem, sizeof(char) * new_capacity);
-    errors_panic("strings_make_format.text", text == NULL);
+    errors_panic("strings_format.text", text == NULL);
 
     vsnprintf(text, buff_size, form, args2);
     va_end(args);
@@ -671,7 +671,7 @@ bool strings_next(const string *self, const string *sep, string *next) {
 
 		if (has_data_been_setted) {
 			long new_size = 0;
-			ssize_t new_pos = strings_find(self, sep, next_pos);
+			ssize_t new_pos = strings_find_from(self, sep, next_pos);
 			if (new_pos == -1) {
 				new_size = (self->data + self->size) - next->data;
 
@@ -735,12 +735,52 @@ void strings_trim(string *self) {
 	}
 }
 
+bool strings_has_suffix(const string *self, const string suffix) {
+	#if cels_debug
+		errors_panic("strings_has_suffix.self", strings_check_extra(self));
+		errors_panic("strings_has_suffix.suffix", strings_check_extra(&suffix));
+	#endif
+
+	if (suffix.size > self->size) {
+		return false;
+	}
+
+	size_t offset = self->size - suffix.size;
+	for (size_t i = 0; i < suffix.size - 1; i++) {
+		if (self->data[offset + i] != suffix.data[i]) {
+			return false;
+		}
+	}
+
+	return true;
+}
+
+bool strings_has_prefix(const string *self, const string prefix) {
+	#if cels_debug
+		errors_panic("strings_has_prefix.self", strings_check_extra(self));
+		errors_panic("strings_has_prefix.suffix", strings_check_extra(&suffix));
+	#endif
+
+	if (prefix.size > self->size) {
+		return false;
+	}
+
+	for (size_t i = 0; i < prefix.size - 1; i++) {
+		if (self->data[i] != prefix.data[i]) {
+			return false;
+		}
+	}
+
+	return true;
+}
+
 /* string_vecs */
 
 vectors_generate_implementation(
 	string, 
 	string_vec, 
 	strings_check,
+	strings_clone,
 	strings_println, 
 	strings_equals, 
 	strings_seems, 
@@ -787,7 +827,6 @@ string_vec string_vecs_make_helper(char *args[], size_t argn, const allocator *m
 	return self;
 }
 
-
 bool string_vecs_check_private(const string_vec *self) {
 	return vectors_check((const vector *)self);
 }
@@ -813,6 +852,7 @@ vectors_generate_implementation(
 	string_vec, 
 	string_bivec,
 	string_vecs_check_private,
+	string_vecs_clone,
 	string_vecs_print_private,
 	string_vecs_equals,
 	string_vecs_seems,

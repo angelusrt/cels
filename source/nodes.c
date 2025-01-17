@@ -14,7 +14,7 @@ bool bnodes_check(const bnode *self) {
 	return false;
 }
 
-void bnodes_right_rotate_private(unused bnode *self, bnode *new_node) {
+void bnodes_right_rotate_private(notused bnode *self, bnode *new_node) {
 	#if cels_debug
 		errors_panic("bnodes_right_rotate_private.self", bnodes_check(self));
 		errors_panic("bnodes_right_rotate_private.new_node", bnodes_check(new_node));
@@ -40,7 +40,7 @@ void bnodes_right_rotate_private(unused bnode *self, bnode *new_node) {
     new_node->parent = left;
 }
  
-void bnodes_left_rotate_private(unused bnode *self, bnode *new_node) {
+void bnodes_left_rotate_private(notused bnode *self, bnode *new_node) {
 	#if cels_debug
 		errors_panic("bnodes_left_rotate_private.self", bnodes_check(self));
 		errors_panic("bnodes_left_rotate_private.new_node", bnodes_check(new_node));

@@ -16,11 +16,12 @@ typedef bool (*compvecfunc)(void *, void *, void *);
 typedef size_t (*hashfunc)(void *);
 typedef void (*cleanfunc)(void *);
 typedef void (*printfunc)(void *);
+typedef bool (*filterfunc)(void *);
 typedef error_report (*reportfunc)(void);
 typedef void (*printvecfunc)(void *, void *);
 typedef clock_t (*benchfunc) (size_t);
 
-#define unused __attribute__((unused))
+#define notused __attribute__((unused))
 
 #define null NULL
 
@@ -57,11 +58,16 @@ size_t maths_nearest_two_power(size_t a);
 /* defaults */
 
 #define defaults_compare(a, b) (*a == *b)
+
 #define defaults_check(a) (false)
 
 #define defaults_seems(a, b) (tolower(*a) == tolower(*b))
 
-void defaults_free(void *a, const void *mem);
+#define defaults_clone(a, mem) *a
+
+#define defaults_free(a, mem)
+
+//void defaults_free(void *a, const void *mem);
 
 /* benchs */
 

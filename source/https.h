@@ -59,7 +59,14 @@ bool routers_check(const router *self);
  *
  * #to-review
  */
-void routers_debug(const router* self);
+void routers_debug(const router *self);
+
+/*
+ * Clones 'self'.
+ *
+ * #to-review
+ */
+router routers_clone(router *self, const allocator *mem);
 
 /*
  * Prints router.

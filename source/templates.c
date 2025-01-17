@@ -31,6 +31,25 @@ void templates_print_private(const template *self) {
 	printf("}\n");
 }
 
+template templates_clone_private(template *self, const allocator *mem) {
+	template_vec *temps = null;
+	if (self->next) {
+		template_vec temps_clone = template_vecs_clone(self->next, mem);
+		template_vec *capsule = mems_alloc(mem, sizeof(template_vec));
+
+		*capsule = temps_clone;
+		temps = capsule;
+	}
+
+	template other = {
+		.next=temps,
+		.operator=self->operator,
+		.text=strings_clone(&self->text, mem)
+	};
+
+	return other;
+}
+
 bool templates_seems_private(const template *t0, const template *t1) {
 	#if cels_debug
 		errors_panic("templates_seems_private.t0", templates_check_private(t0));
@@ -71,6 +90,7 @@ vectors_generate_implementation(
 	template, 
 	template_vec, 
 	templates_check_private,
+	templates_clone_private,
 	templates_print_private,
 	templates_equals_private,
 	templates_seems_private,
@@ -108,9 +128,9 @@ template templates_parse_tag_private(string *tag, const allocator *mem) {
 	const string alt_whitespaces = strings_premake("\t\r\n");
 	const string the_whitespace = strings_premake(" ");
 
-	strings_replace(tag, &alt_whitespaces, ' ', 0);
+	strings_replace_from(tag, &alt_whitespaces, ' ', 0);
 
-	string_vec tokens = strings_make_split(tag, &the_whitespace, 0, mem);
+	string_vec tokens = strings_split(tag, &the_whitespace, 0, mem);
 
 	if (tokens.size == 1) {
 		mems_dealloc(mem, tokens.data, tokens.capacity);
@@ -131,7 +151,6 @@ template templates_parse_tag_private(string *tag, const allocator *mem) {
 				.operator=template_define_operator,
 			};
 		}
-
 	}
 
 	error:
@@ -183,7 +202,7 @@ error templates_parse_private(template_map **templates, const string *template, 
 
 			i = pos + 1;
 		} else {
-			ssize_t pos = strings_find(template, &tag_open, i);
+			ssize_t pos = strings_find_from(template, &tag_open, i);
 			if (pos == -1) {
 				pos = template->size - 2;
 			}
@@ -194,7 +213,7 @@ error templates_parse_private(template_map **templates, const string *template, 
 				.capacity=(pos-(i-1))+2,
 			};
 
-			string section = strings_make_copy(&section_view, mem);
+			string section = strings_clone(&section_view, mem);
 			section.size++;
 			section.data[section.capacity - 1] = '\0';
 
@@ -246,7 +265,7 @@ etemplate_map templates_make(const string path, const allocator *mem) {
 	error error = 0;
 	template_map *map = null;
 	for (size_t i = 0; i < files.value.size; i++) {
-		string filepath = strings_make_format(
+		string filepath = strings_format(
 			"%s%s", mem, path.data, files.value.data[i].data);
 
 		file *file = fopen(filepath.data, "r");
