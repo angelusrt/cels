@@ -65,7 +65,10 @@ typedef errors(string_vec) estring_vec;
   string_vecs_make_helper(_args, sizeof(_args)/sizeof(char*), mem); \
 })*/
 #define string_vecs_make(mem, ...) \
-  string_vecs_make_helper((char*[]){__VA_ARGS__}, sizeof((char*[]){__VA_ARGS__})/sizeof(char*), mem)
+  string_vecs_make_helper( \
+	  (char*[]){__VA_ARGS__}, \
+	  sizeof((char*[]){__VA_ARGS__})/sizeof(char*), \
+	  mem)
 
 /*
  * Concatenates strings inside 'self' 
@@ -133,6 +136,20 @@ string_vec string_vecs_make_helper(char *args[], size_t argn, const allocator *m
 #define strings_premake(lit) \
 	{.data=lit, .size=sizeof(lit), .capacity=sizeof(lit)}
 
+/* 
+ * Creates a static variable from string literal 
+ * with size and capacity already specified.
+ *
+ * Should'nt be modified (view only)!
+ *
+ * This function is a convenience over 
+ * strings_premake for using in function 
+ * arguments.
+ *
+ * #view-only #to-review #decanonize?
+ */
+#define strings_do(lit) (string)strings_premake(lit)
+
 /*
  * Convenience macro that receives 
  * a char literal and returns 
@@ -142,8 +159,6 @@ string_vec string_vecs_make_helper(char *args[], size_t argn, const allocator *m
  */
 #define strings_prehash(lit) \
 	strings_hasherize(&(string)strings_premake(lit))
-
-//#define self(lit) strings_premake(lit)
 
 /* 
  * Checks if string was properly initialized 
@@ -179,7 +194,8 @@ bool strings_check_charset(const string *self, const string *charset);
  *
  * Should be freed using 'strings_free'.
  *
- * #allocates #depends:stdio.h #posix-reliant #tested #to-review
+ * #allocates #depends:stdio.h #posix-reliant 
+ * #tested #to-review
  */
 string strings_init(size_t quantity, const allocator *mem);
 
@@ -201,6 +217,19 @@ string strings_make(const char *lit, const allocator *mem);
  */
 __attribute_warn_unused_result__
 string strings_clone(const string *self, const allocator *mem);
+
+/*
+ * Creates a view of 'self' delimited 
+ * by start or end.
+ *
+ * If this function is misused an 
+ * empty string is returned.
+ *
+ * #allocates #may-panic 
+ * #depends:string.h #posix-reliant #to-review
+ */
+__attribute_warn_unused_result__
+string strings_view(const string *self, size_t start, size_t end);
 
 /*
  * Makes a null-terminated string copy 
@@ -239,29 +268,31 @@ void strings_free(string *self, const allocator *mem);
 
 /*
  * Prints a debug-friendly message of 
- * string'self information.
+ * string's information.
  *
  * #debug #depends:stdio.h #posix-reliant #to-review
  */
 void strings_debug(const string *self);
 
 /*
- * Prints the string to the terminal respecting it'self size.
+ * Prints the string to the terminal 
+ * respecting it's size.
  *
  * #depends:stdio.h #posix-reliant 
  */
 void strings_print(const string *self);
 
 /*
- * Prints the string to the terminal respecting it'self size 
- * and terminated by a line break.
+ * Prints the string to the terminal 
+ * respecting it's size and terminated 
+ * by a line break.
  *
  * #depends:stdio.h #posix-reliant 
  */
 void strings_println(const string *self);
 
 /*
- * Prints string to terminal, having it'self 
+ * Prints string to terminal, having it's 
  * non-printable-characters printed symbolically.
  *
  * #to-review
@@ -269,55 +300,73 @@ void strings_println(const string *self);
 void strings_print_clean(const string *self);
 
 /*
- * Compares if first string is bigger than the second 
- * alphabetically, thus, returning true if it is and false 
- * if is equal or smaller.
+ * Compares if 'self' string is bigger than 'other' 
+ * alphabetically, thus, returning true if it is 
+ * and false if is equal or smaller.
  *
  * #case-insensitive #tested #depends:maths.h
  */
 __attribute_warn_unused_result__
-bool strings_compare(const string *first, const string *second);
+bool strings_compare(const string *self, const string *other);
 
 /*
- * Compares if first string equals the second completely,
+ * Compares if 'self' string equals 'other' completely,
  * returning true in that case.
  *
  * #case-sensitive #tested
  */
 __attribute_warn_unused_result__
-bool strings_equals(const string *first, const string *second);
+bool strings_equals(const string *self, const string *other);
 
 /*
- * Compares case-insensitivitely if first string 
- * equals the second completely, returning true 
+ * Compares case-insensitivitely if 'self' string 
+ * equals 'other' completely, returning true 
  * in that case.
  *
  * #case-insensitive #tested
  */
 __attribute_warn_unused_result__
-bool strings_seems(const string *first, const string *second);
-
+bool strings_seems(const string *self, const string *other);
 
 /*
- * Finds first ocurrence of sep string inside self from pos and returns 
- * the position, where -1 indicates misuse or that sep wasn't found 
- * within self.
+ * Finds self ocurrence of substring inside 
+ * 'self' from pos and returns the position 
+ * of where matching began. 
  *
- * #case-insensitive #tested
+ * It returns -1 for misuse or if substring 
+ * wasn't found.
+ *
+ * #case-insensitive #to-review
+ */
+__attribute_warn_unused_result__
+ssize_t strings_find(const string *self, const string substring, size_t pos);
+
+/*
+ * Finds any character from seps within 'self' 
+ * beginning from position 'pos' and returns 
+ * the position of where matching began. 
+ *
+ * It returns -1 for misuse or if substring 
+ * wasn't found.
+ *
+ * #case-insensitive #to-review
  */
 __attribute_warn_unused_result__
 ssize_t strings_find_from(const string *self, const string *seps, size_t pos);
 
 /*
- * Finds at most n ocurrences of sep string inside self and returns 
- * an allocated vector with all positions where sep was found in.
+ * Finds at most n ocurrences of substring 
+ * inside self and returns an allocated vector 
+ * with all positions where sep was found in.
  *
  * If n is 0 the search is unrestricted.
  *
- * #case-insensitive #may-panic #may-fail #allocates #tested #to-review
+ * #case-insensitive #may-panic #may-fail 
+ * #allocates #tested #to-review
  */
 __attribute_warn_unused_result__
-size_vec strings_find(const string *self, const string *substring, size_t n, const allocator *mem);
+size_vec strings_find_all(
+	const string *self, const string *substring, size_t n, const allocator *mem);
 
 /*
  * Finds the respective closing-tag of the provided 
@@ -329,25 +378,28 @@ size_vec strings_find(const string *self, const string *substring, size_t n, con
  * #case-sensitive #to-review
  */
 __attribute_warn_unused_result__
-ssize_t strings_find_closing_tag(const string *self, const string open_tag, const string close_tag, size_t pos);
+ssize_t strings_find_closing_tag(
+	const string *self, const string open_tag, const string close_tag, size_t pos);
 
 /*
- * Replaces at most n ocurrences of any character in seps in self to rep.
+ * Replaces at most n ocurrences of any character 
+ * in seps in self to rep.
  *
  * If n is 0, then the replacement is unrestricted.
- * If rep is less than 0, then the characters matched are deleted 
- * and the whole string is shifted accordingly.
+ * If rep is less than 0, then the characters matched 
+ * are deleted and the whole string is shifted 
+ * accordingly.
  *
  * #case-sensitive #tested
  */
 void strings_replace_from(string *self, const string *seps, const char rep, size_t n);
 
 /*
- * Creates a new string where the ocurrences of text whithin self 
- * are replaced by rep at most n times.
+ * Creates a new string where the ocurrences of substring 
+ * whithin self are replaced by 'replace' at most n times.
  *
  * If n is 0, then the replacement is unrestricted.
- * If rep is null, then the text found are simply 
+ * If 'replace' is null, then the text found are simply 
  * not copy'd over to the new string.
  *
  * If no ocurrence of text is found in self, self is 
@@ -356,7 +408,8 @@ void strings_replace_from(string *self, const string *seps, const char rep, size
  * #case-insensitive #allocates #may-fail #tested #to-edit
  */
 __attribute_warn_unused_result__
-string strings_replace(const string *self, const string *text, const string *rep, size_t n, const allocator *mem);
+string strings_replace(
+	const string *self, const string *substring, const string *replace, size_t n, const allocator *mem);
 
 /*
  * Creates a string_vec (aka vectors(string)) containing the 
@@ -376,7 +429,8 @@ string_vec strings_split(const string *self, const string *sep, size_t n, const 
  * Formats the string in form with arguments and 
  * returns it as a string. It obeys to printf format style.
  *
- * #allocates #may-panic #depends:stdio.h #posix-reliant #tested
+ * #allocates #may-panic #depends:stdio.h 
+ * #posix-reliant #tested
  *
  * example:
  * string json = strings_make_format("{\"age\": %d}", 10); //{"age": 10}
@@ -422,6 +476,13 @@ void strings_upper(string *self);
 bool strings_next(const string *self, const string *sep, string *next);
 
 /*
+ * Slices string shifting start and cutting end.
+ *
+ * #to-review
+ */
+void strings_slice(string *self, size_t start, size_t end);
+
+/*
  * Shifts whole string eliminating a character.
  * Does nothing if position is invalid.
  *
@@ -438,6 +499,14 @@ void strings_shift(string *self, size_t position);
 void strings_trim(string *self);
 
 /*
+ * Cuts leading white-spaces on both 
+ * ends of string, returning a view.
+ *
+ * #to-review
+ */
+string strings_cut(string *self);
+
+/*
  * Checks if 'self' has suffix (naturaly, at 
  * the end), returning true if it has.
  *
@@ -445,7 +514,6 @@ void strings_trim(string *self);
  */
 __attribute_warn_unused_result__
 bool strings_has_suffix(const string *self, const string suffix);
-
 
 /*
  * Checks if 'self' has prefix (naturaly, at 
@@ -474,13 +542,13 @@ maps_generate_definition(string, string, string_key_pair, string_map)
 typedef errors(string_map *) estring_map;
 
 /*
- * Push key and value over string_map allocating string'self with mem.
- * This function is a convenience over string_maps_push.
+ * Push key and value over string_map allocating 
+ * string's with mem. This function is a 
+ * convenience over string_maps_push.
  * 
  * #to-review
  */
 bool string_maps_make_push(
-	string_map **self, const char *key, const char *value, const allocator *mem
-);
+	string_map **self, const char *key, const char *value, const allocator *mem);
 
 #endif
