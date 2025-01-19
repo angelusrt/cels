@@ -21,10 +21,12 @@ typedef enum file_error {
 	file_telling_position_error,
 	file_seeking_position_error,
 	file_writing_error,
+	file_reading_error,
 	file_did_not_end_error,
 	file_other_error,
 	file_directory_not_opened_error,
 	file_allocation_error,
+	file_mal_formed_error,
 } file_error;
 
 /*
@@ -62,6 +64,23 @@ __attribute_warn_unused_result__
 estring_vec files_list(const string path, const allocator *mem);
 
 /*
+ * Finds first substring within file 
+ * starting with position 'pos' 
+ * and returns the position of where the 
+ * matching began. 
+ *
+ * If pos is negative, the search begins where 
+ * the file position is set.
+ *
+ * If no substring is found -1 is returned 
+ * or -2 if a seek fails.
+ *
+ * #to-review
+ */
+__attribute_warn_unused_result__
+ssize_t files_find(file *self, string substring, ssize_t pos);
+
+/*
  * Finds first of any character in seps within 
  * file starting from position pos and returns 
  * the position where it was found.
@@ -74,7 +93,8 @@ estring_vec files_list(const string path, const allocator *mem);
  *
  * #to-review
  */
-ssize_t files_find(file *self, string seps, ssize_t pos);
+__attribute_warn_unused_result__
+ssize_t files_find_from(file *self, string seps, ssize_t pos);
 
 /*
  * Gets next line and puts it in buffer 'line'.
@@ -87,6 +107,29 @@ ssize_t files_find(file *self, string seps, ssize_t pos);
  *
  * #to-review
  */
+__attribute_warn_unused_result__
 bool files_next(file *self, string *line, const allocator *mem);
+
+/*
+ * Normalizes filepath, eliminating ".." and ".".
+ *
+ * If filepath is mal-formed or an allocation 
+ * error happens, file_error is returned.
+ *
+ */
+__attribute_warn_unused_result__
+estring files_normalize(const string *filepath, const allocator *mem);
+
+/*
+ * Normalizes path and concatenates to 
+ * working-directory path to make it absolute.
+ *
+ * If filepath is mal-formed or an allocation 
+ * error happens, file_error is returned.
+ *
+ * #to-review
+ */
+__attribute_warn_unused_result__
+estring files_path(const string *filepath, const allocator *mem);
 
 #endif

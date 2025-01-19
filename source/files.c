@@ -1,4 +1,5 @@
 #include "files.h"
+#include "strings.h"
 
 estring files_read(file *self, const allocator *mem) {
 	long current_position = ftell(self);
@@ -80,10 +81,8 @@ estring_vec files_list(const string path, const allocator *mem) {
 
 		string file = strings_make(entity->d_name, mem);
 
-		bool push_error = string_vecs_push(&files, file, mem);
+		bool push_error = string_vecs_fpush(&files, file, mem);
 		if (push_error) {
-			strings_free(&file, mem);
-			string_vecs_free(&files, mem);
 			return (estring_vec){.error=file_allocation_error};
 		}
 	}
@@ -91,7 +90,43 @@ estring_vec files_list(const string path, const allocator *mem) {
 	return (estring_vec){.value=files};
 }
 
-ssize_t files_find(file *self, string seps, ssize_t pos) {
+ssize_t files_find(file *self, string substring, ssize_t pos) {
+	if (pos >= 0) {
+		error seek_error = fseek(self, pos, SEEK_SET);
+		if (seek_error == -1) {
+			return -2;
+		}
+	} else {
+		pos = ftell(self);
+		if (pos == -1) {
+			return -1;
+		}
+	}
+
+	char letter = '\0';
+	size_t i = 0;
+	size_t j = pos;
+	do {
+		letter = tolower(fgetc(self));
+
+		if (tolower(substring.data[i]) == letter) {
+			i++;
+		} else if (tolower(substring.data[0]) == letter) {
+			i = 1;
+		} else {
+			i = 0;
+		}
+
+		j++;
+		if (i == substring.size - 1) {
+			return j - i;
+		}
+	} while(letter != EOF);
+
+	return -1;
+}
+
+ssize_t files_find_from(file *self, string seps, ssize_t pos) {
 	if (pos >= 0) {
 		ssize_t position = fseek(self, pos, SEEK_SET);
 		if (position == -1) {
@@ -147,14 +182,14 @@ bool files_next(file *self, string *line_view, const allocator *mem) {
 		.data=(char[3]){'\n', EOF, '\0'}
 	};
 
-	ssize_t next_position = files_find(self, line_separator, current_position + 1);
+	ssize_t next_position = files_find_from(self, line_separator, current_position + 1);
 	if (next_position == -1) {
 		return true;
 	}
 
 	size_t capacity = next_position + 1 - current_position;
 	while (capacity > line_view->capacity) {
-		bool upscale_error = char_vecs_upscale(line_view, mem);
+		error upscale_error = char_vecs_upscale(line_view, mem);
 		if (upscale_error) {
 			return file_allocation_error;
 		}
@@ -166,11 +201,16 @@ bool files_next(file *self, string *line_view, const allocator *mem) {
 	}
 
 	size_t bytes_read = fread(line_view->data, 1, capacity, self);
-	line_view->size = bytes_read;
-
-	if (feof(self)) {
-		return file_did_not_end_error;
+	if (bytes_read == 0) {
+		return file_reading_error;
 	}
+
+	line_view->size = bytes_read;
+	line_view->data[line_view->size - 1] = '\0';
+
+	/*if (feof(self)) {
+		return file_did_not_end_error;
+	}*/
 
 	if (ferror(self)) {
 		return file_other_error;
@@ -179,3 +219,72 @@ bool files_next(file *self, string *line_view, const allocator *mem) {
 	return false;
 }
 
+estring files_normalize(const string *filepath, const allocator *mem) {
+	const string file_sep = strings_premake("/");
+	const string one_dots = strings_premake(".");
+	const string two_dots = strings_premake("..");
+
+	string path_normalized = strings_init(vector_min, mem);
+	string_vec file_nodes = strings_split(filepath, &file_sep, 0, mem);
+
+	size_t i = 0;
+	while(true) {
+		if (strings_seems(&file_nodes.data[i], &two_dots)) {
+			if (i == 0) {
+				goto error;
+			}
+
+			string_vecs_shift(&file_nodes, i - 1, mem);
+			string_vecs_shift(&file_nodes, i - 1, mem);
+			i--;
+		} else if (strings_seems(&file_nodes.data[i], &one_dots)) {
+			string_vecs_shift(&file_nodes, i, mem);
+		} else {
+			i++;
+		}
+
+		if (i == file_nodes.size - 1) {
+			break;
+		}
+	}
+
+	for (size_t i = 0; i < file_nodes.size; i++) {
+		error push_error = strings_push(&path_normalized, file_sep, mem);
+		if (push_error) { goto error; }
+
+		push_error = strings_push(&path_normalized, file_nodes.data[i], mem);
+		if (push_error) { goto error; }
+	}
+
+	string_vecs_free(&file_nodes, mem);
+	return (estring){.value=path_normalized};
+
+	error:
+	strings_free(&path_normalized, mem);
+	string_vecs_free(&file_nodes, mem);
+	return (estring){.error=file_mal_formed_error};
+}
+
+estring files_path(const string *filepath, const allocator *mem) {
+	if (filepath->data[0] == '/') {
+		return (estring){.value=strings_clone(filepath, mem)};
+	} else if (filepath->data[0] != '.') {
+		//currently the default for other filesystems
+		return (estring){.value=strings_clone(filepath, mem)};
+	}
+
+	string working_directory = {0};
+	strings_preinit(working_directory, PATH_MAX);
+
+	getcwd(working_directory.data, working_directory.capacity);
+	working_directory.size = strlen(working_directory.data) + 1;
+	working_directory.data[working_directory.size - 1] = '\0';
+
+	string path = strings_format(
+		"%s/%s", mem, working_directory.data, filepath->data);
+
+	estring path_normalized = files_normalize(&path, mem);
+	strings_free(&path, mem);
+
+	return path_normalized;
+}
