@@ -8,7 +8,7 @@
 
 /* definitions */
 typedef void *(*allocfunc)(void *, size_t);
-typedef bool (*deallocfunc)(void *, void *, size_t);
+typedef error (*deallocfunc)(void *, void *, size_t);
 typedef void *(*reallocfunc)(void *, void *, size_t, size_t);
 typedef void (*debugfunc)(void *);
 typedef void (*cleanfunc)(void *);
@@ -107,6 +107,8 @@ alloc allocs_init(void);
  * When you provide mem with null, 
  * the default allocator (malloc) is used.
  *
+ * If an error happens, it returns null.
+ *
  * #to-review
  */
 __attribute_warn_unused_result__
@@ -119,6 +121,8 @@ void *mems_alloc(const allocator *mem, size_t len);
  *
  * When you provide mem with null, 
  * the default reallocator (realloc) is used.
+ *
+ * If an error happens, it returns null.
  *
  * #to-review
  */
@@ -136,9 +140,11 @@ void *mems_realloc(const allocator *mem, void *data, size_t old_size, size_t new
  * If an individual allocator is provided, 
  * the data is cleared and block_size is ignored.
  *
+ * If an error happens, it returns 1.
+ *
  * #to-review
  */
-bool mems_dealloc(const allocator *mem, void *data, size_t block_size);
+error mems_dealloc(const allocator *mem, void *data, size_t block_size);
 
 /*
  * An adapter that manages (generically)
