@@ -1,0 +1,2 @@
+package, flag
+math.h, -lm

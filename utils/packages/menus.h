@@ -1,10 +1,11 @@
-#ifndef menus_h
-#define menus_h
+#ifndef cels_menu_h
+#define cels_menu_h
 
 #include "../../source/strings.h"
 #include "../../source/files.h"
 #include "../../source/ios.h"
 #include "../../source/jsons.h"
+#include "utils.h"
 
 /*
  * Prints the typical help 

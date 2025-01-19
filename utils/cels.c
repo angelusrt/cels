@@ -1,5 +1,6 @@
-#include "./menus/menus.h"
-#include "./menus/menus.c"
+#include "./packages/menus.h"
+#include "./packages/menus.c"
+#include "./packages/utils.c"
 
 #include "../source/strings.h"
 #include "../source/strings.c"
@@ -12,6 +13,7 @@
 #include "../source/ios.c"
 #include "../source/jsons.c"
 #include "../source/files.c"
+#include "../source/csvs.c"
 
 int main(int arg, char **argc) {
 	if (arg < 2) {
