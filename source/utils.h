@@ -9,6 +9,8 @@
 
 #include "errors.h"
 
+/* function-type-definitions */
+
 typedef void *(*callfunc) (void *);
 typedef void *(*selffunc)(void *, void *);
 typedef bool (*compfunc)(void *, void *);
@@ -20,12 +22,6 @@ typedef bool (*filterfunc)(void *);
 typedef error_report (*reportfunc)(void);
 typedef void (*printvecfunc)(void *, void *);
 typedef clock_t (*benchfunc) (size_t);
-
-#define notused __attribute__((unused))
-
-#define null NULL
-
-typedef u_char uchar;
 
 /* functor */
 
@@ -67,16 +63,15 @@ size_t maths_nearest_two_power(size_t a);
 
 #define defaults_free(a, mem)
 
-//void defaults_free(void *a, const void *mem);
+/* others */
 
-/* benchs */
+#define own
 
-/*
-#include "vectors.h"
+#define notused __attribute__((unused))
 
-#define benchs_times 5
+#define null NULL
 
-void benchs_measure(const char *name, const size_vec *size_buckets, benchfunc callback);
-*/
+typedef u_char uchar;
+
 
 #endif

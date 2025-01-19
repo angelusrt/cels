@@ -16,5 +16,3 @@ size_t maths_nearest_two_power(size_t a) {
 
 	return b;
 }
-
-//void defaults_free(unused void *a, unused const void *mem) {}
