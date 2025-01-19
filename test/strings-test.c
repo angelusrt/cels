@@ -8,7 +8,7 @@ error_report strings_test_init_and_push() {
 
 	size_t stat = 0, total = 0;
 
-	string text = strings_init(vectors_min, null);
+	string text = strings_init(vector_min, null);
 	string textpredict = strings_premake("00000");
 	string zero = strings_premake("0");
 
@@ -221,15 +221,15 @@ error_report strings_test_find() {
 	string text1 = strings_premake("um");
 	string text2 = strings_premake("_");
 
-	ssize_t pos = strings_find(&text0, &text1, 0);
+	ssize_t pos = strings_find(&text0, text1, 0);
 	stat += errors_assert("find(\"Um 'um'\", \"um\", 0) == 0", pos == 0);
 	total++;
 
-	pos = strings_find(&text0, &text1, 1);
+	pos = strings_find(&text0, text1, 1);
 	stat += errors_assert("find(\"Um 'um'\", \"um\", 1) == 4", pos == 4);
 	total++;
 
-	pos = strings_find(&text0, &text2, 0);
+	pos = strings_find(&text0, text2, 0);
 	stat += errors_assert("find(\"Um 'um'\", \"_\", 0) == -1", pos == -1);
 	total++;
 
@@ -247,14 +247,14 @@ error_report strings_test_make_find() {
 	string text0 = strings_premake("Um 'um' mais do que um.");
 	string text1 = strings_premake("um");
 
-	size_vec texts0 = strings_make_find(&text0, &text1, 0, null);
+	size_vec texts0 = strings_find_all(&text0, &text1, 0, null);
 	size_vec positions = vectors_premake(size_t, 3, 0, 4, 20);
 	bool matches = size_vecs_equals(&texts0, &positions);
 
 	stat += errors_assert("make_find(\"Um 'um' mais do que um.\", \"um\", 0).data == [0, 4, 20]", matches);
 	total++;
 
-	size_vec texts1 = strings_make_find(&text0, &text1, 1, null);
+	size_vec texts1 = strings_find_all(&text0, &text1, 1, null);
 	matches = texts1.size == 1;
 
 	stat += errors_assert("make_find(\"Um 'um' mais do que um.\", \"um\", 1).size == 1", matches);
@@ -262,7 +262,7 @@ error_report strings_test_make_find() {
 
 	string text2 = strings_premake("coração");
 	string text3 = strings_premake("ã");
-	size_vec texts2 = strings_make_find(&text2, &text3, 0, null);
+	size_vec texts2 = strings_find_all(&text2, &text3, 0, null);
 	matches = texts2.size == 1;
 
 	stat += errors_assert("make_find(\"coração\", \"ã\", 1).size == 1", matches);
@@ -285,19 +285,19 @@ error_report strings_test_replace() {
 	string charset2 = strings_premake("h");
 	string text0 = strings_make("alehandrah", null);
 
-	strings_replace(&text0, &charset0, ' ', 0);
+	strings_replace_from(&text0, &charset0, ' ', 0);
 	string text1 = strings_premake(" leh  dr h");
 	bool matches = strings_seems(&text0, &text1);
 	stat += errors_assert("replace(\"alehandrah\", \"an\", \" \", 0) == \" leh  dr h\"", matches);
 	total++;
 
-	strings_replace(&text0, &charset1, -1, 0);
+	strings_replace_from(&text0, &charset1, -1, 0);
 	string text2 = strings_premake("lehdrh");
 	matches = strings_seems(&text0, &text2);
 	stat += errors_assert("replace(\" leh  dr h\", \" \", -1, 0) == \"lehdrh\"", matches);
 	total++;
 
-	strings_replace(&text0, &charset2, 'e', 1);
+	strings_replace_from(&text0, &charset2, 'e', 1);
 	string text3 = strings_premake("leedrh");
 	matches = strings_seems(&text0, &text3);
 	stat += errors_assert("replace(\"lehdrh\", \"h\", \"e\", 1) == \"leedrh\"", matches);
@@ -317,14 +317,14 @@ error_report strings_test_make_replace() {
 	string text1 = strings_premake("o b");
 
 	string text2predict = strings_premake("ãom.");
-	string text2 = strings_make_replace(&text0, &text1, null, 0, null);
+	string text2 = strings_replace(&text0, &text1, null, 0, null);
 
 	bool matches = strings_seems(&text2, &text2predict);
 	stat += errors_assert("make_replace(\"o bão bom.\", \"o b\", null, 0) == \"ãom.\"", matches);
 	total++;
 
 	string text3predict = strings_premake("ão bom.");
-	string text3 = strings_make_replace(&text0, &text1, null, 1, null);
+	string text3 = strings_replace(&text0, &text1, null, 1, null);
 
 	matches = strings_seems(&text3, &text3predict);
 	stat += errors_assert("make_replace(\"o bão bom.\", \"o b\", null, 1) == \"ão bom.\"", matches);
@@ -332,7 +332,7 @@ error_report strings_test_make_replace() {
 
 	string text4 = strings_premake("o c");
 	string text5predict = strings_premake("o cão bom.");
-	string text5 = strings_make_replace(&text0, &text1, &text4, 1, null);
+	string text5 = strings_replace(&text0, &text1, &text4, 1, null);
 
 	matches = strings_seems(&text5, &text5predict);
 	stat += errors_assert("make_replace(\"o bão bom.\", \"o b\", \"o c\", 1) == \"o cão bom.\"", matches);
@@ -340,7 +340,7 @@ error_report strings_test_make_replace() {
 
 	string text7 = strings_premake("ã");
 	string text6predict = strings_premake("ãããom.");
-	string text6 = strings_make_replace(&text0, &text1, &text7, 0, null);
+	string text6 = strings_replace(&text0, &text1, &text7, 0, null);
 
 	matches = strings_seems(&text6, &text6predict);
 	stat += errors_assert("make_replace(\"o bão bom.\", \"o b\", \"ã\", 0) == \"ãããom.\"", matches);
@@ -363,9 +363,9 @@ error_report strings_test_make_split() {
 	string text0 = strings_premake("aumbumcumd");
 	string text1 = strings_premake("um");
 
-	string_vec text2 = strings_make_split(&text0, &text1, 0, null);
+	string_vec text2 = strings_split(&text0, &text1, 0, null);
 	string_vec text2predict = vectors_premake(
-		string, 4, 
+		string,
 		strings_premake("a"), 
 		strings_premake("b"), 
 		strings_premake("c"),
@@ -377,11 +377,11 @@ error_report strings_test_make_split() {
 		matches);
 	total++;
 
-	string_vec text3 = strings_make_split(&text0, &text1, 1, null);
+	string_vec text3 = strings_split(&text0, &text1, 1, null);
 	string_vec text3predict = vectors_premake(
-			string, 2, 
-			strings_premake("a"), 
-			strings_premake("bumcumd"));
+		string,
+		strings_premake("a"), 
+		strings_premake("bumcumd"));
 
 	matches = string_vecs_seems(&text3, &text3predict);
 	stat += errors_assert(
@@ -401,7 +401,7 @@ error_report strings_test_make_format() {
 
 	size_t stat = 0, total = 0;
 
-	string json = strings_make_format("{\"age\": %d}", null, 10);
+	string json = strings_format("{\"age\": %d}", null, 10);
 	string jsonpredict = strings_premake("{\"age\": 10}");
 
 	bool matches = strings_seems(&json, &jsonpredict);
@@ -459,7 +459,7 @@ error_report strings_test_next() {
 	string text1 = strings_premake(", ");
 	string text2 = {0}; //view
 	string_vec predict = vectors_premake(
-		string, 3, 
+		string,
 		strings_premake("a"),
 		strings_premake("b"),
 		strings_premake("c"));

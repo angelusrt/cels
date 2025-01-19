@@ -8,7 +8,7 @@ error_report vectors_test_init_and_check() {
 
 	size_t stat = 0, total = 0;
 
-	size_vec v0 = size_vecs_init(vectors_min, null);
+	size_vec v0 = size_vecs_init(vector_min, null);
 	bool isvalid = !vectors_check((vector *)&v0);
 	stat += errors_assert("check(vectors_init(16)) == true", isvalid);
 	total++;
@@ -28,7 +28,7 @@ error_report vectors_test_push_and_free() {
 
 	size_t stat = 0, total = 0;
 
-	size_vec v0 = size_vecs_init(vectors_min, null);
+	size_vec v0 = size_vecs_init(vector_min, null);
 	size_vecs_push(&v0, 10, null);
 
 	stat += errors_assert("push(v0, 10)[0] == 10", v0.data[0] == 10);
