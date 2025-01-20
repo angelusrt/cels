@@ -15,13 +15,9 @@ const string regex_charset = strings_premake(
 
 bool routers_check(const router *self) {
 	#if cels_debug
-		if (errors_check("routers_check.self.location", strings_check(&self->location))) {
-			return true;
-		}
+		errors_return("self.location", strings_check(&self->location))	
 	#else
-		if (strings_check(&self->location)) {
-			return true;
-		}
+		if (strings_check(&self->location)) return true;
 	#endif
 
 	return false;
@@ -29,16 +25,12 @@ bool routers_check(const router *self) {
 
 void routers_debug(const router *self) {
 	#if cels_debug
-		errors_panic("routers_debug.self", routers_check(self));
+		errors_abort("self", routers_check(self));
 	#endif
 
 	printf(
 		"<router>{.location=%s, .params=%p}\n",
 		self->location.data, (void *)self->params);
-
-	/*printf(
-		"<router>{.location=%s, .func=%p, .params=%p}",
-		self->location.data, self->func, self->params);*/
 }
 
 router routers_clone(router *self, const allocator *mem) {
@@ -50,28 +42,28 @@ router routers_clone(router *self, const allocator *mem) {
 
 void routers_print(const router *self) {
 	#if cels_debug
-		errors_panic("routers_print.self", routers_check(self));
+		errors_abort("self", routers_check(self));
 	#endif
 
 	printf("%s\n", self->location.data);
 }
 
-bool routers_equals(const router *r0, const router *r1) {
+bool routers_equals(const router *self, const router *other) {
 	#if cels_debug
-		errors_panic("routers_equals.r0", routers_check(r0));
-		errors_panic("routers_equals.r1", routers_check(r1));
+		errors_abort("self", routers_check(self));
+		errors_abort("other", routers_check(other));
 	#endif
 
-	return strings_equals(&r0->location, &r1->location);
+	return strings_equals(&self->location, &other->location);
 }
 
-bool routers_seems(const router *r0, const router *r1) {
+bool routers_seems(const router *self, const router *other) {
 	#if cels_debug
-		errors_panic("routers_seems.r0", routers_check(r0));
-		errors_panic("routers_seems.r1", routers_check(r1));
+		errors_abort("self", routers_check(self));
+		errors_abort("other", routers_check(other));
 	#endif
 
-	return strings_seems(&r0->location, &r1->location);
+	return strings_seems(&self->location, &other->location);
 }
 
 /* router_vecs */
@@ -88,9 +80,9 @@ vectors_generate_implementation(
 
 bool router_vecs_make_push(router_vec *self, char *location, httpfunc callback, void *params, const allocator *mem) {
 	#if cels_debug
-		errors_panic("router_vecs_make_push.self", vectors_check((const vector *)self));
-		errors_panic("router_vecs_make_push.location", location == null);
-		errors_panic("router_vecs_make_push.#location", strlen(location) == 0);
+		errors_abort("self", vectors_check((const vector *)self));
+		errors_abort("location", location == null);
+		errors_abort("#location", strlen(location) == 0);
 	#endif
 
 	size_t locsize = strlen(location) + 1;
@@ -109,7 +101,7 @@ bool router_nodes_check(const router_node *self) {
 
 void router_nodes_debug(const router_node *self) {
 	#if cels_debug
-		errors_panic("router_nodes_debug.self", router_nodes_check(self));
+		errors_abort("self", router_nodes_check(self));
 	#endif
 
 	printf(
@@ -130,7 +122,7 @@ void router_nodes_full_debug_private(const router_node *self, size_t stackframe)
 
 void router_nodes_full_debug(const router_node *self) {
 	#if cels_debug
-		errors_panic("router_nodes_full_debug.self", router_nodes_check(self));
+		errors_abort("self", router_nodes_check(self));
 	#endif
 
 	router_nodes_full_debug_private(self, 0);
@@ -138,7 +130,7 @@ void router_nodes_full_debug(const router_node *self) {
 
 void router_nodes_print(const router_node *self) {
 	#if cels_debug
-		errors_panic("router_nodes_print.self", router_nodes_check(self));
+		errors_abort("self", router_nodes_check(self));
 	#endif
 
 	printf(
@@ -148,22 +140,22 @@ void router_nodes_print(const router_node *self) {
 		(void *)self->next);
 }
 
-bool router_nodes_equals(const router_node *r0, const router_node *r1) {
+bool router_nodes_equals(const router_node *self, const router_node *other) {
 	#if cels_debug
-		errors_panic("router_nodes_equals.r0", router_nodes_check(r0));
-		errors_panic("router_nodes_equals.r1", router_nodes_check(r1));
+		errors_abort("self", router_nodes_check(self));
+		errors_abort("other", router_nodes_check(other));
 	#endif
 
-	return strings_equals(&r0->data.location, &r1->data.location);
+	return strings_equals(&self->data.location, &other->data.location);
 }
 
-bool router_nodes_seems(const router_node *r0, const router_node *r1) {
+bool router_nodes_seems(const router_node *self, const router_node *other) {
 	#if cels_debug
-		errors_panic("router_nodes_seems.r0", router_nodes_check(r0));
-		errors_panic("router_nodes_seems.r1", router_nodes_check(r1));
+		errors_abort("self", router_nodes_check(self));
+		errors_abort("other", router_nodes_check(other));
 	#endif
 
-	return strings_seems(&r0->data.location, &r1->data.location);
+	return strings_seems(&self->data.location, &other->data.location);
 }
 
 /* router_node_vecs */
@@ -181,15 +173,15 @@ vectors_generate_implementation(
 __attribute_warn_unused_result__
 long router_node_vecs_find_hash(const router_node_vec *self, size_t hash) {
 	#if cels_debug
-		errors_panic("router_node_vecs_find_hash.self", vectors_check((const vector *)self));
+		errors_abort("self", vectors_check((const vector *)self));
 	#endif
 
 	if (self->size == 0) return -1;
 
 	for (size_t i = 0; i < self->size; i++) {
 		#if cels_debug
-			errors_panic(
-				"router_node_vecs_find_hash.self.data[i]", 
+			errors_abort(
+				"self.data[i]", 
 				router_nodes_check(&self->data[i]));
 			router_nodes_debug(&self->data[i]);
 		#endif
@@ -228,13 +220,13 @@ void https_initialize_private(void) {
 __attribute_warn_unused_result__
 bool https_head_check(const string_map *head) {
 	#if cels_debug
-		errors_panic("https_head_check.head", bnodes_check((bnode *)head));
+		errors_abort("head", bnodes_check((bnode *)head));
 	#endif
 
 	//TODO: improve validation
 
 	size_t length = bnodes_length((bnode *)head);
-	errors_panic("https_head_check.head.size != 3", length != header_size);
+	errors_abort("head.size != 3", length != header_size);
 
 	bool is_method_valid = false;
 	string *method_value = string_maps_get(head, headers[0]);
@@ -269,12 +261,12 @@ string_map *https_tokenize(string *request, const allocator *mem) {
 		goto invalid_request0;
 	}
 
-	string_vec attributes = strings_split(request, &line_sep, 0, mem);
+	string_vec attributes = strings_split(request, line_sep, 0, mem);
 	if (errors_check("https_tokenize.attributes empty", attributes.size < 2)) {
 		goto invalid_request1;
 	}
 
-	string_vec header = strings_split(&attributes.data[0], &token_sep, 0, mem);
+	string_vec header = strings_split(&attributes.data[0], token_sep, 0, mem);
 	if (errors_check("https_tokenize.header invalid", header.size != header_size)) {
 		goto invalid_request2;
 	}
@@ -297,7 +289,7 @@ string_map *https_tokenize(string *request, const allocator *mem) {
 	}
 
 	for (size_t i = 1; i < attributes.size; i++) {
-		string_vec attribute = strings_split(&attributes.data[i], &attribute_sep, 0, mem);
+		string_vec attribute = strings_split(&attributes.data[i], attribute_sep, 0, mem);
 
 		if (i == attributes.size - 1 && attribute.size < 2) {
 			string body_key = strings_make("Body", mem);
@@ -353,7 +345,7 @@ router_private *https_find_route(router_node *router, string_map *request, const
 	string *location_value = string_maps_get(request, headers[1]);
 	if (!location_value) { return &router->data; }
 
-	string_vec routes = strings_split(location_value, &route_sep, 0, mem);
+	string_vec routes = strings_split(location_value, route_sep, 0, mem);
 	if (routes.size == 0) { goto cleanup; }
 
 	if (location_value->data[0] == '/' && location_value->size == 2) {
@@ -469,7 +461,7 @@ void *https_handle_client(void *args) {
 		}
 
 		router_private *callback = https_find_route(routes, requests_attributes, mem);
-		errors_panic("https_handle_client.callback.func", !callback->func);
+		errors_abort("callback.func", !callback->func);
 		callback->func(requests_attributes, client_descriptor, callback->params);
 
 		cleanup1:
@@ -484,8 +476,8 @@ void *https_handle_client(void *args) {
 
 router_private https_find_root_private(router_vec *callbacks) {
 	#if cels_debug
-		errors_panic(
-			"https_find_root_private callbacks", 
+		errors_abort(
+			"callbacks", 
 			vectors_check((vector *)callbacks));
 	#endif
 
@@ -513,15 +505,15 @@ router_private https_find_root_private(router_vec *callbacks) {
 __attribute_warn_unused_result__
 router_node https_create_routes_private(router_vec *callbacks, const allocator *mem) {
 	#if cels_debug
-		errors_panic(
-			"https_create_routes_private.callbacks", 
+		errors_abort(
+			"callbacks", 
 			vectors_check((const vector *)callbacks));
 	#endif
 
 	router_node_vec rnv = router_node_vecs_init(vector_min, mem);
 	router_node_vec *rnv_capsule = mems_alloc(mem, sizeof(router_node_vec));
 
-	errors_panic("https_create_routes_private.rnv_capsule", rnv_capsule == null);
+	errors_abort("rnv_capsule", rnv_capsule == null);
 	*rnv_capsule = rnv;
 
 	router_node r = { .data=https_find_root_private(callbacks), .next=rnv_capsule };
@@ -533,23 +525,24 @@ router_node https_create_routes_private(router_vec *callbacks, const allocator *
 
 		string location_normalized = strings_replace(
 			&callbacks->data[i].location, 
-			&(string)strings_premake(" "), 
-			null, 0, mem);
+			strings_do(" "), 
+			strings_do(""), 
+			0, mem);
 
-		string_vec location_terms = strings_split(&location_normalized, &route_sep, 0, mem);
+		string_vec location_terms = strings_split(&location_normalized, route_sep, 0, mem);
 		if (location_terms.size < 1) { goto cleanup0; }
 
 		router_node *router_current = &r;
 		for (size_t j = 0; j < location_terms.size; j++) {
-			string_vec var_terms = strings_split(&location_terms.data[j], &route_var_sep, 0, mem);
+			string_vec var_terms = strings_split(&location_terms.data[j], route_var_sep, 0, mem);
 			#if cels_debug
 				string_vecs_debug(&var_terms);
 			#endif
 
-			errors_panic("https_create_routes_private.(var_terms.size > 2)", var_terms.size > 2);
+			errors_abort("var_terms.size > 2", var_terms.size > 2);
 
-			bool is_variable_valid = strings_check_charset(&var_terms.data[0], &variable_charset);
-			errors_panic("https_create_routes_private.!is_variable_valid", !is_variable_valid);
+			bool is_variable_valid = strings_check_charset(&var_terms.data[0], variable_charset);
+			errors_abort("!is_variable_valid", !is_variable_valid);
 
 			bool is_last = j == location_terms.size - 1;
 			if (var_terms.size < 2) {
@@ -564,12 +557,12 @@ router_node https_create_routes_private(router_vec *callbacks, const allocator *
 						r->params = callbacks->data[i].params;
 						r->func = callbacks->data[i].func;
 					} else if (has_func && is_last){
-						errors_panic("https_create_routes_private.(func != null) (already exists)", has_func);
+						errors_abort("func != null (already exists)", has_func);
 					}
 				} else if (hash_pos <= -1) {
 					router_node_vec rnv = router_node_vecs_init(vector_min, mem);
 					router_node_vec *rnv_capsule = mems_alloc(mem, sizeof(router_node_vec));
-					errors_panic("https_create_routes_private.rnv_capsule", rnv_capsule == null);
+					errors_abort("rnv_capsule", rnv_capsule == null);
 					*rnv_capsule = rnv;
 
 					#if cels_debug
@@ -592,7 +585,7 @@ router_node https_create_routes_private(router_vec *callbacks, const allocator *
 
 					bool error = router_node_vecs_push(router_current->next, node, mem);
 					#if cels_debug
-						errors_panic("https_create_routes_private.error", error);
+						errors_abort("error", error);
 					#endif
 
 					if (error) {
@@ -603,26 +596,26 @@ router_node https_create_routes_private(router_vec *callbacks, const allocator *
 				}
 
 				hash_pos = router_node_vecs_find_hash(router_current->next, hash);
-				errors_panic("https_create_routes_private.(hash_pos == -1) (1)", hash_pos == -1);
+				errors_abort("hash_pos == -1 (1)", hash_pos == -1);
 
 				router_current = &router_current->next->data[hash_pos];
 				string_vecs_free(&var_terms, mem);
 				continue;
 			}
 
-			bool is_regex_valid = strings_check_charset(&var_terms.data[1], &regex_charset);
-			errors_panic("https_create_routes_private.!is_regex_valid", !is_regex_valid);
+			bool is_regex_valid = strings_check_charset(&var_terms.data[1], regex_charset);
+			errors_abort("!is_regex_valid", !is_regex_valid);
 
 			size_t hash = strings_hasherize(&var_terms.data[0]);
 			string name = strings_format("vars_%s", mem, var_terms.data[0].data);
 
-			errors_panic("https_create_routes_private.router_current.next", !router_current->next);
+			errors_abort("router_current.next", !router_current->next);
 			long hash_pos = router_node_vecs_find_hash(router_current->next, hash);
 			bool is_empty = router_current->next->size == 0;
 
 			regex_t regex;
 			int reg_status = regcomp(&regex, var_terms.data[1].data, REG_EXTENDED);
-			errors_panic("https_create_routes_private.(regcomp != 0)", reg_status != 0);
+			errors_abort("regcomp != 0", reg_status != 0);
 
 			if (hash_pos > -1) {
 				router_private *router = &router_current->next->data[hash_pos].data;
@@ -639,7 +632,7 @@ router_node https_create_routes_private(router_vec *callbacks, const allocator *
 			} else if (hash_pos <= -1 && is_empty){
 				router_node_vec rnv = router_node_vecs_init(vector_min, mem);
 				router_node_vec *rnv_capsule = mems_alloc(mem, sizeof(router_node_vec));
-				errors_panic("https_create_routes_private.rnv_capsule", rnv_capsule == null);
+				errors_abort("rnv_capsule", rnv_capsule == null);
 				*rnv_capsule = rnv;
 
 				router_node node = {
@@ -655,7 +648,7 @@ router_node https_create_routes_private(router_vec *callbacks, const allocator *
 
 				bool error = router_node_vecs_push(router_current->next, node, mem);
 				#if cels_debug
-					errors_panic("https_create_routes_private.error", error);
+					errors_abort("error", error);
 				#endif
 
 				if (error) {
@@ -664,18 +657,18 @@ router_node https_create_routes_private(router_vec *callbacks, const allocator *
 					mems_dealloc(mem, rnv_capsule, sizeof(router_node_vec*));
 				}
 
-				errors_panic("https_create_routes_private.router_current.next", !router_current->next);
+				errors_abort("router_current.next", !router_current->next);
 				hash_pos = router_node_vecs_find_hash(router_current->next, hash);
 
-				errors_panic("https_create_routes_private.hash_pos == -1 (2)", hash_pos == -1);
+				errors_abort("hash_pos == -1 (2)", hash_pos == -1);
 			} else {
-				errors_panic("https_create_routes_private.!is_empty (route colision)", !is_empty);
+				errors_abort("!is_empty (route colision)", !is_empty);
 			}
 
 			if (is_last) {
 				router_private *router = &router_current->next->data[hash_pos].data;
 				bool has_func_added = router->func != null;
-				errors_panic("https_create_routes_private.!func (already added)", has_func_added);
+				errors_abort("!func (already added)", has_func_added);
 
 				router->params = callbacks->data[i].params;
 				router->func = callbacks->data[i].func;
@@ -695,9 +688,7 @@ router_node https_create_routes_private(router_vec *callbacks, const allocator *
 
 void https_serve(short port, router_vec *callbacks, const allocator *mem) {
 	#if cels_debug
-		errors_panic(
-			"https_serve.callbacks", 
-			vectors_check((const vector *)callbacks));
+		errors_abort("callbacks", vectors_check((void *)callbacks));
 	#endif
 
 	https_initialize_private();
@@ -715,7 +706,7 @@ void https_serve(short port, router_vec *callbacks, const allocator *mem) {
 	};
 
     short socket_descriptor = socket(AF_INET, SOCK_STREAM, 0);
-	errors_panic("https_serve.socket failed", socket_descriptor == -1);
+	errors_abort("socket failed", socket_descriptor == -1);
 
     address.sin_family = AF_INET;
     address.sin_addr.s_addr = INADDR_ANY;
@@ -726,11 +717,11 @@ void https_serve(short port, router_vec *callbacks, const allocator *mem) {
 		(struct sockaddr *)&address, 
 		sizeof(address));
 
-	errors_panic("https_serve.bind failed", bind_statusus == -1);
+	errors_abort("bind failed", bind_statusus == -1);
 
 	#define https_requests_maximum 200
     short listen_statusus = listen(socket_descriptor, https_requests_maximum);
-	errors_panic("https_serve.listen failed", listen_statusus == -1);
+	errors_abort("listen failed", listen_statusus == -1);
 
     while (true) {
 		struct sockaddr_in client_address;
@@ -996,14 +987,14 @@ estring https_request(
 	const allocator *mem
 ) {
 	#if cels_debug
-		errors_panic("https_request.host", strings_check(host));
-		errors_panic("https_request.header", strings_check(header));
+		errors_abort("host", strings_check(host));
+		errors_abort("header", strings_check(header));
 	#endif
 
 	// validation
 	
 	string host_charset = strings_premake("abcdefghijklmnopqrstuvwxyz.-1234567890");
-	bool is_host_valid = strings_check_charset(host, &host_charset);
+	bool is_host_valid = strings_check_charset(host, host_charset);
 
 	if (!is_host_valid) {
 		return (estring){.error=requests_illegal_host_error};
@@ -1053,7 +1044,7 @@ estring https_request(
 		string address_formated = strings_format(
 			"https_request.address = %s", mem, ip);
 
-		errors_note(address_formated.data, errors_success_mode, null);
+		errors_print(errors_success_mode, address_formated.data, null);
 	#endif 
 
 	//
@@ -1065,9 +1056,9 @@ estring https_request(
 
 	#if cels_debug
 		printf("\n");
-		errors_note(
-			"https_request.socket_descriptor = %d\n", 
+		errors_print(
 			errors_success_mode, 
+			"https_request.socket_descriptor = %d\n", 
 			socket_descriptor);
 	#endif 
 
@@ -1107,9 +1098,9 @@ estring https_request(
 	freeaddrinfo(server);
 
 	#if cels_debug
-		errors_note(
-			"https_request.connect = %d\n",
+		errors_print(
 			errors_success_mode, 
+			"https_request.connect = %d\n",
 			conn_status);
 	#endif 
 

@@ -95,7 +95,8 @@ bool routers_seems(const router *r0, const router *r1);
 
 vectors_generate_definition(router, router_vec)
 
-bool router_vecs_make_push(router_vec *self, char *location, httpfunc callback, void *params, const allocator *mem);
+bool router_vecs_make_push(
+	router_vec *self, char *location, httpfunc callback, void *params, const allocator *mem);
 
 /* router_nodes & router_node_vecs */
 

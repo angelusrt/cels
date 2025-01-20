@@ -8,7 +8,7 @@
  * Turns terminal into canonical mode.
  *
  * #to-review
- */
+ */ 
 void ios_canonical(void);
 
 /*

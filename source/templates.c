@@ -1,12 +1,13 @@
 #include "templates.h"
 #include "strings.h"
 
+/* private */
 /* templates */
 
-bool templates_check_private(const template *self) {
+bool templates_check(const template *self) {
 	#if cels_debug
-		if (errors_check("templates_check_private.self", self == NULL)) return true;
-		if (errors_check("templates_check_private.self.text", strings_check_extra(&self->text)) return true;
+		errors_return("self", !self)
+		errors_return("self.text", strings_check_extra(&self->text)
 	#else
 		if (self == NULL) return true;
 		if (strings_check_extra(&self->text)) return true;
@@ -15,9 +16,9 @@ bool templates_check_private(const template *self) {
     return false;
 }
 
-void templates_print_private(const template *self) {
+void templates_print(const template *self) {
 	#if cels_debug
-		errors_panic("templates_print_private.self", templates_check_private(self));
+		errors_abort("self", templates_check(self));
 	#endif
 
 	printf("%c{", self->operator);
@@ -31,7 +32,7 @@ void templates_print_private(const template *self) {
 	printf("}\n");
 }
 
-template templates_clone_private(template *self, const allocator *mem) {
+template templates_clone(template *self, const allocator *mem) {
 	template_vec *temps = null;
 	if (self->next) {
 		template_vec temps_clone = template_vecs_clone(self->next, mem);
@@ -50,35 +51,35 @@ template templates_clone_private(template *self, const allocator *mem) {
 	return other;
 }
 
-bool templates_seems_private(const template *t0, const template *t1) {
+bool templates_seems(const template *self, const template *other) {
 	#if cels_debug
-		errors_panic("templates_seems_private.t0", templates_check_private(t0));
-		errors_panic("templates_seems_private.t1", templates_check_private(t1));
+		errors_abort("self", templates_check(self));
+		errors_abort("other", templates_check(other));
 	#endif
 
-	if (t0->operator != t1->operator) {
+	if (self->operator != other->operator) {
 		return false;
 	}
 
-	return strings_seems(&t0->text, &t1->text);	
+	return strings_seems(&self->text, &other->text);	
 }
 
-bool templates_equals_private(const template *t0, const template *t1) {
+bool templates_equals(const template *self, const template *other) {
 	#if cels_debug
-		errors_panic("templates_equals_private.t0", templates_check_private(t0));
-		errors_panic("templates_equals_private.t1", templates_check_private(t1));
+		errors_abort("self", templates_check(self));
+		errors_abort("other", templates_check(other));
 	#endif
 
-	if (t0->operator != t1->operator) {
+	if (self->operator != other->operator) {
 		return false;
 	}
 
-	return strings_equals(&t0->text, &t1->text);	
+	return strings_equals(&self->text, &other->text);	
 }
 
-void templates_free_private(template *self, const allocator *mem) {
+void templates_free(template *self, const allocator *mem) {
 	#if cels_debug
-		errors_panic("templates_equals_private.self", templates_check_private(self));
+		errors_abort("self", templates_check(self));
 	#endif
 
 	strings_free(&self->text, mem);
@@ -89,12 +90,12 @@ void templates_free_private(template *self, const allocator *mem) {
 vectors_generate_implementation(
 	template, 
 	template_vec, 
-	templates_check_private,
-	templates_clone_private,
-	templates_print_private,
-	templates_equals_private,
-	templates_seems_private,
-	templates_free_private)
+	templates_check,
+	templates_clone,
+	templates_print,
+	templates_equals,
+	templates_seems,
+	templates_free)
 
 bool template_vecs_check(const template_vec *self) {
 	return vectors_check((vector *)self);
@@ -124,13 +125,13 @@ typedef enum template_operator {
 } template_operator;
 
 __attribute_warn_unused_result__
-template templates_parse_tag_private(string *tag, const allocator *mem) {
+template templates_parse_tag(string *tag, const allocator *mem) {
 	const string alt_whitespaces = strings_premake("\t\r\n");
 	const string the_whitespace = strings_premake(" ");
 
-	strings_replace_from(tag, &alt_whitespaces, ' ', 0);
+	strings_replace_from(tag, alt_whitespaces, ' ', 0);
 
-	string_vec tokens = strings_split(tag, &the_whitespace, 0, mem);
+	string_vec tokens = strings_split(tag, the_whitespace, 0, mem);
 
 	if (tokens.size == 1) {
 		mems_dealloc(mem, tokens.data, tokens.capacity);
@@ -159,7 +160,7 @@ template templates_parse_tag_private(string *tag, const allocator *mem) {
 }
 
 __attribute_warn_unused_result__
-error templates_parse_private(template_map **templates, const string *template, const allocator *mem) {
+error templates_parse(template_map **templates, const string *template, const allocator *mem) {
 	static const string tag_open = strings_premake("<%");
 	static const string tag_close = strings_premake("%>");
 
@@ -169,7 +170,7 @@ error templates_parse_private(template_map **templates, const string *template, 
 
 	for (size_t i = 0; i < template->size; i++) {
 		if (template->data[i] == '<' && template->data[i + 1] == '%') {
-			ssize_t pos = strings_find_closing_tag(template, tag_open, tag_close, i);
+			ssize_t pos = strings_find_matching(template, tag_open, tag_close, i);
 			if (pos == -1) {
 				error = template_not_closed_error;
 				goto error;
@@ -181,7 +182,7 @@ error templates_parse_private(template_map **templates, const string *template, 
 				.capacity=(pos-(i + 2))+1,
 			};
 
-			struct template tag = templates_parse_tag_private(&tag_view, mem);
+			struct template tag = templates_parse_tag(&tag_view, mem);
 			if (tag.operator == 0) {
 				error = template_invalid_tag_error;
 				goto error;
@@ -202,7 +203,7 @@ error templates_parse_private(template_map **templates, const string *template, 
 
 			i = pos + 1;
 		} else {
-			ssize_t pos = strings_find_from(template, &tag_open, i);
+			ssize_t pos = strings_find_from(template, tag_open, i);
 			if (pos == -1) {
 				pos = template->size - 2;
 			}
@@ -284,7 +285,7 @@ etemplate_map templates_make(const string path, const allocator *mem) {
 			goto error0;
 		}
 
-		error = templates_parse_private(&map, &fileread.value, mem);
+		error = templates_parse(&map, &fileread.value, mem);
 		if (error != template_successfull) {
 			goto error0;
 		}

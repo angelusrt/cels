@@ -225,7 +225,7 @@ estring files_normalize(const string *filepath, const allocator *mem) {
 	const string two_dots = strings_premake("..");
 
 	string path_normalized = strings_init(vector_min, mem);
-	string_vec file_nodes = strings_split(filepath, &file_sep, 0, mem);
+	string_vec file_nodes = strings_split(filepath, file_sep, 0, mem);
 
 	size_t i = 0;
 	while(true) {

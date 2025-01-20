@@ -45,9 +45,9 @@ void ios_select_private(const string_vec options, size_t cursor) {
 
 size_t ios_select(const char *question, const string_vec options) {
 	#if cels_debug
-		errors_panic("ios_select.question", vectors_check((const vector *)&options));
-		errors_panic("ios_select.#question", strlen(question) == 0);
-		errors_panic("ios_select.#options", options.size == 0);
+		errors_abort("question", vectors_check((void *)&options));
+		errors_abort("#question", strlen(question) == 0);
+		errors_abort("#options", options.size == 0);
 	#endif
 
 	printf(colors_success("%s"), question);

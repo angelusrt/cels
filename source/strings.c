@@ -1,9 +1,11 @@
 #include "strings.h"
+#include "errors.h"
 #include "vectors.h"
 
 /* char_vecs */
 
-void chars_print_private(const char *letter) {
+/* private */
+void chars_print(const char *letter) {
 	printf("%c\n", *letter);
 }
 
@@ -32,7 +34,7 @@ vectors_generate_implementation(
 	char_vec, 
 	defaults_check,
 	defaults_clone,
-	chars_print_private, 
+	chars_print, 
 	defaults_compare, 
 	defaults_seems, 
 	defaults_free)
@@ -41,11 +43,24 @@ vectors_generate_implementation(
 
 bool strings_check(const string *self) {
 	#if cels_debug
-		if (errors_check("strings_check.self", vectors_check((const vector *)self))) return true;
-		//if (errors_check("strings_check.self.size == 0", self->size == 0)) return true;
+		errors_return("self", vectors_check((void *)self))
+
+		if (self->size > 0) {
+			bool has_mismatch = self->data[self->size - 1] != '\0';
+			errors_inform("self.data[-1] mismatch (may be string_view)", has_mismatch);
+		}
+
+		if (self->size > 1) {
+			bool has_mismatch = self->data[self->size - 2] == '\0';
+			errors_return("self.data[-2] mismatch", has_mismatch)
+		}
 	#else 
-		if (vectors_check((const vector *)self)) return true;
-		//if (self->size == 0) return true;
+		if (vectors_check((void *)self)) return true;
+
+		if (self->size > 1) {
+			bool has_mismatch = self->data[self->size - 2] == '\0';
+			if (has_mismatch) return true;
+		}
 	#endif
 
 	return false;
@@ -53,31 +68,29 @@ bool strings_check(const string *self) {
 
 bool strings_check_extra(const string *self) {
 	#if cels_debug
-		if (errors_check("strings_check_extra.self", strings_check(self))) return true;
-		if (errors_check("strings_check_extra.self.size == 1", self->size == 1)) return true;
-		if (errors_check("strings_check_extra.self.data[0] == '\\0'", self->data[0] == '\0')) {
-			return true;
-		}
+		errors_return("self", strings_check((void *)self))
+		errors_return("self.size <= 1", self->size <= 1)
+		errors_return("self.data[0] == '\\0'", self->data[0] == '\0')
 	#else
 		if (strings_check(self)) return true;
 		if (self->data[0] == '\0') return true;
-		if (self->size == 1) return true;
+		if (self->size <= 1) return true;
 	#endif
 
 	return false;
 }
 
-bool strings_check_charset(const string *self, const string *charset) {
+bool strings_check_charset(const string *self, const string charset) {
 	#if cels_debug
-		errors_panic("strings_check_charset.self", strings_check_extra(self));
-		errors_panic("strings_check_charset.charset", strings_check_extra(charset));
+		errors_abort("self", strings_check_extra(self));
+		errors_abort("charset", strings_check_extra(&charset));
 	#endif
 
 	for (size_t i = 0; i < self->size - 1; i++) {
 		bool has_matched = false;
 
-		for (size_t j = 0; j < charset->size - 1; j++) {
-			if (self->data[i] == charset->data[j]) {
+		for (size_t j = 0; j < charset.size - 1; j++) {
+			if (self->data[i] == charset.data[j]) {
 				has_matched = true;
 
 				break;
@@ -96,40 +109,45 @@ string strings_init(size_t quantity, const allocator *mem) {
 
 string strings_make(const char *text, const allocator *mem) {
 	#if cels_debug
-		errors_panic("strings_make.text", text == NULL);
-		errors_panic("strings_make.text == '\\0'", text[0] == '\0');
+		errors_abort("text", !text);
+		errors_abort("text == '\\0'", text[0] == '\0');
 	#endif
 
-	const size_t text_size = strlen(text) + 1;
-	size_t s_capacity_new = text_size;
-	//size_t s_capacity_new = maths_nearest_two_power(text_size);
+	size_t size = strlen(text) + 1;
+	string self = char_vecs_init(size, mem);
+	errors_abort("self.data", !self.data);
 
-	string self = char_vecs_init(s_capacity_new, mem);
-	errors_panic("strings_make.self.data", self.data == NULL);
+	strncpy(self.data, text, size);
+	self.size = size;
 
-	strncpy(self.data, text, text_size);
-	self.size = text_size;
+	#if cels_debug
+		errors_abort("self", strings_check_extra(&self));
+	#endif
 
 	return self;
 }
 
 string strings_clone(const string *self, const allocator *mem) {
 	#if cels_debug
-		errors_panic("strings_clone.self", strings_check(self));
+		errors_abort("self", strings_check(self));
 	#endif
 
 	string dest = char_vecs_init(self->capacity, mem);
-	errors_panic("strings_clone.dest.data", dest.data == null);
+	errors_abort("dest.data", !dest.data);
 
 	memcpy(dest.data, self->data, self->size);
 	dest.size = self->size;
+
+	#if cels_debug
+		errors_abort("dest", strings_check_extra(&dest));
+	#endif
 
 	return dest;
 }
 
 string strings_view(const string *self, size_t start, size_t end) {
 	#if cels_debug
-		errors_panic("strings_view.self", strings_check(self));
+		errors_abort("self", strings_check(self));
 	#endif
 
 	bool is_start_over = (long)start > (long)(self->size - 1);
@@ -137,19 +155,25 @@ string strings_view(const string *self, size_t start, size_t end) {
 	bool is_start_over_end = (long)start >= (long)end;
 
 	if (is_start_over || is_end_over || is_start_over_end) {
-		return (string){0};
+		return strings_do("");
 	}
 
-	return (string) {
+	string view = {
 		.data=self->data+start,
 		.size=(end+1)-start,
 		.capacity=(end+1)-start,
 	};
+
+	#if cels_debug
+		errors_abort("view", strings_check_extra(&view));
+	#endif
+
+	return view;
 }
 
 string strings_unview(const string *self, const allocator *mem) {
 	#if cels_debug
-		errors_panic("strings_unview.self", strings_check(self));
+		errors_abort("self", strings_check(self));
 	#endif
 
 	string view = *self;
@@ -158,26 +182,33 @@ string strings_unview(const string *self, const allocator *mem) {
 	string not_view = strings_clone(&view, mem);
 	not_view.data[not_view.capacity - 1] = '\0';
 
+	#if cels_debug
+		errors_abort("not_view", strings_check_extra(&not_view));
+	#endif
+
 	return not_view;
 }
 
-bool strings_pop(string *self, const allocator *mem) {
+error strings_pop(string *self, const allocator *mem) {
 	#if cels_debug
-		errors_panic("strings_pop.self", strings_check(self));
+		errors_abort("self", strings_check(self));
 	#endif
 
-	bool error = char_vecs_pop(self, mem);
-	if (!error) {
-		self->data[self->size - 1] = '\0';
+	if (self->size <= 1) {
+		return fail;
 	}
+	
+	error pop_error = char_vecs_pop(self, mem);
+	self->data[self->size - 1] = '\0';
 
-	return error;
+	return pop_error;
 }
 
-bool strings_push(string *self, string item, const allocator *mem) {
+/*TODO: optimizable*/
+error strings_push(string *self, string item, const allocator *mem) {
 	#if cels_debug
-		errors_panic("strings_push.self", strings_check(self));
-		errors_panic("strings_push.item", strings_check(&item));
+		errors_abort("self", strings_check(self));
+		errors_abort("item", strings_check_extra(&item));
 	#endif
 
 	if (self->size > 0) {
@@ -185,20 +216,20 @@ bool strings_push(string *self, string item, const allocator *mem) {
 	}
 
 	for (size_t i = 0; i < item.size - 1; i++) {
-		bool error = char_vecs_push(self, item.data[i], mem);
+		error error = char_vecs_push(self, item.data[i], mem);
 		if (error) {
-			return true;
+			return fail;
 		}
 	}
 
-	bool error = char_vecs_push(self, '\0', mem);
+	error error = char_vecs_push(self, '\0', mem);
 
 	return error;
 }
 
 void strings_free(string *self, const allocator *mem) {
 	#if cels_debug
-		errors_panic("strings_free.self", strings_check(self));
+		errors_abort("self", strings_check(self));
 	#endif
 
 	char_vecs_free(self, mem);
@@ -206,7 +237,7 @@ void strings_free(string *self, const allocator *mem) {
 
 void strings_debug(const string *self) {
 	#if cels_debug
-		errors_panic("strings_debug.self", strings_check(self));
+		errors_abort("self", strings_check(self));
 	#endif
 
 	printf(
@@ -216,7 +247,7 @@ void strings_debug(const string *self) {
 
 void strings_print(const string *self) {
 	#if cels_debug
-		errors_panic("strings_print.self", strings_check(self));
+		errors_abort("self", strings_check(self));
 	#endif
 
     for (size_t i = 0; i < self->size - 1; i++) {
@@ -228,16 +259,16 @@ void strings_print(const string *self) {
 
 void strings_println(const string *self) {
 	#if cels_debug
-		errors_panic("strings_println.self", strings_check(self));
+		errors_abort("self", strings_check(self));
 	#endif
 
 	strings_print(self);
     printf("\n");
 }
 
-void strings_print_clean(const string *self) {
+void strings_imprint(const string *self) {
 	#if cels_debug
-		errors_panic("strings_print.self", strings_check(self));
+		errors_abort("self", strings_check(self));
 	#endif
 
 	for (size_t i = 0; i < self->size - 1; i++) {
@@ -253,8 +284,8 @@ void strings_print_clean(const string *self) {
 
 bool strings_compare(const string *self, const string *other) {
 	#if cels_debug
-		errors_panic("strings_compare.self", strings_check_extra(self));
-		errors_panic("strings_compare.other", strings_check_extra(other));
+		errors_abort("self", strings_check_extra(self));
+		errors_abort("other", strings_check_extra(other));
 	#endif
 
 	size_t size = maths_max(self->size, other->size);
@@ -274,8 +305,8 @@ bool strings_compare(const string *self, const string *other) {
 
 bool strings_equals(const string *self, const string *other) {
 	#if cels_debug
-		errors_panic("strings_equals.self", strings_check_extra(self));
-		errors_panic("strings_equals.other", strings_check_extra(other));
+		errors_abort("self", strings_check_extra(self));
+		errors_abort("other", strings_check_extra(other));
 	#endif
 
 	if (self->size != other->size) {
@@ -293,8 +324,8 @@ bool strings_equals(const string *self, const string *other) {
 
 bool strings_seems(const string *self, const string *other) {
 	#if cels_debug
-		errors_panic("strings_seems.self", strings_check_extra(self));
-		errors_panic("strings_seems.other", strings_check_extra(other));
+		errors_abort("self", strings_check_extra(self));
+		errors_abort("other", strings_check_extra(other));
 	#endif
 
 	if (self->size != other->size) {
@@ -312,8 +343,8 @@ bool strings_seems(const string *self, const string *other) {
 
 ssize_t strings_find(const string *self, const string substring, size_t pos) {
 	#if cels_debug
-		errors_panic("strings_find.self", strings_check_extra(self));
-		errors_panic("strings_find.substring", strings_check_extra(&substring));
+		errors_abort("self", strings_check_extra(self));
+		errors_abort("substring", strings_check_extra(&substring));
 	#endif
 	
 	if (pos >= self->size - 1) {
@@ -339,64 +370,52 @@ ssize_t strings_find(const string *self, const string substring, size_t pos) {
 	return -1;
 }
 
-ssize_t strings_find_from(const string *self, const string *sep, size_t pos) {
+ssize_t strings_find_from(const string *self, const string seps, size_t pos) {
 	#if cels_debug
-		errors_panic("strings_find_from.self", strings_check_extra(self));
-		errors_panic("strings_find_from.sep", strings_check_extra(sep));
+		errors_abort("self", strings_check_extra(self));
+		errors_abort("seps", strings_check_extra(&seps));
 	#endif
 
 	if (pos >= self->size - 1) {
 		return -1;
 	}
 
-    for (size_t i = pos, j = 0; i < self->size - 1; i++) {
-		char slower = tolower(self->data[i]);
+    for (size_t i = pos; i < self->size - 1; i++) {
+		char letter = tolower(self->data[i]);
 
-        if (slower == tolower(sep->data[j])) {
-            j++;
-		} else if (slower == tolower(sep->data[0])) {
-            j = 1;
-		} else {
-            j = 0;
-        }
-
-        if (j == sep->size - 1) {
-			return i - (j - 1);
-        }
+		for (size_t j = 0; j < self->size - 1; j++) {
+			if (letter == tolower(seps.data[j])) {
+				return i;
+			}
+		}
     }
 
 	return -1;
 }
 
-size_vec strings_find_all(const string *self, const string *substring, size_t n, const allocator *mem) {
+size_vec strings_find_all(const string *self, const string substring, size_t n, const allocator *mem) {
 	#if cels_debug
-		errors_panic("strings_find_all.self", strings_check_extra(self));
-		errors_panic("strings_find_all.substring", strings_check_extra(substring));
+		errors_abort("self", strings_check_extra(self));
+		errors_abort("substring", strings_check_extra(&substring));
 	#endif
 
 	size_vec indexes = size_vecs_init(vector_min, mem);
-	errors_panic("strings_find_all.indexes", vectors_check((vector *)&indexes));
+	errors_abort("indexes", vectors_check((vector *)&indexes));
 
     for (size_t i = 0, j = 0; i < self->size - 1; i++) {
-		u_char slower = tolower(self->data[i]);
+		u_char letter = tolower(self->data[i]);
 
-        if (slower == tolower(substring->data[j])) {
+        if (letter == tolower(substring.data[j])) {
             j++;
-		} else if (slower == tolower(substring->data[0])) {
+		} else if (letter == tolower(substring.data[0])) {
             j = 1;
 		} else {
             j = 0;
         }
 
-        if (j == substring->size - 1) {
-			bool err = size_vecs_push(&indexes, i - (j - 1), mem);
-			#if cels_debug
-				errors_panic("strings_find_all.size_vecs_push failed", err);
-			#endif
-
-			if (err == true) {
-				break;
-			}
+        if (j == substring.size - 1) {
+			error error = size_vecs_push(&indexes, i - (j - 1), mem);
+			errors_abort("size_vecs_push failed", error);
         }
 
 		if (n > 0 && indexes.size == n) {
@@ -404,14 +423,18 @@ size_vec strings_find_all(const string *self, const string *substring, size_t n,
 		}
     }
 
+	#if cels_debug
+		errors_abort("indexes", vectors_check((vector *)&indexes));
+	#endif
+
     return indexes;
 }
 
-ssize_t strings_find_closing_tag(const string *self, const string open_tag, const string close_tag, size_t pos) {
+ssize_t strings_find_matching(const string *self, const string open_tag, const string close_tag, size_t pos) {
 	#if cels_debug
-		errors_panic("strings_find_closing_tag.self", strings_check_extra(self));
-		errors_panic("strings_find_closing_tag.open_tag", strings_check_extra(&open_tag));
-		errors_panic("strings_find_closing_tag.close_tag", strings_check_extra(&close_tag));
+		errors_abort("strings_find_matching.self", strings_check_extra(self));
+		errors_abort("strings_find_matching.open_tag", strings_check_extra(&open_tag));
+		errors_abort("strings_find_matching.close_tag", strings_check_extra(&close_tag));
 	#endif
 
 	if ((long)pos > (long)(self->size - 2)) {
@@ -456,16 +479,16 @@ ssize_t strings_find_closing_tag(const string *self, const string open_tag, cons
 	return -1;
 }
 
-void strings_replace_from(string *self, const string *seps, const char rep, size_t n) {
+void strings_replace_from(string *self, const string seps, const char rep, size_t n) {
 	#if cels_debug
-		errors_panic("strings_replace_from.self", strings_check_extra(self));
-		errors_panic("strings_replace_from.seps", strings_check_extra(seps));
+		errors_abort("self", strings_check_extra(self));
+		errors_abort("seps", strings_check_extra(&seps));
 	#endif
 
 	size_t n_rep = 0;
     for (size_t i = 0; i < self->size - 1; i++) {
-		for (size_t j = 0; j < seps->size - 1; j++) {
-			if (self->data[i] == seps->data[j]) {
+		for (size_t j = 0; j < seps.size - 1; j++) {
+			if (self->data[i] == seps.data[j]) {
 				if (rep < 0) {
 					self->data[i] = -1;
 				} else {
@@ -507,35 +530,36 @@ void strings_replace_from(string *self, const string *seps, const char rep, size
 			self->size -= offset;
 		}
 	}
+
+	#if cels_debug
+		errors_abort("self", strings_check(self));
+	#endif
 }
 
-string strings_replace(const string *self, const string *text, const string *rep, size_t n, const allocator *mem) {
+string strings_replace(const string *self, const string substring, const string rep, size_t n, const allocator *mem) {
 	#if cels_debug
-		errors_panic("strings_replace.self", strings_check_extra(self));
-		errors_panic("strings_replace.text", strings_check_extra(text));
+		errors_abort("self", strings_check_extra(self));
+		errors_abort("substring", strings_check_extra(&substring));
 	#endif
 
-	long diff_size = - (text->size - 1);
-	if (rep != null) {
+	long diff_size = - (substring.size - 1);
+	if (rep.size > 1) {
 		#if cels_debug
-			errors_panic("strings_replace.rep", strings_check_extra(rep));
+			errors_abort("rep", strings_check_extra(&rep));
 		#endif
 
-		diff_size += (rep->size - 1);
+		diff_size += (rep.size - 1);
 	}
 
-	size_vec indexes = strings_find_all(self, text, n, mem);
+	size_vec indexes = strings_find_all(self, substring, n, mem);
 	if (indexes.size == 0) {
 		size_vecs_free(&indexes, mem);
 		return strings_clone(self, mem);
 	}
 
 	size_t size = self->size + diff_size * indexes.size;
-	size_t capacity = size;
-	//size_t capacity = maths_nearest_two_power(size);
-	
-	string new_string = char_vecs_init(capacity, mem);
-	errors_panic("strings_replace.new_string", new_string.data == NULL);
+	string new_string = char_vecs_init(size, mem);
+	errors_abort("new_string", !new_string.data);
 
     new_string.size = size;
     size_t prev = 0, i = 0, j = 0;
@@ -544,12 +568,12 @@ string strings_replace(const string *self, const string *text, const string *rep
 		size_t sentence_size = 0;
 
         if (j < indexes.size && indexes.data[j] == i) {
-			if (rep != NULL) {
-				strncpy(new_string.data + offset, rep->data, rep->size);
+			if (rep.size > 1) {
+				strncpy(new_string.data + offset, rep.data, rep.size);
 			}
 
-            prev = indexes.data[j] + text->size - 1;
-            i += text->size - 1;
+            prev = indexes.data[j] + substring.size - 1;
+            i += substring.size - 1;
             j += 1;
         } else {
             if (j > indexes.size - 1) {
@@ -565,13 +589,18 @@ string strings_replace(const string *self, const string *text, const string *rep
 
 	new_string.data[new_string.size - 1] = '\0';
 	size_vecs_free(&indexes, mem);
+
+	#if cels_debug
+		errors_abort("new_string", strings_check(&new_string));
+	#endif
+
     return new_string;
 }
 
-string_vec strings_split(const string *self, const string *sep, size_t n, const allocator *mem) {
+string_vec strings_split(const string *self, const string sep, size_t n, const allocator *mem) {
 	#if cels_debug
-		errors_panic("strings_split.self", strings_check_extra(self));
-		errors_panic("strings_split.sep", strings_check_extra(sep));
+		errors_abort("self", strings_check_extra(self));
+		errors_abort("sep", strings_check_extra(&sep));
 	#endif
 
 	size_vec indexes = strings_find_all(self, sep, n, mem);
@@ -580,12 +609,8 @@ string_vec strings_split(const string *self, const string *sep, size_t n, const 
 	if (indexes.size == 0) {
 		string scopy = strings_clone(self, mem);
 
-		#if cels_debug
-			bool error = string_vecs_push(&sentences, scopy, mem);
-			errors_panic("strings_split.string_vecs_push failed", error);
-		#else
-			string_vecs_push(&sentences, scopy, mem);
-		#endif
+		error error = string_vecs_push(&sentences, scopy, mem);
+		errors_abort("string_vecs_push failed", error);
 
 		size_vecs_free(&indexes, mem);
 		return sentences;
@@ -601,7 +626,7 @@ string_vec strings_split(const string *self, const string *sep, size_t n, const 
         }
 
         if (size <= 1) {
-            prev = index + (sep->size - 1);
+            prev = index + (sep.size - 1);
             continue;
         }
 
@@ -609,60 +634,69 @@ string_vec strings_split(const string *self, const string *sep, size_t n, const 
             continue;
         }
 
-		size_t capacity = size;
-		//size_t capacity = maths_nearest_two_power(size);
-		
-		string new_string = char_vecs_init(capacity, mem);
-
-		errors_panic("strings_split.new_string", new_string.data == NULL);
+		string new_string = strings_init(size, mem);
         new_string.size = size;
 
-		for (size_t j = 0; j < size; j++) { new_string.data[j] = (self->data + prev)[j];
+		for (size_t j = 0; j < size; j++) { 
+			new_string.data[j] = (self->data + prev)[j];
 		}
 
         new_string.data[size - 1] = '\0';
 
-        bool error = string_vecs_push(&sentences, new_string, mem);
-		#if cels_debug
-			errors_panic("strings_split.vectors_push failed", error);
-		#endif
+        error error = string_vecs_push(&sentences, new_string, mem);
+		errors_abort("string_vecs_push failed", error);
 
         if (error || i > indexes.size - 1) {
             break;
         }
 
-        prev = index + (sep->size - 1);
+        prev = index + (sep.size - 1);
     }
 
 	size_vecs_free(&indexes, mem);
+
+	#if cels_debug
+		errors_abort("sentences", vectors_check((void *)&sentences));
+	#endif
+
     return sentences;
 }
 
 string strings_format(const char *const form, const allocator *mem, ...) {
 	#if cels_debug
-		errors_panic("strings_format.form", form == NULL);
-		errors_panic("strings_format.form < 1", strlen(form) < 1);
+		errors_abort("form", !form);
+		errors_abort("form == '\\0'", form[0] == '\0');
 	#endif
 
     va_list args, args2;
     va_start(args, mem);
     *args2 = *args;
 
-    size_t buff_size = vsnprintf(NULL, 0, form, args) + 1;
+    size_t buff_size = vsnprintf(null, 0, form, args) + 1;
 	size_t new_capacity = buff_size;
 
     char *text = mems_alloc(mem, sizeof(char) * new_capacity);
-    errors_panic("strings_format.text", text == NULL);
+    errors_abort("text", !text);
 
     vsnprintf(text, buff_size, form, args2);
     va_end(args);
 
-    return (string){.data=text, .size=buff_size, .capacity=new_capacity};
+	string self = {
+		.data=text, 
+		.size=buff_size, 
+		.capacity=new_capacity
+	};
+
+	#if cels_debug
+		errors_abort("self", strings_check_extra(&self));
+	#endif
+
+    return self;
 }
 
 size_t strings_hasherize(const string *self) {
 	#if cels_debug
-		errors_panic("strings_hasherize.self", strings_check_extra(self));
+		errors_abort("self", strings_check_extra(self));
 	#endif
 
 	#define strings_hash 3
@@ -680,7 +714,7 @@ size_t strings_hasherize(const string *self) {
 
 void strings_lower(string *self) {
 	#if cels_debug
-		errors_panic("strings_lower.self", strings_check_extra(self));
+		errors_abort("self", strings_check_extra(self));
 	#endif
 
 	for (size_t i = 0; i < self->size - 1; i++) {
@@ -690,7 +724,7 @@ void strings_lower(string *self) {
 
 void strings_upper(string *self) {
 	#if cels_debug
-		errors_panic("strings_upper.self", strings_check_extra(self));
+		errors_abort("self", strings_check_extra(self));
 	#endif
 
 	for (size_t i = 0; i < self->size - 1; i++) {
@@ -698,14 +732,14 @@ void strings_upper(string *self) {
 	}
 }
 
-bool strings_next(const string *self, const string *sep, string *next) {
+bool strings_next(const string *self, const string sep, string *next) {
 	#if cels_debug
-		errors_panic("strings_next.self", strings_check(self));
-		errors_panic("strings_next.sep", strings_check(sep));
+		errors_abort("self", strings_check(self));
+		errors_abort("sep", strings_check_extra(&sep));
 	#endif
 
 	bool has_data_been_setted = false;
-	if (next->data == NULL) {
+	if (next->data == null) {
 		next->data = self->data;
 		next->size = 2;
 		next->capacity = 2;
@@ -713,8 +747,8 @@ bool strings_next(const string *self, const string *sep, string *next) {
 	}
 	
 	#if cels_debug
-		errors_panic("strings_next_token.(next < self)", next->data < self->data);
-		errors_panic("strings_next_token.(next > self.size)", next->data > self->data + self->size);
+		errors_abort("(next < self)", next->data < self->data);
+		errors_abort("(next > self.size)", next->data > self->data + self->size);
 	#endif
 
 	do {
@@ -723,7 +757,7 @@ bool strings_next(const string *self, const string *sep, string *next) {
 
 		if (has_data_been_setted) {
 			long new_size = 0;
-			ssize_t new_pos = strings_find_from(self, sep, next_pos);
+			ssize_t new_pos = strings_find(self, sep, next_pos);
 			if (new_pos == -1) {
 				new_size = (self->data + self->size) - next->data;
 
@@ -738,17 +772,21 @@ bool strings_next(const string *self, const string *sep, string *next) {
 			next->capacity = next->size;
 			break;
 		} else {
-			next->data += sep->size + next->size - 2;
+			next->data += sep.size + next->size - 2;
 			has_data_been_setted = true;
 		}
 	} while (true);
+
+	#if cels_debug
+		errors_abort("next", strings_check_extra(next));
+	#endif
 
 	return false;
 }
 
 void strings_slice(string *self, size_t start, size_t end) {
 	#if cels_debug
-		errors_panic("strings_slice.self", strings_check(self));
+		errors_abort("self", strings_check_extra(self));
 	#endif
 
 	bool is_start_over = (long)start > (long)(self->size - 1);
@@ -766,11 +804,15 @@ void strings_slice(string *self, size_t start, size_t end) {
 
 	self->size = (end - start) + 1;
 	self->data[self->size - 1] = '\0';
+
+	#if cels_debug
+		errors_abort("self", strings_check_extra(self));
+	#endif
 }
 
 void strings_shift(string *self, size_t position) {
 	#if cels_debug 
-		errors_panic("strings_shift.self", strings_check_extra(self));
+		errors_abort("self", strings_check_extra(self));
 	#endif
 
 	if (position + 1 >= self->size) {
@@ -782,12 +824,17 @@ void strings_shift(string *self, size_t position) {
 	}
 
 	self->size--;
+
+	#if cels_debug 
+		errors_abort("self", strings_check_extra(self));
+	#endif
 }
 
 /*TODO?:downsize*/
+/*TODO?:recreate*/
 void strings_trim(string *self) {
 	#if cels_debug
-		errors_panic("strings_trim.self", strings_check_extra(self));
+		errors_abort("self", strings_check_extra(self));
 	#endif
 
 	for (size_t i = 0; i < self->size; i++) {
@@ -807,11 +854,15 @@ void strings_trim(string *self) {
 		
 		break;
 	}
+
+	#if cels_debug
+		errors_abort("self", strings_check(self));
+	#endif
 }
 
-string strings_cut(string *self) {
+string strings_cut(const string *self) {
 	#if cels_debug
-		errors_panic("strings_cut.self", strings_check_extra(self));
+		errors_abort("self", strings_check_extra(self));
 	#endif
 
 	size_t start = 0;
@@ -830,17 +881,23 @@ string strings_cut(string *self) {
 		} 
 	}
 
-	return (string){
+	string view = {
 		.data=self->data+start,
 		.size=(end+1)-start,
 		.capacity=(end+1)-start,
 	};
+
+	#if cels_debug
+		errors_abort("view", strings_check(&view));
+	#endif
+
+	return view;
 }
 
 bool strings_has_suffix(const string *self, const string suffix) {
 	#if cels_debug
-		errors_panic("strings_has_suffix.self", strings_check_extra(self));
-		errors_panic("strings_has_suffix.suffix", strings_check_extra(&suffix));
+		errors_abort("self", strings_check_extra(self));
+		errors_abort("suffix", strings_check_extra(&suffix));
 	#endif
 
 	if (suffix.size > self->size) {
@@ -859,8 +916,8 @@ bool strings_has_suffix(const string *self, const string suffix) {
 
 bool strings_has_prefix(const string *self, const string prefix) {
 	#if cels_debug
-		errors_panic("strings_has_prefix.self", strings_check_extra(self));
-		errors_panic("strings_has_prefix.prefix", strings_check_extra(&prefix));
+		errors_abort("self", strings_check_extra(self));
+		errors_abort("prefix", strings_check_extra(&prefix));
 	#endif
 
 	if (prefix.size > self->size) {
@@ -890,7 +947,7 @@ vectors_generate_implementation(
 
 string string_vecs_join(string_vec *self, string sep, const allocator *mem) {
 	#if cels_debug
-		errors_panic("string_vecs_join.self", vectors_check((vector *)self));
+		errors_abort("self", vectors_check((vector *)self));
 	#endif
 
 	if (sep.size == 0) {
@@ -899,6 +956,10 @@ string string_vecs_join(string_vec *self, string sep, const allocator *mem) {
 	
 	size_t capacity = 0;
 	for (size_t i = 0; i < self->size; i++) {
+		#if cels_debug
+			errors_abort("self.data", strings_check_extra(&self->data[i]));
+		#endif
+
 		capacity += self->data[i].size - 1;
 		capacity += sep.size - 1;
 	}
@@ -908,23 +969,39 @@ string string_vecs_join(string_vec *self, string sep, const allocator *mem) {
 
 	string joined = strings_init(capacity, mem);
 	for (size_t i = 0; i < self->size; i++) {
-		strings_push(&joined, self->data[i], mem);
+		error push_error = strings_push(&joined, self->data[i], mem);
+		errors_abort("string_push failed", push_error);
 
 		if (i < self->size - 1) {
-			strings_push(&joined, sep, mem);
+			error push_error = strings_push(&joined, sep, mem);
+			errors_abort("string_push failed", push_error);
 		}
 	}
+
+	#if cels_debug
+		errors_abort("joined", strings_check(&joined));
+	#endif
 
 	return joined;
 }
 
 string_vec string_vecs_make_helper(char *args[], size_t argn, const allocator *mem) {
+	#if cels_debug
+		errors_abort("args", !args);
+		errors_abort("argn", argn == 0);
+	#endif
+
 	string_vec self = string_vecs_init(vector_min, mem);
 
 	for (size_t i = 0; i < argn; i++) {
 		string text = strings_make(args[i], mem);
-		string_vecs_push(&self, text, mem);
+		error push_error = string_vecs_push(&self, text, mem);
+		errors_abort("string_vecs_push failed", push_error);
 	}
+
+	#if cels_debug
+		errors_abort("self", vectors_check((void *)&self));
+	#endif
 
 	return self;
 }
@@ -934,12 +1011,12 @@ bool string_vecs_check_private(const string_vec *self) {
 }
 
 void string_vecs_print_private(const string_vec *self) {
-	if (cels_debug) {
-		errors_panic("string_vecs_print_private.self", vectors_check((const vector *)self));
-	}
+	#if cels_debug
+		errors_abort("self", vectors_check((void *)self));
+	#endif
 
 	for (size_t i = 0; i < self->size; i++) {
-		strings_print_clean(&self->data[i]);
+		strings_imprint(&self->data[i]);
 		if (i != self->size - 1) {
 			printf(", ");
 		}
@@ -987,17 +1064,17 @@ maps_generate_implementation(
 
 bool string_maps_make_push(string_map **self, const char *key, const char *value, const allocator *mem) {
 	#if cels_debug
-		errors_panic("string_maps_make_push.key", key == null);
-		errors_panic("string_maps_make_push.value", value == null);
-		errors_panic("string_maps_make_push.#key", strlen(key) <= 1);
-		errors_panic("string_maps_make_push.#value", strlen(value) <= 1);
+		errors_abort("key", key == null);
+		errors_abort("value", value == null);
+		errors_abort("#key", strlen(key) <= 1);
+		errors_abort("#value", strlen(value) <= 1);
 	#endif
-
 
 	string skey = strings_make(key, mem);
 	string svalue = strings_make(value, mem);
-
-	string_key_pair item = {.key = skey, .value = svalue};
+	string_key_pair item = {
+		.key = skey, 
+		.value = svalue};
 
 	string_map node = {
 		.hash = strings_hasherize(&item.key),
@@ -1006,11 +1083,11 @@ bool string_maps_make_push(string_map **self, const char *key, const char *value
 		.frequency = 1};
 
 	string_map *new_bnode = mems_alloc(mem, sizeof(string_map));
-	errors_panic("string_maps_make_push.new_bnode", new_bnode == null);
+	errors_abort("new_bnode", !new_bnode);
 
 	*new_bnode = node;
 
-	bool push_error = bnodes_push((bnode **)self, (bnode *)new_bnode);
+	error push_error = bnodes_push((bnode **)self, (bnode *)new_bnode);
 	if (push_error) { 
 		string_maps_free_private(new_bnode, mem); 
 	}

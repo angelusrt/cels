@@ -45,49 +45,37 @@ typedef struct arena {
 
 bool arenas_check(const arena *self) {
 	#if cels_debug
-		if (errors_check("arenas_check.self", !self)) {
-			return true;
-		}
-
-		if (errors_check("arenas_check.self.data", !self->data)) {
-			return true;
-		}
+		errors_return("self", !self)
+		errors_return("self.data", !self->data)
 
 		bool is_bigger = self->size > self->capacity;
-		if (errors_check("arenas_check.(self.size > self.capacity)", is_bigger)) {
-			return true;
-		}
+		errors_return("self.size > self.capacity", is_bigger)
 	#else
-		if (!self) {
-			return true;
-		}
-
-		if (!self->data) {
-			return true;
-		}
-
-		if (self->size > self->capacity) {
-			return true;
-		}
+		if (!self) return true;
+		if (!self->data) return true;
+		if (self->size > self->capacity) return true;
 	#endif
 
     return false;
 }
 
 void *arenas_init_helper(size_t capacity) {
-	arena a = {.capacity=capacity, .data=malloc(capacity), .next=null};
-	errors_panic("arenas_init_helper.a.data", a.data == null);
+	arena self = {
+		.capacity=capacity, 
+		.data=malloc(capacity), 
+		.next=null};
+	errors_abort("arena.data", !self.data);
 
-	arena *a_capsule = malloc(sizeof(arena));
-	errors_panic("arenas_init_helper.a_capsule", a_capsule == null);
-	*a_capsule = a;
+	arena *self_capsule = malloc(sizeof(arena));
+	errors_abort("self_capsule", !self_capsule);
+	*self_capsule = self;
 
-	return a_capsule;
+	return self_capsule;
 }
 
 void *arenas_allocate(arena *self, size_t size) {
 	#if cels_debug
-		errors_panic("arenas_allocate.self", arenas_check(self));
+		errors_abort("self", arenas_check(self));
 	#endif
 
 	if (size == 0) { return null; }
@@ -137,8 +125,8 @@ void *arenas_allocate(arena *self, size_t size) {
 
 error arenas_deallocate(arena *self, void *block, size_t block_size) {
 	#if cels_debug
-		errors_panic("arenas_deallocate.self", arenas_check(self));
-		errors_panic("arenas_deallocate.block", block == null);
+		errors_abort("self", arenas_check(self));
+		errors_abort("block", block == null);
 	#endif
 
 	bool found_block = false;
@@ -195,15 +183,15 @@ void *arenas_reallocate(
 	arena *self, void *block, size_t prev_block_size, size_t new_block_size
 ) {
 	#if cels_debug
-		errors_panic("arenas_reallocate.self", arenas_check(self));
-		errors_panic("arenas_reallocate.block", block == null);
+		errors_abort("self", arenas_check(self));
+		errors_abort("block", block == null);
 	#endif
 
 	bool found_block = false;
 	arena *blockin = self;
 	while ((blockin)) {
 		#if cels_debug
-			errors_panic("arenas_reallocate.blockin", arenas_check(blockin));
+			errors_abort("blockin", arenas_check(blockin));
 		#endif
 
 		bool is_within = block >= blockin->data && 
@@ -219,7 +207,7 @@ void *arenas_reallocate(
 	}
 
 	#if cels_debug
-		errors_panic("arenas_reallocate.!found_block (block not within)", !found_block);
+		errors_abort("!found_block (block not within)", !found_block);
 	#endif
 
 	if (!found_block) {
@@ -268,7 +256,7 @@ void *arenas_reallocate(
 	arena *lastblock = self;
 	while (true) {
 		#if cels_debug
-			errors_panic("arenas_reallocate.lastblock", arenas_check(lastblock));
+			errors_abort("lastblock", arenas_check(lastblock));
 		#endif
 
 		bool may_fit_all = (lastblock->capacity - lastblock->size) >= new_block_size;
@@ -313,14 +301,14 @@ void *arenas_reallocate(
 
 void arenas_debug(arena *self) {
 	#if cels_debug
-		errors_panic("arenas_debug.self", arenas_check(self));
+		errors_abort("self", arenas_check(self));
 	#endif
 
 	arena *next = self;
 
 	while ((next)) {
 		#if cels_debug
-			errors_panic("arenas_debug.next", arenas_check(next));
+			errors_abort("next", arenas_check(next));
 		#endif
 
 		char *data = next->data;
@@ -342,7 +330,7 @@ void arenas_debug(arena *self) {
 
 void arenas_free(arena *self) {
 	#if cels_debug
-		errors_panic("arenas_free.self", arenas_check(self));
+		errors_abort("self", arenas_check(self));
 	#endif
 
 	arena *next = self->next;
@@ -386,10 +374,10 @@ typedef struct stack_arena {
 void *stack_arenas_allocate(stack_arena *self, size_t size) {
 	if (size > self->capacity) { 
 		#if cels_debug
-			errors_note(
+			errors_print(
+				errors_error_mode, 
 				"stack_arenas_allocate.(size > self->capacity) "
 				"(%zu more than total - %zu)", 
-				errors_error_mode, 
 				self->capacity - size, 
 				self->capacity);
 		#endif
@@ -420,10 +408,10 @@ void *stack_arenas_allocate(stack_arena *self, size_t size) {
 	} 
 
 	#if cels_debug
-		errors_note(
+		errors_print(
+			errors_error_mode, 
 			"stack_arenas_allocate.(size > self->capacity - self->size) "
 			"(%zu more than available space)", 
-			errors_error_mode, 
 			size - (self->capacity - self->size));
 	#endif
 
@@ -534,7 +522,7 @@ void stack_arenas_free(stack_arena *self) {
 allocator stack_arenas_make(size_t capacity, char *buffer) {
 	stack_arena new_arena = (stack_arena){.capacity=capacity, .data=buffer};
 	stack_arena *capsule = malloc(sizeof(stack_arena));
-	errors_panic("stack_arenas_make.capsule", capsule == null);
+	errors_abort("capsule", !capsule);
 	*capsule = new_arena;
 
 	return (allocator) {

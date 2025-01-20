@@ -19,7 +19,7 @@ typedef size_t (*hashfunc)(void *);
 typedef void (*cleanfunc)(void *);
 typedef void (*printfunc)(void *);
 typedef bool (*filterfunc)(void *);
-typedef error_report (*reportfunc)(void);
+typedef void (*reportfunc)(error_report *);
 typedef void (*printvecfunc)(void *, void *);
 typedef clock_t (*benchfunc) (size_t);
 
@@ -57,6 +57,8 @@ size_t maths_nearest_two_power(size_t a);
 
 #define defaults_check(a) (false)
 
+#define defaults_hash(a) (*a)
+
 #define defaults_seems(a, b) (tolower(*a) == tolower(*b))
 
 #define defaults_clone(a, mem) *a
@@ -73,5 +75,28 @@ size_t maths_nearest_two_power(size_t a);
 
 typedef u_char uchar;
 
+/* utils */
+
+/*
+ * A convenience over utils_measure
+ * that provides the function name.
+ *
+ * #to-review
+ */
+#define utils_measure(callback) \
+	utils_measure_helper(#callback, callback)
+
+/*
+ * A function that measure the 
+ * performance of the callback in 
+ * buckets of time and prints to 
+ * the terminal.
+ *
+ * Don't use it, prefer 
+ * utils_measure intead.
+ *
+ * #to-review
+ */
+void utils_measure_helper(const char *function_name, benchfunc callback);
 
 #endif
