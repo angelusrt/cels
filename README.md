@@ -1,9 +1,11 @@
-#Cels
+# Cels
+
 Cels (C Extended Library's) is a libray for the C language
 that proposes to provide convenience with fundamental 
 utilities in a well-designed manner.
 
-#Features
+# Features
+
 Cels has:
 - vector and methods;
 - string and methods;
@@ -15,7 +17,7 @@ Cels has:
 - http request and server;
 - a "package-manager" utility.
 
-#Example
+# Example
 
 ```C
 int main(void) {
@@ -31,7 +33,7 @@ int main(void) {
     const string sep = strings_premake(", ");
     string hello_world = string_vecs_join(&words, sep, &mem);
 
-    strings_println(&hello_world);
+    strings_println(&hello_world); // hello, world
 
     mem.free(mem.storage);
     return 0;
