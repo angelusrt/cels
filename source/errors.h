@@ -38,55 +38,120 @@ typedef int error;
 #define errors(t) struct { int error; t value; }
 
 /*
+ * A convenience over errors_ensure, 
+ * that returns if statement is true.
+ *
+ * #to-review
+ */
+#define errors_return(message, statement) \
+	if (errors_ensure(message, statement)) { return true; }
+
+/*
+ * A convenience over errors_ensure_helper 
+ * that provides function name.
+ */
+#define errors_ensure(message, statement) \
+	errors_ensure_helper(__func__, message, statement)
+
+/*
+ * A convenience over errors_abort_helper 
+ * that provides function name.
+ */
+#define errors_abort(message, statement) \
+	errors_abort_helper(__func__, message, statement)
+
+/*
+ * A convenience over errors_inform_helper 
+ * that provides function name.
+ */
+#define errors_inform(message, statement) \
+	errors_inform_helper(__func__, message, statement)
+
+/*
  * Tests if an assertion is true, 
- * returning true if it is.
+ * returning error if it is.
+ *
+ * #to-review
  */
 __attribute_warn_unused_result__
-bool errors_assert(const char *message, bool statement);
+error errors_assert(const char *message, bool statement);
+
+/*
+ * Tests if an assertion is true, 
+ * adding the result to report
+ *
+ * #to-review
+ */
+void errors_expect(const char *message, bool statement, error_report *report);
 
 /*
  * Panics if statement is true and 
  * prints message to terminal.
  *
- * #may-panic #depends:stdio.h
+ * Shouldn't be used - use errors_abort 
+ * instead.
+ *
+ * #may-panic #depends:stdio.h #to-review
+ */
+void errors_abort_helper(const char *function_name, const char *message, bool statement);
+
+/*
+ * Panics if statement is true and 
+ * prints message to terminal.
+ *
+ * #may-panic #depends:stdio.h #to-review
  */
 void errors_panic(const char *message, bool statement);
 
 /*
  * Warns to the terminal if statement holds.
  *
- * #depends:stdio.h
+ * Shouldn't be used - use errors_inform_helper. 
+ *
+ * #depends:stdio.h #to-review
  */
-bool errors_warn(const char *message, bool statement);
+error errors_inform_helper(const char* function_name, const char *message, bool statement);
+
+/*
+ * Warns to the terminal if statement holds.
+ *
+ * #depends:stdio.h #to-review
+ */
+error errors_warn(const char *message, bool statement);
+
+/*
+ * Checks statements and prints message 
+ * with function_name if statement holds 
+ * returning error.
+ *
+ * Shouldn't be used - use errors_ensure 
+ * instead.
+ *
+ * #depends:stdio.h #to-review
+ */
+error errors_ensure_helper(
+	const char *function_name, const char *message, bool statement);
 
 /*
  * Checks statement, printing message if 
- * statement holds and returning true otherwise false.
+ * statement holds and returning error status.
  *
- * #depends:stdio.h
+ * #depends:stdio.h #to-review
  */
-bool errors_check(const char *message, bool statement);
+error errors_check(const char *message, bool statement);
 
 /*
  * An adapter to printf function to ease debug.
  *
- * #depends:stdio.h
+ * #depends:stdio.h #to-review
  */
-__attribute__ ((__format__ (printf, 1, 3)))
-void errors_debug(const char *const message, errors_mode mode, ...);
-
-/*
- * An adapter to printf function to be used in production.
- *
- * #depends:stdio.h
- */
-__attribute__ ((__format__ (printf, 1, 3)))
-void errors_note(const char *const message, errors_mode mode, ...);
+__attribute__ ((__format__ (printf, 2, 3)))
+void errors_print(errors_mode mode, const char *const message, ...);
 
 /*
  * Utility that prints the ammount of assertions that failed.
  *
- * #depends:stdio.h
+ * #depends:stdio.h #to-review
  */
 void error_reports_print(const error_report *e);
 
