@@ -22,10 +22,10 @@ estring files_read(file *self, const allocator *mem) {
 		return (estring){.error=file_seeking_position_error};
 	}
 
-	size_t new_capacity = last_position - current_position;
+	size_t new_capacity = (last_position + 1) - current_position;
 	string buffer = strings_init(new_capacity, mem);
 
-	long bytes_read = fread(buffer.data, 1, buffer.capacity, self);
+	long bytes_read = fread(buffer.data, 1, buffer.capacity - 1, self);
 	buffer.size = bytes_read + 1;
 
 	int error = 0;

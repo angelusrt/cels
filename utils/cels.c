@@ -43,5 +43,7 @@ int main(int arg, char **argc) {
 		printf("invalid option - use 'cels help' for help.\n");
 	}
 
+	mem.free(mem.storage);
+
 	return 0;
 }

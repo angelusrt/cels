@@ -6,8 +6,8 @@ bool vectors_check(const vector *self) {
 		errors_return("self.data", !self->data)
 		errors_return("self.capacity < 1", self->capacity < 1)
 
-		bool bigger = self->size > self->capacity;
-		errors_return("self.(size > capacity)", bigger)
+		bool is_bigger = self->size > self->capacity;
+		errors_return("self.(size > capacity)", is_bigger)
 	#else
 		if (!self) return true;
 		if (!self->data) return true;

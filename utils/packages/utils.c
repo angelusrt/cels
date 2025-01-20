@@ -242,7 +242,7 @@ string utils_create_configuration(own configuration *configuration, const alloca
 	string name = {0};
 	if (configuration->main.size > 0) {
 		const string extension = strings_premake(".c");
-		name = strings_replace(&configuration->main, &extension, null, 0, mem);
+		name = strings_replace(&configuration->main, extension, strings_do(""), 0, mem);
 	} else {
 		name = strings_clone(&configuration->name, mem);
 	}
