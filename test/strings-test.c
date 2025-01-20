@@ -1,514 +1,428 @@
 #include "../source/errors.h"
 #include "../source/strings.h"
 
-__attribute_warn_unused_result__
-error_report strings_test_init_and_push() {
-	printf(__func__);
-	printf("\n");
-
-	size_t stat = 0, total = 0;
-
+void strings_push_test(error_report *report) {
+	const string ban = strings_premake("ban");
+	const string ana = strings_premake("ana");
+	const string predict0 = strings_premake("banana");
+	const string predict1 = strings_premake("banan");
 	string text = strings_init(vector_min, null);
-	string textpredict = strings_premake("00000");
-	string zero = strings_premake("0");
 
-	for (size_t i = 0; i < 5; i++) {
-		strings_push(&text, zero, null);
-	}
+	strings_push(&text, ban, null);
+	bool seems = strings_seems(&text, &ban);
+	errors_expect("push('ban') == 'ban'", seems, report);
 
-	stat += errors_assert("push('0')x5 == \"00000\"", strings_seems(&text, &textpredict));
-	total++;
+	strings_push(&text, ana, null);
+	seems = strings_seems(&text, &predict0);
+	errors_expect("push('ana') == 'banana'", seems, report);
 
-	strings_free(&text, null);
-	return (error_report) {.total=total, .successfull=stat};
-}
-
-__attribute_warn_unused_result__
-error_report strings_test_premake_and_check() {
-	printf(__func__);
-	printf("\n");
-
-	size_t stat = 0, total = 0;
-
-	string a = {0};
-	stat += errors_assert("check({}) == true", strings_check(&a));
-	total++;
-
-	string b = strings_premake("test");
-	stat += errors_assert("check(\"test\") == false", !strings_check(&b));
-	total++;
-
-	string c = strings_premake("");
-	stat += errors_assert("check(\"\") == false", !strings_check(&c));
-	total++;
-
-	return (error_report) {.total=total, .successfull=stat};
-}
-
-__attribute_warn_unused_result__
-error_report strings_test_check_extra() {
-	printf(__func__);
-	printf("\n");
-
-	size_t stat = 0, total = 0;
-
-	string a = {0};
-	stat += errors_assert("check_extra({}) == true", strings_check_extra(&a));
-	total++;
-
-	string b = strings_premake("test");
-	stat += errors_assert("check_extra(\"test\") == false", !strings_check_extra(&b));
-	total++;
-
-	string c = strings_premake("");
-	stat += errors_assert("check_extra(\"\") == true", strings_check_extra(&c));
-	total++;
-
-	return (error_report) {.total=total, .successfull=stat};
-}
-
-__attribute_warn_unused_result__
-error_report strings_test_check_charset() {
-	printf(__func__);
-	printf("\n");
-
-	size_t stat = 0, total = 0;
-
-	string text = strings_premake("exemplo");
-	string charset = strings_premake("exmplo_");
-	bool is_valid = strings_check_charset(&text, &charset);
-	stat += errors_assert("check_charset(\"exemplo\", \"exmplo_\") == true", is_valid);
-	total++;
-
-	string charset_alt = strings_premake("_");
-	is_valid = strings_check_charset(&text, &charset_alt);
-	stat += errors_assert("check_charset(\"exemplo\", \"_\") == false", !is_valid);
-	total++;
-
-	string text_alt = strings_premake("_");
-	is_valid = strings_check_charset(&text_alt, &charset_alt);
-	stat += errors_assert("check_charset(\"_\", \"_\") == true", is_valid);
-	total++;
-
-	string text2 = strings_premake("coração");
-	string charset2 = strings_premake("coraçã");
-	is_valid = strings_check_charset(&text2, &charset2);
-	stat += errors_assert("check_charset(\"coração\", \"coraçã\") == true", is_valid);
-	total++;
-
-	return (error_report) {.total=total, .successfull=stat};
-}
-
-__attribute_warn_unused_result__
-error_report strings_test_make_and_free() {
-	printf(__func__);
-	printf("\n");
-
-	size_t stat = 0, total = 0;
-
-	string textlit = strings_premake("texto");
-	string text = strings_make(textlit.data, null);
-	bool textequals = strings_seems(&textlit, &text);
-
-	stat += errors_assert("make(\"texto\") == \"texto\"", textequals);
-	total++;
+	strings_pop(&text, null);
+	seems = strings_seems(&text, &predict1);
+	errors_expect("pop('a') == 'banan'", seems, report);
 
 	strings_free(&text, null);
-	bool textfreed = text.data == null;
-	stat += errors_assert("free(&text) == null", textfreed);
-	total++;
-
-	return (error_report) {.total=total, .successfull=stat};
 }
 
-error_report strings_test_compare() {
-	printf(__func__);
-	printf("\n");
+void strings_check_test(error_report *report) {
+	bool expect = strings_check(&(string){0});
+	errors_expect("check({}) == fail", expect, report);
 
-	size_t stat = 0, total = 0;
+	expect = strings_check(&strings_do("test"));
+	errors_expect("check('test') == ok", !expect, report);
 
-	string text0 = strings_premake("caro");
-	string text1 = strings_premake("cara");
-	string text2 = strings_premake("CARO");
-	string text3 = strings_premake("çaro");
+	expect = strings_check(&strings_do(""));
+	errors_expect("check('') == ok", !expect, report);
+}
+
+void strings_check_extra_test(error_report *report) {
+	bool expect = strings_check_extra(&(string){0});
+	errors_expect("check_extra({}) == fail", expect, report);
+
+	expect = strings_check_extra(&strings_do("test"));
+	errors_expect("check_extra('test') == ok", !expect, report);
+	
+	expect = strings_check_extra(&strings_do(""));
+	errors_expect("check_extra('') == fail", expect, report);
+}
+
+void strings_check_charset_test(error_report *report) {
+	const string text0 = strings_premake("exemplo");
+	const string text1 = strings_premake("_");
+	const string text2 = strings_premake("coração");
+	const string charset0 = strings_premake("exmplo_");
+	const string charset1 = strings_premake("_");
+	const string charset2 = strings_premake("coraçã");
+	
+	bool expect = strings_check_charset(&text0, charset0);
+	errors_expect("check_charset('exemplo', 'exmplo_') == true", expect, report);
+
+	expect = strings_check_charset(&text0, charset1);
+	errors_expect("check_charset('exemplo', '_') == false", !expect, report);
+
+	expect = strings_check_charset(&text1, charset1);
+	errors_expect("check_charset('_', '_') == true", expect, report);
+
+	expect = strings_check_charset(&text2, charset2);
+	errors_expect("check_charset('coração', 'coraça') == true", expect, report);
+}
+
+void strings_make_and_free_test(error_report *report) {
+	const string predict = strings_premake("texto");
+	string text = strings_make(predict.data, null);
+
+	bool equals = strings_seems(&predict, &text);
+	errors_expect("make('texto') == 'texto'", equals, report);
+	
+	strings_free(&text, null);
+	errors_expect("free(&text) == null", !text.data, report);
+}
+
+void strings_clone_test(error_report *report) {
+	const string predict = strings_premake("texto");
+	string text = strings_clone(&predict, null);
+
+	bool equals = strings_seems(&predict, &text);
+	errors_expect("clone('texto') == 'texto'", equals, report);
+	strings_free(&text, null);
+}
+
+void strings_view_test(error_report *report) {
+	const string text0 = strings_premake("texto");
+	const string predict = strings_premake("tex");
+
+	string text1 = strings_view(&text0, 0, 2);
+	bool equals = strings_seems(&predict, &text1);
+	errors_expect("view('texto', 0, 2) == 'tex'", equals, report);
+
+	string text2 = strings_unview(&text1, null);
+	equals = strings_seems(&predict, &text2);
+	errors_expect("unview('tex') == 'tex'", equals, report);
+	strings_free(&text2, null);
+}
+
+void strings_compare_test(error_report *report) {
+	const string text0 = strings_premake("caro");
+	const string text1 = strings_premake("cara");
+	const string text2 = strings_premake("CARO");
+	const string text3 = strings_premake("çaro");
 
 	bool is_bigger = strings_compare(&text0, &text1);
-	stat += errors_assert("compare(\"caro\", \"cara\") == true", is_bigger);
-	total++;
-
+	errors_expect("compare('caro', 'cara') == true", is_bigger, report);
+	
 	is_bigger = strings_compare(&text0, &text0);
-	stat += errors_assert("compare(\"caro\", \"caro\") == false", !is_bigger);
-	total++;
-
+	errors_expect("compare('caro', 'caro') == false", !is_bigger, report);
+	
 	is_bigger = strings_compare(&text0, &text2);
-	stat += errors_assert("compare(\"caro\", \"CARO\") == false", !is_bigger);
-	total++;
-
+	errors_expect("compare('caro', 'CARO') == false", !is_bigger, report);
+	
 	is_bigger = strings_compare(&text3, &text0);
-	stat += errors_assert("compare(\"çaro\", \"caro\") == true", is_bigger);
-	total++;
-
-	return (error_report) {.total=total, .successfull=stat};
+	errors_expect("compare('çaro', 'caro') == true", is_bigger, report);
 }
 
-error_report strings_test_equals() {
-	printf(__func__);
-	printf("\n");
-
-	size_t stat = 0, total = 0;
-
-	string text0 = strings_premake("caro");
-	string text1 = strings_premake("cara");
-	string text2 = strings_premake("CARO");
-	string text3 = strings_premake("çaro");
+void strings_equals_test(error_report *report) {
+	const string text0 = strings_premake("caro");
+	const string text1 = strings_premake("cara");
+	const string text2 = strings_premake("CARO");
+	const string text3 = strings_premake("çaro");
 
 	bool equals = strings_equals(&text0, &text1);
-	stat += errors_assert("equals(\"caro\", \"cara\") == false", !equals);
-	total++;
-
+	errors_expect("equals('caro', 'cara') == false", !equals, report);
+	
 	equals = strings_equals(&text0, &text0);
-	stat += errors_assert("equals(\"caro\", \"caro\") == true", equals);
-	total++;
-
+	errors_expect("equals('caro', 'caro') == true", equals, report);
+	
 	equals = strings_equals(&text0, &text2);
-	stat += errors_assert("equals(\"caro\", \"CARO\") == falso", !equals);
-	total++;
-
+	errors_expect("equals('caro', 'CARO') == falso", !equals, report);
+	
 	equals = strings_equals(&text0, &text3);
-	stat += errors_assert("equals(\"caro\", \"çaro\") == false", !equals);
-	total++;
-
-	return (error_report) {.total=total, .successfull=stat};
+	errors_expect("equals('caro', 'çaro') == false", !equals, report);
 }
 
-error_report strings_test_seems() {
-	printf(__func__);
-	printf("\n");
-
-	size_t stat = 0, total = 0;
-
-	string text0 = strings_premake("caro");
-	string text1 = strings_premake("cara");
-	string text2 = strings_premake("CARO");
-	string text3 = strings_premake("çaro");
+void strings_seems_test(error_report *report) {
+	const string text0 = strings_premake("caro");
+	const string text1 = strings_premake("cara");
+	const string text2 = strings_premake("CARO");
+	const string text3 = strings_premake("çaro");
 
 	bool seems = strings_seems(&text0, &text1);
-	stat += errors_assert("seems(\"caro\", \"cara\") == false", !seems);
-	total++;
-
+	errors_expect("seems('caro', 'cara') == false", !seems, report);
+	
 	seems = strings_seems(&text0, &text0);
-	stat += errors_assert("seems(\"caro\", \"caro\") == true", seems);
-	total++;
-
+	errors_expect("seems('caro', 'caro') == true", seems, report);
+	
 	seems = strings_seems(&text0, &text2);
-	stat += errors_assert("seems(\"caro\", \"CARO\") == true", seems);
-	total++;
-
+	errors_expect("seems('caro', 'CARO') == true", seems, report);
+	
 	seems = strings_seems(&text0, &text3);
-	stat += errors_assert("seems(\"caro\", \"çaro\") == false", !seems);
-	total++;
-
-	return (error_report) {.total=total, .successfull=stat};
+	errors_expect("seems('caro', 'çaro') == false", !seems, report);
 }
 
-error_report strings_test_find() {
-	printf(__func__);
-	printf("\n");
-
-	size_t stat = 0, total = 0;
-
-	string text0 = strings_premake("Um 'um'");
-	string text1 = strings_premake("um");
-	string text2 = strings_premake("_");
+void strings_find_test(error_report *report) {
+	const string text0 = strings_premake("Um 'um'");
+	const string text1 = strings_premake("um");
+	const string text2 = strings_premake("_");
+	const string text3 = strings_premake("{exemplo: {a: {}}}");
 
 	ssize_t pos = strings_find(&text0, text1, 0);
-	stat += errors_assert("find(\"Um 'um'\", \"um\", 0) == 0", pos == 0);
-	total++;
-
+	errors_expect("find('Um 'um'', 'um', 0) == 0", pos == 0, report);
+	
 	pos = strings_find(&text0, text1, 1);
-	stat += errors_assert("find(\"Um 'um'\", \"um\", 1) == 4", pos == 4);
-	total++;
-
+	errors_expect("find('Um 'um'', 'um', 1) == 4", pos == 4, report);
+	
 	pos = strings_find(&text0, text2, 0);
-	stat += errors_assert("find(\"Um 'um'\", \"_\", 0) == -1", pos == -1);
-	total++;
+	errors_expect("find('Um 'um'', '_', 0) == -1", pos == -1, report);
 
-	return (error_report) {.total=total, .successfull=stat};
+	pos = strings_find_matching(&text3, strings_do("{"), strings_do("}"), 0);
+	errors_expect("find_matching('{exemplo: {a: {}}}', '{', '}', 0) == 17", pos == 17, report);
 }
 
-bool _sizes_equals(size_t *s0, size_t *s1) { return &s0 == &s1; }
+void strings_find_from_test(error_report *report) {
+	const string text0 = strings_premake("Um 'um'");
+	const string text1 = strings_premake("um");
+	const string text2 = strings_premake("_");
 
-error_report strings_test_make_find() {
-	printf(__func__);
-	printf("\n");
+	ssize_t pos = strings_find_from(&text0, text1, 0);
+	errors_expect("find_from('Um 'um'', 'um', 0) == 0", pos == 0, report);
+	
+	pos = strings_find_from(&text0, text1, 1);
+	errors_expect("find_from('Um 'um'', 'um', 1) == 1", pos == 1, report);
+	
+	pos = strings_find_from(&text0, text2, 0);
+	errors_expect("find_from('Um 'um'', '_', 0) == -1", pos == -1, report);
+}
 
-	size_t stat = 0, total = 0;
+void strings_find_all_test(error_report *report) {
+	const string text0 = strings_premake("Um 'um' mais que um.");
+	const string text1 = strings_premake("um");
+	const string text2 = strings_premake("coração");
+	const string text3 = strings_premake("ã");
+	const size_vec positions = vectors_premake(size_t, 0, 4, 17);
 
-	string text0 = strings_premake("Um 'um' mais do que um.");
-	string text1 = strings_premake("um");
-
-	size_vec texts0 = strings_find_all(&text0, &text1, 0, null);
-	size_vec positions = vectors_premake(size_t, 3, 0, 4, 20);
+	size_vec texts0 = strings_find_all(&text0, text1, 0, null);
 	bool matches = size_vecs_equals(&texts0, &positions);
-
-	stat += errors_assert("make_find(\"Um 'um' mais do que um.\", \"um\", 0).data == [0, 4, 20]", matches);
-	total++;
-
-	size_vec texts1 = strings_find_all(&text0, &text1, 1, null);
+	errors_expect("find_all('Um 'um' mais que um.', 'um', 0) == [0, 4, 17]", matches, report);
+	
+	size_vec texts1 = strings_find_all(&text0, text1, 1, null);
 	matches = texts1.size == 1;
-
-	stat += errors_assert("make_find(\"Um 'um' mais do que um.\", \"um\", 1).size == 1", matches);
-	total++;
-
-	string text2 = strings_premake("coração");
-	string text3 = strings_premake("ã");
-	size_vec texts2 = strings_find_all(&text2, &text3, 0, null);
+	errors_expect("find_all('Um 'um' mais que um.', 'um', 1).size == 1", matches, report);
+	
+	size_vec texts2 = strings_find_all(&text2, text3, 0, null);
 	matches = texts2.size == 1;
-
-	stat += errors_assert("make_find(\"coração\", \"ã\", 1).size == 1", matches);
-	total++;
-
+	errors_expect("find_all('coração', 'ã', 1).size == 1", matches, report);
+	
 	size_vecs_free(&texts0, null);
 	size_vecs_free(&texts1, null);
 	size_vecs_free(&texts2, null);
-	return (error_report) {.total=total, .successfull=stat};
 }
 
-error_report strings_test_replace() {
-	printf(__func__);
-	printf("\n");
-
-	size_t stat = 0, total = 0;
-
-	string charset0 = strings_premake("an");
-	string charset1 = strings_premake(" ");
-	string charset2 = strings_premake("h");
+void strings_replace_from_test(error_report *report) {
 	string text0 = strings_make("alehandrah", null);
+	const string text1 = strings_premake(" leh  dr h");
+	const string text2 = strings_premake("lehdrh");
+	const string text3 = strings_premake("leedrh");
+	const string charset0 = strings_premake("an");
+	const string charset1 = strings_premake(" ");
+	const string charset2 = strings_premake("h");
 
-	strings_replace_from(&text0, &charset0, ' ', 0);
-	string text1 = strings_premake(" leh  dr h");
+	strings_replace_from(&text0, charset0, ' ', 0);
 	bool matches = strings_seems(&text0, &text1);
-	stat += errors_assert("replace(\"alehandrah\", \"an\", \" \", 0) == \" leh  dr h\"", matches);
-	total++;
-
-	strings_replace_from(&text0, &charset1, -1, 0);
-	string text2 = strings_premake("lehdrh");
+	errors_expect("replace_from('alehandrah', 'an', ' ', 0) == ' leh  dr h'", matches, report);
+	
+	strings_replace_from(&text0, charset1, -1, 0);
 	matches = strings_seems(&text0, &text2);
-	stat += errors_assert("replace(\" leh  dr h\", \" \", -1, 0) == \"lehdrh\"", matches);
-	total++;
-
-	strings_replace_from(&text0, &charset2, 'e', 1);
-	string text3 = strings_premake("leedrh");
+	errors_expect("replace_from(' leh  dr h', ' ', -1, 0) == 'lehdrh'", matches, report);
+	
+	strings_replace_from(&text0, charset2, 'e', 1);
 	matches = strings_seems(&text0, &text3);
-	stat += errors_assert("replace(\"lehdrh\", \"h\", \"e\", 1) == \"leedrh\"", matches);
-	total++;
-
+	errors_expect("replace_from('lehdrh', 'h', 'e', 1) == 'leedrh'", matches, report);
+	
 	strings_free(&text0, null);
-	return (error_report) {.total=total, .successfull=stat};
 }
 
-error_report strings_test_make_replace() {
-	printf(__func__);
-	printf("\n");
+void strings_replace_test(error_report *report) {
+	const string text0 = strings_premake("o bão bom.");
+	const string substring0 = strings_premake("o b");
+	const string rep0 = strings_premake("");
+	const string rep1 = strings_premake("o c");
+	const string rep2 = strings_premake("ã");
+	const string predict1 = strings_premake("ãom.");
+	const string predict2 = strings_premake("ão bom.");
+	const string predict3 = strings_premake("o cão bom.");
+	const string predict4 = strings_premake("ãããom.");
 
-	size_t stat = 0, total = 0;
-
-	string text0 = strings_premake("o bão bom.");
-	string text1 = strings_premake("o b");
-
-	string text2predict = strings_premake("ãom.");
-	string text2 = strings_replace(&text0, &text1, null, 0, null);
-
-	bool matches = strings_seems(&text2, &text2predict);
-	stat += errors_assert("make_replace(\"o bão bom.\", \"o b\", null, 0) == \"ãom.\"", matches);
-	total++;
-
-	string text3predict = strings_premake("ão bom.");
-	string text3 = strings_replace(&text0, &text1, null, 1, null);
-
-	matches = strings_seems(&text3, &text3predict);
-	stat += errors_assert("make_replace(\"o bão bom.\", \"o b\", null, 1) == \"ão bom.\"", matches);
-	total++;
-
-	string text4 = strings_premake("o c");
-	string text5predict = strings_premake("o cão bom.");
-	string text5 = strings_replace(&text0, &text1, &text4, 1, null);
-
-	matches = strings_seems(&text5, &text5predict);
-	stat += errors_assert("make_replace(\"o bão bom.\", \"o b\", \"o c\", 1) == \"o cão bom.\"", matches);
-	total++;
-
-	string text7 = strings_premake("ã");
-	string text6predict = strings_premake("ãããom.");
-	string text6 = strings_replace(&text0, &text1, &text7, 0, null);
-
-	matches = strings_seems(&text6, &text6predict);
-	stat += errors_assert("make_replace(\"o bão bom.\", \"o b\", \"ã\", 0) == \"ãããom.\"", matches);
-	total++;
-
+	string text1 = strings_replace(&text0, substring0, rep0, 0, null);
+	bool matches = strings_seems(&text1, &predict1);
+	errors_expect("replace('o bão bom.', 'o b', '', 0) == 'ãom.'", matches, report);
+	
+	string text2 = strings_replace(&text0, substring0, rep0, 1, null);
+	matches = strings_seems(&text2, &predict2);
+	errors_expect("replace('o bão bom.', 'o b', '', 1) == 'ão bom.'", matches, report);
+	
+	string text3 = strings_replace(&text0, substring0, rep1, 1, null);
+	matches = strings_seems(&text3, &predict3);
+	errors_expect("replace('o bão bom.', 'o b', 'o c', 1) == 'o cão bom.'", matches, report);
+	
+	string text4 = strings_replace(&text0, substring0, rep2, 0, null);
+	matches = strings_seems(&text4, &predict4);
+	errors_expect("replace('o bão bom.', 'o b', 'ã', 0) == 'ãããom.'", matches, report);
+	
+	strings_free(&text1, null);
 	strings_free(&text2, null);
 	strings_free(&text3, null);
-	strings_free(&text5, null);
-	strings_free(&text6, null);
-
-	return (error_report) {.total=total, .successfull=stat};
+	strings_free(&text4, null);
 }
 
-error_report strings_test_make_split() {
-	printf(__func__);
-	printf("\n");
+void strings_split_test(error_report *report) {
+	const string text0 = strings_premake("aumbumcumd");
+	const string sep0 = strings_premake("um");
+	string_vec predict1 = string_vecs_make(null, "a", "b", "c", "d");
+	string_vec predict2 = string_vecs_make(null, "a", "bumcumd");
 
-	size_t stat = 0, total = 0;
-
-	string text0 = strings_premake("aumbumcumd");
-	string text1 = strings_premake("um");
-
-	string_vec text2 = strings_split(&text0, &text1, 0, null);
-	string_vec text2predict = vectors_premake(
-		string,
-		strings_premake("a"), 
-		strings_premake("b"), 
-		strings_premake("c"),
-		strings_premake("d"));
-
-	bool matches = string_vecs_seems(&text2, &text2predict);
-	stat += errors_assert(
-		"make_split(\"aumbumcumd\", \"um\", 0) == [\"a\",\"b\",\"c\",\"d\"]", 
-		matches);
-	total++;
-
-	string_vec text3 = strings_split(&text0, &text1, 1, null);
-	string_vec text3predict = vectors_premake(
-		string,
-		strings_premake("a"), 
-		strings_premake("bumcumd"));
-
-	matches = string_vecs_seems(&text3, &text3predict);
-	stat += errors_assert(
-		"make_split(\"aumbumcumd\", \"um\", 1) == [\"a\",\"bumcumd\"]", 
-		matches);
-	total++;
-
+	string_vec text1 = strings_split(&text0, sep0, 0, null);
+	bool matches = string_vecs_seems(&text1, &predict1);
+	errors_expect("make_split('aumbumcumd', 'um', 0) == ['a','b','c','d']", matches, report);
+	
+	string_vec text2 = strings_split(&text0, sep0, 1, null);
+	matches = string_vecs_seems(&text2, &predict2);
+	errors_expect("make_split('aumbumcumd', 'um', 1) == ['a','bumcumd']", matches, report);
+	
+	string_vecs_free(&text1, null);
 	string_vecs_free(&text2, null);
-	string_vecs_free(&text3, null);
-
-	return (error_report) {.total=total, .successfull=stat};
+	string_vecs_free(&predict1, null);
+	string_vecs_free(&predict2, null);
 }
 
-error_report strings_test_make_format() {
-	printf(__func__);
-	printf("\n");
+void strings_format_test(error_report *report) {
+	string json = strings_format("{'age': %d}", null, 10);
+	const string predict = strings_premake("{'age': 10}");
 
-	size_t stat = 0, total = 0;
-
-	string json = strings_format("{\"age\": %d}", null, 10);
-	string jsonpredict = strings_premake("{\"age\": 10}");
-
-	bool matches = strings_seems(&json, &jsonpredict);
-	stat += errors_assert("make_format(\"{\"age\": %d}\", 10) == \"{\"age\": 10}\"", matches);
-	total++;
-
+	bool matches = strings_seems(&json, &predict);
+	errors_expect("format('{'age': %d}', 10) == '{'age': 10}'", matches, report);
+	
 	strings_free(&json, null);
-	return (error_report) {.total=total, .successfull=stat};
 }
 
-error_report strings_test_hasherize() {
-	printf(__func__);
-	printf("\n");
-
-	size_t stat = 0, total = 0;
-
-	size_t hash = strings_hasherize(&(string)strings_premake("idea"));
-	stat += errors_assert("hasherize(\"idea\") == 9840", hash == 9840);
-	total++;
-
-	return (error_report) {.total=total, .successfull=stat};
+void strings_hasherize_test(error_report *report) {
+	const size_t hash = strings_prehash("idea");
+	errors_expect("hasherize('idea') == 9840", hash == 9840, report);
 }
 
-error_report strings_test_lower_and_upper() {
-	printf(__func__);
-	printf("\n");
-
-	size_t stat = 0, total = 0;
-
+void strings_lower_and_upper_test(error_report *report) {
 	string text = strings_make("eXeMpLo", null);
-	string textlower = strings_premake("exemplo");
-	string textupper = strings_premake("EXEMPLO");
+	const string textlower = strings_premake("exemplo");
+	const string textupper = strings_premake("EXEMPLO");
 
 	strings_upper(&text);
 	bool matches = strings_equals(&text, &textupper);
-	stat += errors_assert("upper(\"eXeMpLo\") == \"EXEMPLO\"", matches);
-	total++;
-
+	errors_expect("upper('eXeMpLo') == 'EXEMPLO'", matches, report);
+	
 	strings_lower(&text);
 	matches = strings_equals(&text, &textlower);
-	stat += errors_assert("lower(\"EXEMPLO\") == \"exemplo\"", matches);
-	total++;
-
+	errors_expect("lower('EXEMPLO') == 'exemplo'", matches, report);
+	
 	strings_free(&text, null);
-	return (error_report) {.total=total, .successfull=stat};
 }
 
-error_report strings_test_next() {
-	printf(__func__);
-	printf("\n");
+void strings_next_test(error_report *report) {
+	const string text0 = strings_premake("a, b, c");
+	const string text1 = strings_premake(", ");
+	const string textalt = strings_premake("_");
+	string_vec predict = string_vecs_make(null, "a", "b", "c");
+	string text2 = {0};
 
-	size_t stat = 0, total = 0;
-
-	string text0 = strings_premake("a, b, c");
-	string text1 = strings_premake(", ");
-	string text2 = {0}; //view
-	string_vec predict = vectors_premake(
-		string,
-		strings_premake("a"),
-		strings_premake("b"),
-		strings_premake("c"));
-
-	strings_next(&text0, &text1, &text2);
+	strings_next(&text0, text1, &text2);
 	bool matches = strings_equals(&text2, &predict.data[0]);
-	stat += errors_assert("next(\"a, b, c\", \", \", {0}) == \"a\"", matches);
-	total++;
-
-	strings_next(&text0, &text1, &text2);
+	errors_expect("next('a, b, c', ', ', {0}) == 'a'", matches, report);
+	
+	strings_next(&text0, text1, &text2);
 	matches = strings_equals(&text2, &predict.data[1]);
-	stat += errors_assert("next(\"a, b, c\", \", \", \"a\") == \"b\"", matches);
-	total++;
-
-	strings_next(&text0, &text1, &text2);
+	errors_expect("next('a, b, c', ', ', 'a') == 'b'", matches, report);
+	
+	strings_next(&text0, text1, &text2);
 	matches = strings_equals(&text2, &predict.data[2]);
-	stat += errors_assert("next(\"a, b, c\", \", \", \"b\") == \"c\"", matches);
-	total++;
-
-	string textalt = strings_premake("_");
-
+	errors_expect("next('a, b, c', ', ', 'b') == 'c'", matches, report);
+	
 	text2.data = null;
-	strings_next(&text0, &textalt, &text2);
+	strings_next(&text0, textalt, &text2);
 	matches = strings_equals(&text2, &text0);
-	stat += errors_assert("next(\"a, b, c\", \"_\", {0}) == \"a, b, c\"", matches);
-	total++;
-
+	errors_expect("next('a, b, c', '_', {0}) == 'a, b, c'", matches, report);
+	
 	size_t count = 0;
 	text2.data = null;
-	while(!strings_next(&text0, &text1, &text2)) { count++; }
-	stat += errors_assert("next(\"a, b, c\", \", \", {0}).count == 3", count == 3);
-	total++;
-
-	return (error_report) {.total=total, .successfull=stat};
+	while(!strings_next(&text0, text1, &text2)) { count++; }
+	errors_expect("next('a, b, c', ', ', {0}).count == 3", count == 3, report);
+	string_vecs_free(&predict, null);
 }
 
-error_report string_maps_test_get_and_push() {
-	printf(__func__);
-	printf("\n");
+void strings_slice_test(error_report *report) {
+	const string predict0 = strings_premake("exemplo");
+	const string predict1 = strings_premake("exe");
+	const string predict2 = strings_premake("ee");
+	string text0 = strings_make(" exemplo", null);
 
-	size_t stat = 0, total = 0;
+	strings_trim(&text0);
+	bool matches = strings_seems(&text0, &predict0);
+	errors_expect("trim(' exemplo') == 'exemplo'", matches, report);
 
+	strings_slice(&text0, 0, 3);
+	matches = strings_seems(&text0, &predict1);
+	errors_expect("slice('exemplo', 0, 3) == 'exe'", matches, report);
+
+	strings_shift(&text0, 1);
+	matches = strings_seems(&text0, &predict2);
+	errors_expect("shift('exe', 1) == 'ee'", matches, report);
+
+	strings_free(&text0, null);
+}
+
+void strings_cut_test(error_report *report) {
+	const string text0 = strings_premake("  exemplo ");
+	const string predict0 = strings_premake("exemplo");
+
+	const string trimmed_view = strings_cut(&text0);
+	bool matches = strings_seems(&trimmed_view, &predict0);
+	errors_expect("cut('  exemplo ') == 'exemplo'", matches, report);
+}
+
+void strings_has_test(error_report *report) {
+	const string text0 = strings_premake("exemplo.c");
+	const string has0 = strings_premake("exemplo");
+	const string has1 = strings_premake(".c");
+	const string has2 = strings_premake(".d");
+
+	bool matches = strings_has_prefix(&text0, has0);
+	errors_expect("has_prefix('exemplo.c', 'exemplo') == true", matches, report);
+
+	matches = strings_has_prefix(&text0, has1);
+	errors_expect("has_prefix('exemplo.c', '.c') == false", !matches, report);
+
+	matches = strings_has_suffix(&text0, has1);
+	errors_expect("has_suffix('exemplo.c', '.c') == true", matches, report);
+
+	matches = strings_has_suffix(&text0, has2);
+	errors_expect("has_suffix('exemplo.c', '.d') == false", !matches, report);
+}
+
+void string_vecs_join_test(error_report *report) {
+	string_vec names = string_vecs_make(null, "a", "b", "c");
+	string predict = strings_premake("a, b, c");
+	const string sep = strings_premake(", ");
+
+	string name_list = string_vecs_join(&names, sep, null);
+	bool matches = strings_seems(&name_list, &predict);
+	errors_expect("join(['a', 'b', 'c'], ', ') == 'a, b, c'", matches, report);
+
+	string_vecs_free(&names, null);
+	strings_free(&name_list, null);
+}
+
+void string_maps_get_and_push_test(error_report *report) {
 	string_map *json = null;
 	string namepredict = strings_premake("angelus");
+	string key = strings_premake("name");
 
 	string_maps_make_push(&json, "name", "angelus", null);
 	string_maps_make_push(&json, "age", "10", null);
-
-	string key = strings_premake("name");
 	string *name = string_maps_get(json, key);
 
 	bool is_valid = name != null;
@@ -516,53 +430,56 @@ error_report string_maps_test_get_and_push() {
 		is_valid = strings_equals(name, &namepredict); 
 	}
 
-	stat += errors_assert("string_maps_get(json, \"name\") == \"angelus\"", is_valid);
-	total++;
-
+	errors_expect("get(json, 'name') == 'angelus'", is_valid, report);
+	
 	string_maps_make_push(&json, "name", "angelus", null);
-
 	size_t name_freq = string_maps_get_frequency(json, key);
 	is_valid = name_freq == 2; 
-
-	stat += errors_assert("string_maps_push(json, \"name\", \"angelus\").frequency == 2", is_valid);
-	total++;
-
+	errors_expect("push(json, 'name', 'angelus').frequency == 2", is_valid, report);
+	
 	string_maps_free(json, null);
-	return (error_report) {.total=total, .successfull=stat};
 }
 
-void strings_test() {
+void strings_test(void) {
 	printf("=======\n");
 	printf("strings\n");
 	printf("=======\n\n");
 
-	error_report rep;
 	reportfunc functions[] = {
-		strings_test_init_and_push,
-		strings_test_premake_and_check,
-		strings_test_check_extra,
-		strings_test_check_charset,
-		strings_test_make_and_free,
-		strings_test_compare,
-		strings_test_equals,
-		strings_test_seems,
-		strings_test_find,
-		strings_test_make_find,
-		strings_test_replace,
-		strings_test_make_replace,
-		strings_test_make_split,
-		strings_test_make_format,
-		strings_test_hasherize,
-		strings_test_lower_and_upper,
-		strings_test_next,
-		string_maps_test_get_and_push,
+		strings_push_test,
+		strings_check_test,
+		strings_check_extra_test,
+		strings_check_charset_test,
+		strings_make_and_free_test,
+		strings_clone_test,
+		strings_compare_test,
+		strings_equals_test,
+		strings_seems_test,
+		strings_find_test,
+		strings_find_from_test,
+		strings_find_all_test,
+		strings_replace_from_test,
+		strings_replace_test,
+		strings_split_test,
+		strings_format_test,
+		strings_hasherize_test,
+		strings_lower_and_upper_test,
+		strings_next_test,
+		strings_slice_test,
+		strings_has_test,
+		strings_cut_test,
+		string_vecs_join_test,
+		string_maps_get_and_push_test,
 		null,
 	};
 
+	error_report report = {0};
 	size_t i = 0;
 	while (functions[i]) {
-		rep = functions[i]();
-		error_reports_print(&rep);
+		functions[i](&report);
+		printf("\n");
 		i++;
 	}
+
+	error_reports_print(&report);
 }

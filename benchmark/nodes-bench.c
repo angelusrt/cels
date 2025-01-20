@@ -4,17 +4,19 @@
 
 #include "../source/nodes.h"
 #include "../source/utils.h"
-#include "../source/vectors.h"
-#include "../source/benchs.h"
 
-size_t ints_hasherize(int *a) { return *a; }
-void *ints_free(int *self, const allocator *mem) {
-	mems_dealloc(mem, self, sizeof(int));
-	return null;
+void ints_print(const int *a) { 
+	printf("%d", *a);
 }
 
 sets_generate_definition(int, int_set)
-sets_generate_implementation(int, int_set, defaults_check, ints_hasherize, defaults_free)
+sets_generate_implementation(
+	int, 
+	int_set, 
+	defaults_check, 
+	ints_print, 
+	defaults_hash,
+	defaults_free)
 
 clock_t sets_bench(size_t size) {
 	clock_t start = clock();
@@ -32,7 +34,5 @@ clock_t sets_bench(size_t size) {
 }
 
 void nodes_bench() {
-	size_vec size_buckets = vectors_premake(size_t, 5, 10, 100, 1000, 10000, 100000);
-	benchs_measure("sets_bench", &size_buckets, sets_bench);
-	size_vecs_free(&size_buckets, null);
+	utils_measure(sets_bench);
 }
