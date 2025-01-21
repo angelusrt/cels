@@ -38,7 +38,7 @@ typedef errors(template_map *) etemplate_map;
 
 /* templates */
 
-__attribute_warn_unused_result__
+__attribute__ ((__warn_unused_result__))
 etemplate_map templates_make(const string path, const allocator *mem);
 
 

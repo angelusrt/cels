@@ -6,7 +6,6 @@
 #include <sys/cdefs.h>
 #include <time.h>
 #include <stddef.h>
-
 #include "errors.h"
 
 /* function-type-definitions */
@@ -35,7 +34,7 @@ typedef struct enfunctor {
 	void *params;
 } enfunctor;
 
-__attribute_warn_unused_result__
+__attribute__ ((__warn_unused_result__))
 bool functors_check(const functor *f);
 
 /* maths */
@@ -73,7 +72,8 @@ size_t maths_nearest_two_power(size_t a);
 
 #define null NULL
 
-typedef u_char uchar;
+typedef unsigned char uchar;
+typedef unsigned long ulong;
 
 /* utils */
 

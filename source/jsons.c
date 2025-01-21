@@ -56,7 +56,7 @@ typedef struct range {
 	size_t start, end;
 } range;
 
-__attribute_warn_unused_result__
+__attribute__ ((__warn_unused_result__))
 string jsons_get_section_private(const string *json, range interval, const allocator *mem) {
 	string section_view = {
 		.data=json->data+interval.start,

@@ -73,7 +73,7 @@ typedef int error;
  *
  * #to-review
  */
-__attribute_warn_unused_result__
+__attribute__ ((__warn_unused_result__))
 error errors_assert(const char *message, bool statement);
 
 /*

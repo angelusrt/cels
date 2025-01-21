@@ -403,7 +403,7 @@ size_vec strings_find_all(const string *self, const string substring, size_t n, 
 	errors_abort("indexes", vectors_check((vector *)&indexes));
 
     for (size_t i = 0, j = 0; i < self->size - 1; i++) {
-		u_char letter = tolower(self->data[i]);
+		uchar letter = tolower(self->data[i]);
 
         if (letter == tolower(substring.data[j])) {
             j++;

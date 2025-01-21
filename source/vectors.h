@@ -524,17 +524,17 @@ typedef vectors(void *) vector;
 #define vectors_generate_definition(type, name) \
 	typedef vectors(type *) name; \
 	\
-	__attribute_warn_unused_result__ \
+	__attribute__ ((__warn_unused_result__)) \
 	name name##s_init(size_t len, const allocator *mem); \
 	\
-	__attribute_warn_unused_result__ \
+	__attribute__ ((__warn_unused_result__)) \
 	name name##s_clone(name *self, const allocator *mem); \
 	\
 	error name##s_upscale(name *self, const allocator *mem); \
 	\
 	error name##s_downscale(name *self, const allocator *mem); \
 	\
-	__attribute_warn_unused_result__ \
+	__attribute__ ((__warn_unused_result__)) \
 	type name##s_get(const name *self, size_t position); \
 	\
 	error name##s_pop(name *self, const allocator *mem); \
@@ -559,16 +559,16 @@ typedef vectors(void *) vector;
 	\
 	void name##s_print(const name *self); \
 	\
-	__attribute_warn_unused_result__ \
+	__attribute__ ((__warn_unused_result__)) \
 	bool name##s_equals(const name *self, const name *other); \
 	\
-	__attribute_warn_unused_result__ \
+	__attribute__ ((__warn_unused_result__)) \
 	bool name##s_seems(const name *self, const name *other); \
 	\
-	__attribute_warn_unused_result__ \
+	__attribute__ ((__warn_unused_result__)) \
 	ssize_t name##s_find(const name *self, type item); \
 	\
-	__attribute_warn_unused_result__ \
+	__attribute__ ((__warn_unused_result__)) \
 	ssize_t name##s_search(const name *self, type item); \
 	\
 	void name##s_shift(name *self, size_t position, notused const allocator *mem); \
@@ -580,7 +580,7 @@ typedef vectors(void *) vector;
  *
  * #tested
  */
-__attribute_warn_unused_result__
+__attribute__ ((__warn_unused_result__))
 bool vectors_check(const vector *self);
 
 /*

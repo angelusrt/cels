@@ -129,7 +129,7 @@ void bnodes_free_all(bnode *self, const allocator *mem, freefunc cleanup);
  *
  * #to-review
  */
-__attribute_warn_unused_result__
+__attribute__ ((__warn_unused_result__))
 size_t bnodes_length(bnode *self);
 
 /* sets */
@@ -229,7 +229,7 @@ size_t bnodes_length(bnode *self);
 	\
 	bool name##s_push(name **self, type item, const allocator *mem); \
 	\
-	__attribute_warn_unused_result__ \
+	__attribute__ ((__warn_unused_result__)) \
 	type *name##s_get(const name *self, type item); \
 	\
 	void name##s_traverse(name *self, callfunc callback); \
@@ -362,10 +362,10 @@ size_t bnodes_length(bnode *self);
 	\
 	bool name##s_push(name **self, type0 key, type1 value, const allocator *mem); \
 	\
-	__attribute_warn_unused_result__ \
+	__attribute__ ((__warn_unused_result__)) \
 	type1 *name##s_get(const name *self, type0 item); \
 	\
-	__attribute_warn_unused_result__ \
+	__attribute__ ((__warn_unused_result__)) \
 	size_t name##s_get_frequency(name *self, type0 item); \
 	\
 	void name##s_traverse(name *self, callfunc callback); \

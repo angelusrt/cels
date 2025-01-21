@@ -170,7 +170,7 @@ vectors_generate_implementation(
 	router_nodes_seems,
 	defaults_free)
 
-__attribute_warn_unused_result__
+__attribute__ ((__warn_unused_result__))
 long router_node_vecs_find_hash(const router_node_vec *self, size_t hash) {
 	#if cels_debug
 		errors_abort("self", vectors_check((const vector *)self));
@@ -217,7 +217,7 @@ void https_initialize_private(void) {
 	protocols.data[1] = strings_prehash("HTTP/1.1");
 }
 
-__attribute_warn_unused_result__
+__attribute__ ((__warn_unused_result__))
 bool https_head_check(const string_map *head) {
 	#if cels_debug
 		errors_abort("head", bnodes_check((bnode *)head));
@@ -255,7 +255,7 @@ bool https_head_check(const string_map *head) {
 	return is_method_valid && is_location_valid && is_protocol_valid;
 }
 
-__attribute_warn_unused_result__
+__attribute__ ((__warn_unused_result__))
 string_map *https_tokenize(string *request, const allocator *mem) {
 	if (errors_check("https_tokenize.request", strings_check_extra(request))) {
 		goto invalid_request0;
@@ -338,7 +338,7 @@ string_map *https_tokenize(string *request, const allocator *mem) {
 		return null;
 }
 
-__attribute_warn_unused_result__
+__attribute__ ((__warn_unused_result__))
 router_private *https_find_route(router_node *router, string_map *request, const allocator *mem) {
 	//TODO: check params
 
@@ -502,7 +502,7 @@ router_private https_find_root_private(router_vec *callbacks) {
 	};
 }
 
-__attribute_warn_unused_result__
+__attribute__ ((__warn_unused_result__))
 router_node https_create_routes_private(router_vec *callbacks, const allocator *mem) {
 	#if cels_debug
 		errors_abort(
@@ -978,7 +978,7 @@ estring https_request_insecurely_private(
     return (estring){.value=response};
 }
 
-__attribute_warn_unused_result__
+__attribute__ ((__warn_unused_result__))
 estring https_request(
 	const string *host, 
 	const string *header, 
