@@ -288,3 +288,25 @@ estring files_path(const string *filepath, const allocator *mem) {
 
 	return path_normalized;
 }
+
+error files_make_directory(const char *path, notused __mode_t mode) {
+	error error = ok;
+
+	#ifdef cels_windows
+		struct stat st = {0};
+		if (_stat(path, &st) == -1) {
+			return file_directory_not_created_error;
+		}
+
+		error = _mkdir(name);
+	#else
+		struct stat st = {0};
+		if (stat(path, &st) == -1) {
+			return file_directory_not_created_error;
+		}
+
+		error = mkdir(path, mode); 
+	#endif
+
+	return error == 1 ? file_directory_not_created_error : 0;
+}

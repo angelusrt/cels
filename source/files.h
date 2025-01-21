@@ -8,10 +8,17 @@
 #include <unistd.h>
 #include <dirent.h>
 
+#include "utils.h"
 #include "errors.h"
 #include "strings.h"
 #include "vectors.h"
 #include "mems.h"
+
+#if cels_windows
+#include <direct.h>
+#else
+#include <sys/stat.h>
+#endif
 
 typedef FILE file;
 typedef DIR dir;
@@ -24,6 +31,8 @@ typedef enum file_error {
 	file_reading_error,
 	file_did_not_end_error,
 	file_other_error,
+	file_directory_already_exists_error,
+	file_directory_not_created_error,
 	file_directory_not_opened_error,
 	file_allocation_error,
 	file_mal_formed_error,
@@ -131,5 +140,14 @@ estring files_normalize(const string *filepath, const allocator *mem);
  */
 __attribute_warn_unused_result__
 estring files_path(const string *filepath, const allocator *mem);
+
+/*
+ * Creates directory.
+ *
+ * If you're targeting windows leave mode untoched.
+ *
+ * #to-review
+ */
+error files_make_directory(const char *path, notused __mode_t mode);
 
 #endif
