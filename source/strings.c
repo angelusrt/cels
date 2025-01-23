@@ -1,6 +1,4 @@
 #include "strings.h"
-#include "errors.h"
-#include "vectors.h"
 
 /* char_vecs */
 
@@ -250,7 +248,7 @@ void strings_print(const string *self) {
 		errors_abort("self", strings_check(self));
 	#endif
 
-    for (size_t i = 0; i < self->size - 1; i++) {
+    for (size_t i = 0; (long)i < (long)self->size - 1; i++) {
         printf("%c", self->data[i]);
     }
 
@@ -271,7 +269,7 @@ void strings_imprint(const string *self) {
 		errors_abort("self", strings_check(self));
 	#endif
 
-	for (size_t i = 0; i < self->size - 1; i++) {
+	for (size_t i = 0; (long)i < (long)self->size - 1; i++) {
 		if (self->data[i] >= 32 && self->data[i] <= 126) {
 			printf("%c", (unsigned char)self->data[i]);
 		} else {

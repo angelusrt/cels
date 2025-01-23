@@ -123,6 +123,9 @@ void *arenas_allocate(arena *self, size_t size) {
 	return next->next->data;
 }
 
+
+void arenas_debug(arena *self);
+
 error arenas_deallocate(arena *self, void *block, size_t block_size) {
 	#if cels_debug
 		errors_abort("self", arenas_check(self));
@@ -176,7 +179,7 @@ error arenas_deallocate(arena *self, void *block, size_t block_size) {
 		}
 	}
 
-	return fail;
+	return ok;
 }
 
 void *arenas_reallocate(
@@ -184,7 +187,7 @@ void *arenas_reallocate(
 ) {
 	#if cels_debug
 		errors_abort("self", arenas_check(self));
-		errors_abort("block", block == null);
+		errors_abort("block", !block);
 	#endif
 
 	bool found_block = false;
@@ -240,16 +243,16 @@ void *arenas_reallocate(
 	} else if (is_last && !may_fit_rest) {
 		blockin->size -= prev_block_size;
 	} else if (!is_last){
-		arenas_deallocate(blockin, block, prev_block_size);
-
 		bool may_fit_all = rest >= new_block_size;
 		if (may_fit_all) {
 			void *new_data = (char *)blockin->data + blockin->size;
 			blockin->size += new_block_size;
+
 			memcpy(new_data, block, prev_block_size);
+			arenas_deallocate(blockin, block, prev_block_size);
 
 			return new_data;
-		}
+		} 	
 	} 
 
 	bool create_new = true;
@@ -275,7 +278,9 @@ void *arenas_reallocate(
 
 	if (!create_new) {
 		void *pos = (char *)lastblock->data + lastblock->size;
+
 		memcpy(pos, block, prev_block_size + 1);
+		arenas_deallocate(blockin, block, prev_block_size);
 		lastblock->size += new_block_size;
 
 		return pos;
@@ -295,6 +300,8 @@ void *arenas_reallocate(
 	}
 
 	memcpy(lastblock->next->data, block, prev_block_size);
+	arenas_deallocate(blockin, block, prev_block_size);
+
 	lastblock->next->size += new_block_size;
 	return lastblock->next->data;
 }

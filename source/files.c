@@ -294,15 +294,15 @@ error files_make_directory(const char *path, notused __mode_t mode) {
 
 	#ifdef cels_windows
 		struct stat st = {0};
-		if (_stat(path, &st) == -1) {
-			return file_directory_not_created_error;
+		if (_stat(path, &st) != -1) {
+			return file_directory_already_exists_error;
 		}
 
 		error = _mkdir(name);
 	#else
 		struct stat st = {0};
-		if (stat(path, &st) == -1) {
-			return file_directory_not_created_error;
+		if (stat(path, &st) != -1) {
+			return file_directory_already_exists_error;
 		}
 
 		error = mkdir(path, mode); 
