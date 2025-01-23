@@ -19,19 +19,19 @@ typedef struct {
 } configuration;
 
 /**/
-__attribute__ ((__warn_unused_result__))
+cels_warn_unused
 estring utils_get_main_file(const allocator *mem);
 
 /**/
-__attribute__ ((__warn_unused_result__))
+cels_warn_unused
 estring utils_get_flags(string main_file_name, const allocator *mem);
 
 void configurations_free(configuration *configuration, const allocator *mem);
 
-__attribute__ ((__warn_unused_result__))
-configuration utils_ask_configuration(void);
+cels_warn_unused
+configuration utils_ask_configuration(const allocator *mem);
 
-__attribute__ ((__warn_unused_result__))
+cels_warn_unused
 string utils_create_configuration(own configuration *configuration, const allocator *mem);
 
 #endif

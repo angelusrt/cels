@@ -27,6 +27,7 @@ int main(int arg, char **argc) {
 	size_t build_hash = strings_prehash("build");
 	size_t help_hash = strings_prehash("help");
 	size_t debug_hash = strings_prehash("debug");
+	size_t install_hash = strings_prehash("install");
 
 	string command = strings_make(argc[1], &mem);
 	size_t command_hash = strings_hasherize(&command);
@@ -39,6 +40,8 @@ int main(int arg, char **argc) {
 		menus_handle_build(false);
 	} else if (command_hash == help_hash) {
 		menus_print_help();
+	} else if (command_hash == install_hash) {
+		menus_handle_install();
 	} else {
 		printf("invalid option - use 'cels help' for help.\n");
 	}

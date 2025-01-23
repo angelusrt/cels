@@ -31,4 +31,11 @@ void menus_handle_init(void);
  */
 void menus_handle_build(bool is_build_mode);
 
+/*
+ * Installs project
+ *
+ * #to-review
+ */
+void menus_handle_install(void);
+
 #endif

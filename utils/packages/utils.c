@@ -1,7 +1,42 @@
 #include "utils.h"
 
+/* solução temporária */
+string_vec string_vecs_filter_unique2(string_vec *self, const allocator *mem) { 
+	if (cels_debug) { 
+		errors_abort("self", vectors_check((void *)self)); 
+	} 
+	
+	string_vec other = string_vecs_init(vector_min, mem); 
+	
+	for (size_t i = 0; i < self->size; i++) { 
+		if (cels_debug) { 
+			errors_abort("self.data[i]", strings_check_extra(&self->data[i])); 
+		} 
+		
+		bool match = false; 
+		for (size_t j = 0; j < other.size; j++) { 
+			if (strings_equals(&self->data[i], &other.data[j])) { 
+				match = true; 
+				break; 
+			} 
+		} 
+		
+		if (!match) { 
+			string clone = strings_clone(&self->data[i], mem);
+			string_vecs_push(&other, clone, mem); 
+		} 
+	} 
+
+	return other;
+}
+	
+
 /* private */
 bool utils_filter_suffix(string *self) {
+	#if cels_debug
+		errors_abort("self", strings_check_extra(self));
+	#endif
+
 	static const string c_extension = strings_premake(".c");
 	return strings_has_suffix(self, c_extension);
 }
@@ -14,12 +49,16 @@ estring utils_get_main_file(const allocator *mem) {
 		return (estring){.error=-1};
 	}
 
-	string_vecs_filter(
+	error filter_error = string_vecs_filter(
 		&files.value, (filterfunc)utils_filter_suffix, mem);
+
+	if (filter_error) {
+		return (estring){.error=-1};
+	}
 
 	for (size_t i = 0; i < files.value.size; i++) {
 		file *file = fopen(files.value.data[i].data, "r");
-		if (file == null) {
+		if (!file) {
 			continue;
 		}
 
@@ -41,18 +80,19 @@ estring utils_get_main_file(const allocator *mem) {
 
 /* private */
 estring_vec utils_get_packages(const string path, const allocator *mem) {
+	#if cels_debug
+		errors_abort("path", strings_check_extra(&path));
+	#endif
+
 	estring path_normalized = files_path(&path, mem);
 	if (path_normalized.error != file_successfull) {
 		return (estring_vec){.error=-1};
 	}
 
-	//printf("path_normalized: \n");
-	//strings_println(&path_normalized.value);
-
 	file *file = fopen(path_normalized.value.data, "r");
 	strings_free(&path_normalized.value, mem);
 
-	if (file == null) {
+	if (!file) {
 		return (estring_vec){.error=-1};
 	}
 	
@@ -98,10 +138,6 @@ estring_vec utils_get_packages(const string path, const allocator *mem) {
 			strings_push(&path_workaround, two_dots, mem);
 			strings_push(&path_workaround, new_path, mem);
 			strings_free(&new_path, mem);
-
-			//printf("path_workaround: \n");
-			//strings_println(&path_workaround);
-
 			string_vecs_push(&non_terminals, path_workaround, mem);
 
 			continue;
@@ -133,27 +169,39 @@ estring_vec utils_get_packages(const string path, const allocator *mem) {
 
 		string_vecs_unite(&terminals, &file_terminals.value, mem);
 	}
-
-	//printf("\nterminals: \n");
-	//string_vecs_print(&terminals);
-	//printf("\n");
-
+	
 	string_vecs_free(&non_terminals, mem);
-	string_vecs_filter_unique(&terminals, mem);
+	//string_vecs_filter_unique(&terminals, mem);
 
 	return (estring_vec){.value=terminals};
 }
 
 estring utils_get_flags(string main_file_name, const allocator *mem) {
+	#if cels_debug
+		errors_abort("main_file_name", strings_check_extra(&main_file_name));
+	#endif
+
 	estring_vec packages = utils_get_packages(main_file_name, mem);
 	if (packages.error != 0) {
 		return (estring){.error=1};
 	}
 
-	//string_vecs_print(&packages.value);
+	//error filter_error = string_vecs_filter_unique(&packages.value, mem);
+	packages.value = string_vecs_filter_unique2(&packages.value, mem);
+	string_vecs_print(&packages.value);
 
-	file *dictionary_file = fopen("cels-dictionary.txt", "r");
-	if (dictionary_file == null) {
+	//if (filter_error) {
+	//	return (estring){.error=1};
+	//}
+
+	string_vecs_print(&packages.value);
+
+	char *home = getenv("HOME");
+	const string homepath = strings_format(
+		"%s/.config/cels/cels-dictionary.txt", mem, home);
+
+	file *dictionary_file = fopen(homepath.data, "r");
+	if (!dictionary_file) {
 		return (estring){.error=-1};
 	}
 
@@ -194,15 +242,15 @@ void configurations_free(configuration *configuration, const allocator *mem) {
 	strings_free(&configuration->author, mem);
 }
 
-configuration utils_ask_configuration(void) {
+configuration utils_ask_configuration(const allocator *mem) {
 	const string_vec compilers = vectors_premake(
 		string, 
 		strings_premake("gcc"), 
 		strings_premake("clang")
 	);
 
-	string name = ios_ask("name: ", null);
-	string author = ios_ask("author: ", null);
+	string name = ios_ask("name: ", mem);
+	string author = ios_ask("author: ", mem);
 	size_t selected = ios_select("compiler: ", compilers);
 
 	return (configuration) {
@@ -230,7 +278,7 @@ string utils_create_configuration(own configuration *configuration, const alloca
 	const string_vec gccs = vectors_premake(
 		string, 
 		strings_premake("gcc -Wall -Wextra -Wpedantic %s.c -o %s.o%s"), 
-		strings_premake("gcc -Wall -Wextra -Wpedantic -g %s.c -o %s.o%s -Dcels_debug=true")
+		strings_premake("gcc -Wall -Wextra -Wpedantic -g -rdynamic %s.c -o %s.o%s -Dcels_debug=true")
 	);
 	
 	const string_vec clangs = vectors_premake(
@@ -288,3 +336,4 @@ string utils_create_configuration(own configuration *configuration, const alloca
 
 	return configuration_json;
 }
+
