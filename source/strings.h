@@ -25,7 +25,7 @@ typedef char_vec string;
  *
  * #to-review
  */
-__attribute__ ((__warn_unused_result__))
+cels_warn_unused
 bool chars_is_whitespace(char letter);
 
 /*
@@ -72,7 +72,7 @@ typedef errors(string_vec) estring_vec;
  *
  * #to-review
  */
-__attribute__ ((__warn_unused_result__))
+cels_warn_unused
 string string_vecs_join(string_vec *self, string sep, const allocator *mem);
 
 /*
@@ -80,7 +80,7 @@ string string_vecs_join(string_vec *self, string sep, const allocator *mem);
  *
  * #not-to-use #to-review
  */
-__attribute__ ((__warn_unused_result__))
+cels_warn_unused
 string_vec string_vecs_make_helper(char *args[], size_t argn, const allocator *mem);
 
 
@@ -162,7 +162,7 @@ string_vec string_vecs_make_helper(char *args[], size_t argn, const allocator *m
  *
  * #tested
  */
-__attribute__ ((__warn_unused_result__))
+cels_warn_unused
 bool strings_check(const string *self);
 
 /* 
@@ -171,7 +171,7 @@ bool strings_check(const string *self);
  *
  * #tested
  */
-__attribute__ ((__warn_unused_result__))
+cels_warn_unused
 bool strings_check_extra(const string *self);
 
 /* 
@@ -179,7 +179,7 @@ bool strings_check_extra(const string *self);
  *
  * #tested
  */
-__attribute__ ((__warn_unused_result__))
+cels_warn_unused
 bool strings_check_charset(const string *self, const string charset);
 
 /*
@@ -202,7 +202,7 @@ string strings_init(size_t quantity, const allocator *mem);
  * #allocates #may-panic #depends:string.h
  * #tested #posix-reliant #to-edit
  */
-__attribute__ ((__warn_unused_result__))
+cels_warn_unused
 string strings_make(const char *lit, const allocator *mem);
 
 /*
@@ -211,7 +211,7 @@ string strings_make(const char *lit, const allocator *mem);
  * #allocates #may-panic 
  * #depends:string.h #posix-reliant #to-review
  */
-__attribute__ ((__warn_unused_result__))
+cels_warn_unused
 string strings_clone(const string *self, const allocator *mem);
 
 /*
@@ -224,7 +224,7 @@ string strings_clone(const string *self, const allocator *mem);
  * #allocates #may-panic 
  * #depends:string.h #posix-reliant #to-review
  */
-__attribute__ ((__warn_unused_result__))
+cels_warn_unused
 string strings_view(const string *self, size_t start, size_t end);
 
 /*
@@ -233,7 +233,7 @@ string strings_view(const string *self, size_t start, size_t end);
  *
  * #to-review
  */
-__attribute__ ((__warn_unused_result__))
+cels_warn_unused
 string strings_unview(const string *self, const allocator *mem);
 
 /*
@@ -302,7 +302,7 @@ void strings_imprint(const string *self);
  *
  * #case-insensitive #tested #depends:maths.h
  */
-__attribute__ ((__warn_unused_result__))
+cels_warn_unused
 bool strings_compare(const string *self, const string *other);
 
 /*
@@ -311,7 +311,7 @@ bool strings_compare(const string *self, const string *other);
  *
  * #case-sensitive #tested
  */
-__attribute__ ((__warn_unused_result__))
+cels_warn_unused
 bool strings_equals(const string *self, const string *other);
 
 /*
@@ -321,7 +321,7 @@ bool strings_equals(const string *self, const string *other);
  *
  * #case-insensitive #tested
  */
-__attribute__ ((__warn_unused_result__))
+cels_warn_unused
 bool strings_seems(const string *self, const string *other);
 
 /*
@@ -334,7 +334,7 @@ bool strings_seems(const string *self, const string *other);
  *
  * #case-insensitive #to-review
  */
-__attribute__ ((__warn_unused_result__))
+cels_warn_unused
 ssize_t strings_find(const string *self, const string substring, size_t pos);
 
 /*
@@ -347,7 +347,7 @@ ssize_t strings_find(const string *self, const string substring, size_t pos);
  *
  * #case-insensitive #to-review
  */
-__attribute__ ((__warn_unused_result__))
+cels_warn_unused
 ssize_t strings_find_from(const string *self, const string seps, size_t pos);
 
 /*
@@ -360,7 +360,7 @@ ssize_t strings_find_from(const string *self, const string seps, size_t pos);
  * #case-insensitive #may-panic #may-fail 
  * #allocates #tested #to-review
  */
-__attribute__ ((__warn_unused_result__))
+cels_warn_unused
 size_vec strings_find_all(
 	const string *self, const string substring, size_t n, const allocator *mem);
 
@@ -373,7 +373,7 @@ size_vec strings_find_all(
  *
  * #case-sensitive #to-review
  */
-__attribute__ ((__warn_unused_result__))
+cels_warn_unused
 ssize_t strings_find_matching(
 	const string *self, const string open_tag, const string close_tag, size_t pos);
 
@@ -400,7 +400,7 @@ void strings_replace_from(string *self, const string seps, const char rep, size_
  * 
  * #case-insensitive #allocates #may-fail #tested #to-edit
  */
-__attribute__ ((__warn_unused_result__))
+cels_warn_unused
 string strings_replace(
 	const string *self, const string substring, const string replace, size_t n, const allocator *mem);
 
@@ -415,7 +415,7 @@ string strings_replace(
  * #case-insensitive #allocates #may-fail #may-panic 
  * #depends:string.h #posix-reliant #tested #to-edit
  */
-__attribute__ ((__warn_unused_result__))
+cels_warn_unused
 string_vec strings_split(const string *self, const string sep, size_t n, const allocator *mem);
 
 /*
@@ -428,7 +428,7 @@ string_vec strings_split(const string *self, const string sep, size_t n, const a
  * example:
  * string json = strings_make_format("{\"age\": %d}", 10); //{"age": 10}
  */
-__attribute__ ((__warn_unused_result__))
+cels_warn_unused
 __attribute__ ((__format__ (printf, 1, 3)))
 string strings_format(const char *const form, const allocator *mem, ...);
 
@@ -437,7 +437,7 @@ string strings_format(const char *const form, const allocator *mem, ...);
  *
  * #case-insensitive #depends:math.h,ctype.h #tested
  */
-__attribute__ ((__warn_unused_result__))
+cels_warn_unused
 size_t strings_hasherize(const string *self);
 
 /*
@@ -505,7 +505,7 @@ string strings_cut(const string *self);
  *
  * #to-review
  */
-__attribute__ ((__warn_unused_result__))
+cels_warn_unused
 bool strings_has_suffix(const string *self, const string suffix);
 
 /*
@@ -514,7 +514,7 @@ bool strings_has_suffix(const string *self, const string suffix);
  *
  * #to-review
  */
-__attribute__ ((__warn_unused_result__))
+cels_warn_unused
 bool strings_has_prefix(const string *self, const string prefix);
 
 /* string_bivecs */

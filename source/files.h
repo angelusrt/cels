@@ -49,7 +49,7 @@ typedef enum file_error {
  *
  * #to-review
  */
-__attribute__ ((__warn_unused_result__))
+cels_warn_unused
 estring files_read(file *self, const allocator *mem);
 
 /*
@@ -69,7 +69,7 @@ error files_write(file *self, const string text);
  *
  * #posix-only #to-review
  */
-__attribute__ ((__warn_unused_result__))
+cels_warn_unused
 estring_vec files_list(const string path, const allocator *mem);
 
 /*
@@ -86,7 +86,7 @@ estring_vec files_list(const string path, const allocator *mem);
  *
  * #to-review
  */
-__attribute__ ((__warn_unused_result__))
+cels_warn_unused
 ssize_t files_find(file *self, string substring, ssize_t pos);
 
 /*
@@ -102,7 +102,7 @@ ssize_t files_find(file *self, string substring, ssize_t pos);
  *
  * #to-review
  */
-__attribute__ ((__warn_unused_result__))
+cels_warn_unused
 ssize_t files_find_from(file *self, string seps, ssize_t pos);
 
 /*
@@ -116,7 +116,7 @@ ssize_t files_find_from(file *self, string seps, ssize_t pos);
  *
  * #to-review
  */
-__attribute__ ((__warn_unused_result__))
+cels_warn_unused
 bool files_next(file *self, string *line, const allocator *mem);
 
 /*
@@ -126,7 +126,7 @@ bool files_next(file *self, string *line, const allocator *mem);
  * error happens, file_error is returned.
  *
  */
-__attribute__ ((__warn_unused_result__))
+cels_warn_unused
 estring files_normalize(const string *filepath, const allocator *mem);
 
 /*
@@ -138,7 +138,7 @@ estring files_normalize(const string *filepath, const allocator *mem);
  *
  * #to-review
  */
-__attribute__ ((__warn_unused_result__))
+cels_warn_unused
 estring files_path(const string *filepath, const allocator *mem);
 
 /*

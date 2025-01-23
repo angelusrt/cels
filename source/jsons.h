@@ -33,7 +33,7 @@ typedef enum json_error {
  *
  * #to-review
  */
-__attribute__ ((__warn_unused_result__))
+cels_warn_unused
 estring_map jsons_unmake(const string *json, const allocator *mem);
 
 /*
@@ -44,7 +44,7 @@ estring_map jsons_unmake(const string *json, const allocator *mem);
  *
  * #to-review
  */
-__attribute__ ((__warn_unused_result__))
+cels_warn_unused
 estring jsons_make(const string_map *self, const allocator *mem);
 
 #endif

@@ -38,7 +38,7 @@ typedef void (*freefunc)(void *, const allocator *);
  *
  * #to-review
  */
-__attribute__ ((__warn_unused_result__))
+cels_warn_unused
 bool allocators_check(const allocator *self);
 
 /* arenas */
@@ -52,7 +52,7 @@ bool allocators_check(const allocator *self);
  *
  * #to-review
  */
-__attribute__ ((__warn_unused_result__))
+cels_warn_unused
 allocator arenas_init(size_t capacity);
 
 /* stack_arenas */
@@ -73,16 +73,16 @@ allocator arenas_init(size_t capacity);
  *
  * #private #shouldnt-be-used
  */
-__attribute__ ((__warn_unused_result__))
+cels_warn_unused
 allocator stack_arenas_make(size_t capacity, char *buffer);
 
 /* allocs */
 
 typedef struct alloc {
 	allocator_type type;
-	__attribute__ ((__warn_unused_result__))
+	cels_warn_unused
 	mallocfunc alloc;
-	__attribute__ ((__warn_unused_result__))
+	cels_warn_unused
 	allocfunc realloc;
 	cleanfunc free;
 } alloc;
@@ -94,7 +94,7 @@ typedef struct alloc {
  *
  * #to-review
  */
-__attribute__ ((__warn_unused_result__))
+cels_warn_unused
 alloc allocs_init(void);
 
 /* mems */
@@ -111,7 +111,7 @@ alloc allocs_init(void);
  *
  * #to-review
  */
-__attribute__ ((__warn_unused_result__))
+cels_warn_unused
 void *mems_alloc(const allocator *mem, size_t len);
 
 /*
@@ -126,7 +126,7 @@ void *mems_alloc(const allocator *mem, size_t len);
  *
  * #to-review
  */
-__attribute__ ((__warn_unused_result__))
+cels_warn_unused
 void *mems_realloc(const allocator *mem, void *data, size_t old_size, size_t new_size);
 
 /*

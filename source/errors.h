@@ -32,6 +32,15 @@ typedef enum errors_mode {
 
 typedef int error;
 
+
+#ifdef __GNUC__
+#define cels_warn_unused __attribute__((warn_unused_result))
+#define notused __attribute__((unused))
+#else
+#define cels_warn_unused
+#define notused
+#endif
+
 #define ok 0
 #define fail 1
 
@@ -73,7 +82,7 @@ typedef int error;
  *
  * #to-review
  */
-__attribute__ ((__warn_unused_result__))
+cels_warn_unused
 error errors_assert(const char *message, bool statement);
 
 /*

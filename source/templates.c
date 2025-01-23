@@ -124,7 +124,7 @@ typedef enum template_operator {
 	template_define_operator = 'd',
 } template_operator;
 
-__attribute__ ((__warn_unused_result__))
+cels_warn_unused
 template templates_parse_tag(string *tag, const allocator *mem) {
 	const string alt_whitespaces = strings_premake("\t\r\n");
 	const string the_whitespace = strings_premake(" ");
@@ -159,7 +159,7 @@ template templates_parse_tag(string *tag, const allocator *mem) {
 	return (template){0};
 }
 
-__attribute__ ((__warn_unused_result__))
+cels_warn_unused
 error templates_parse(template_map **templates, const string *template, const allocator *mem) {
 	static const string tag_open = strings_premake("<%");
 	static const string tag_close = strings_premake("%>");

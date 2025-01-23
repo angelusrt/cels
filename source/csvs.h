@@ -13,7 +13,7 @@
  *
  * #allocates #to-review
  */
-__attribute__ ((__warn_unused_result__))
+cels_warn_unused
 string_bivec csvs_unmake(const string *text, const string column_sep, const allocator *mem);
 
 /*

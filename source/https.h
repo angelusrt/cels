@@ -112,7 +112,7 @@ nodes(router_node, router_node_vec, router_private);
  *
  * #to-review
  */
-__attribute__ ((__warn_unused_result__))
+cels_warn_unused
 bool router_nodes_check(const router_node *self);
 
 /*
@@ -143,7 +143,7 @@ void router_nodes_print(const router_node *self);
  *
  * #case-sensitive #to-review
  */
-__attribute__ ((__warn_unused_result__))
+cels_warn_unused
 bool router_nodes_equals(const router_node *r0, const router_node *r1);
 
 /*
@@ -152,7 +152,7 @@ bool router_nodes_equals(const router_node *r0, const router_node *r1);
  *
  * #case-insensitive #to-review
  */
-__attribute__ ((__warn_unused_result__))
+cels_warn_unused
 bool router_nodes_seems(const router_node *r0, const router_node *r1);
 
 /* requests */
@@ -196,7 +196,7 @@ void https_send(int client_connection, const string *body, const string *head);
 /*
  * #implicitly-allocates
  */
-__attribute__ ((__warn_unused_result__))
+cels_warn_unused
 estring https_request(
 	const string *host, const string *header, const string *body, const request_options *opts, const allocator *mem);
 

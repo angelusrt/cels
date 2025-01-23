@@ -56,7 +56,7 @@ typedef struct range {
 	size_t start, end;
 } range;
 
-__attribute__ ((__warn_unused_result__))
+cels_warn_unused
 string jsons_get_section_private(const string *json, range interval, const allocator *mem) {
 	string section_view = {
 		.data=json->data+interval.start,
@@ -310,7 +310,7 @@ estring_map jsons_unmake_object_private(const string *json, const allocator *mem
 
 			break;
 		case '{':
-		case '[':
+		case '[': ; //empty statement
 			bool is_object = json->data[position] == '{';
 
 			if (!is_key_valid || key.size == 0 || !is_value_valid || value.size != 0) {
@@ -410,7 +410,7 @@ estring_map jsons_unmake_list_private(const string *json, const allocator *mem) 
 
 			break;
 		case '{':
-		case '[':
+		case '[': ; //empty statement
 			bool is_object = json->data[position] == '{';
 
 			if (!is_value_valid || value.size != 0) {
