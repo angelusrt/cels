@@ -103,6 +103,17 @@ typedef vectors(void *) vector;
 }
 
 /*
+ * Ranges through vector calling callback.
+ *
+ * #to-review
+ */
+#define vectors_range(self, callback, args) { \
+	for (size_t i = 0; i < self.size; i++) { \
+		callback(&self.data[i], args);\
+	} \
+} \
+
+/*
  * Generates all type-specific functions for vectors.
  * #to-review
  */
@@ -304,6 +315,8 @@ typedef vectors(void *) vector;
 			\
 			mems_dealloc(mem, self->data, self->capacity * sizeof(*self->data)); \
 			self->data = null; \
+			self->size = 0; \
+			self->capacity = 0; \
 		} \
 	} \
 	\
@@ -330,8 +343,12 @@ typedef vectors(void *) vector;
 		name other = name##s_init(vector_min, mem); \
 		\
 		for (size_t i = 0; i < self->size; i++) { \
+			if (cels_debug) { \
+				errors_abort("self.data", check0(&self->data[i])); \
+			} \
+			\
 			if (filter(&self->data[i])) { \
-				error push_error = name##s_push(&other, self->data[i], mem); \
+				error push_error = name##s_fpush(&other, self->data[i], mem); \
 				if (push_error) { \
 					return fail; \
 				} \
@@ -358,10 +375,13 @@ typedef vectors(void *) vector;
 		name other = name##s_init(vector_min, mem); \
  		\
 		for (size_t i = 0; i < self->size; i++) { \
+			if (cels_debug) { \
+				errors_abort("self.data[i]", check0(&self->data[i])); \
+			} \
+			\
 			bool match = false; \
 			for (size_t j = 0; j < other.size; j++) { \
 				if (compare0(&self->data[i], &other.data[j])) { \
-					cleanup0(&self->data[i], mem); \
 					match = true; \
 					break; \
 				} \
@@ -372,7 +392,9 @@ typedef vectors(void *) vector;
 				if (push_error) { \
 					return fail; \
 				} \
-			} \
+			} else { \
+				cleanup0(&self->data[i], mem); \
+			}\
 		} \
  		\
 		error dealloc_error = mems_dealloc(mem, self->data, self->capacity); \
@@ -516,6 +538,39 @@ typedef vectors(void *) vector;
  		\
 		return ok; \
 	} \
+	\
+	void name##s_range(name *self, shoutfunc callback, void *args) { \
+		if (cels_debug) { \
+			errors_abort("self", vectors_check((void *)self)); \
+		} \
+		\
+		for (size_t i = 0; i < self->size; i++) { \
+			if (cels_debug) { \
+				errors_abort("self.data[i]", check0(&self->data[i])); \
+			} \
+			\
+			callback(&self->data[i], args);\
+		} \
+	} \
+	\
+	error name##s_fit(name *self, const allocator *mem) { \
+		if (cels_debug) { \
+			errors_abort("self", !self); \
+		} \
+		\
+		while (true) { \
+			if (self->size < self->capacity >> 1 && self->capacity > vector_min) { \
+				error downscale_error = name##s_downscale(self, mem); \
+				if (downscale_error) { \
+					return downscale_error; \
+				} \
+			} else { \
+				break; \
+			} \
+		} \
+		\
+		return ok; \
+	}
 
 /*
  * Generates all type-specific function-definitions for vectors.
@@ -524,17 +579,17 @@ typedef vectors(void *) vector;
 #define vectors_generate_definition(type, name) \
 	typedef vectors(type *) name; \
 	\
-	__attribute__ ((__warn_unused_result__)) \
+	cels_warn_unused \
 	name name##s_init(size_t len, const allocator *mem); \
 	\
-	__attribute__ ((__warn_unused_result__)) \
+	cels_warn_unused \
 	name name##s_clone(name *self, const allocator *mem); \
 	\
 	error name##s_upscale(name *self, const allocator *mem); \
 	\
 	error name##s_downscale(name *self, const allocator *mem); \
 	\
-	__attribute__ ((__warn_unused_result__)) \
+	cels_warn_unused \
 	type name##s_get(const name *self, size_t position); \
 	\
 	error name##s_pop(name *self, const allocator *mem); \
@@ -559,28 +614,32 @@ typedef vectors(void *) vector;
 	\
 	void name##s_print(const name *self); \
 	\
-	__attribute__ ((__warn_unused_result__)) \
+	cels_warn_unused \
 	bool name##s_equals(const name *self, const name *other); \
 	\
-	__attribute__ ((__warn_unused_result__)) \
+	cels_warn_unused \
 	bool name##s_seems(const name *self, const name *other); \
 	\
-	__attribute__ ((__warn_unused_result__)) \
+	cels_warn_unused \
 	ssize_t name##s_find(const name *self, type item); \
 	\
-	__attribute__ ((__warn_unused_result__)) \
+	cels_warn_unused \
 	ssize_t name##s_search(const name *self, type item); \
 	\
 	void name##s_shift(name *self, size_t position, notused const allocator *mem); \
 	\
-	error name##s_unite(name *self, name* other, const allocator *mem);
+	error name##s_unite(name *self, name* other, const allocator *mem); \
+	\
+	void name##s_range(name *self, shoutfunc callback, void *args); \
+	\
+	error name##s_fit(name *self, const allocator *mem);
 
 /**
  * Checks shallowly if vector was properly initialized.
  *
  * #tested
  */
-__attribute__ ((__warn_unused_result__))
+cels_warn_unused
 bool vectors_check(const vector *self);
 
 /*

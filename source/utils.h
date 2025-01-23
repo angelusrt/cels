@@ -13,13 +13,12 @@
 typedef void *(*callfunc) (void *);
 typedef void *(*selffunc)(void *, void *);
 typedef bool (*compfunc)(void *, void *);
-typedef bool (*compvecfunc)(void *, void *, void *);
+typedef void (*shoutfunc) (void *, void *);
 typedef size_t (*hashfunc)(void *);
 typedef void (*cleanfunc)(void *);
 typedef void (*printfunc)(void *);
 typedef bool (*filterfunc)(void *);
 typedef void (*reportfunc)(error_report *);
-typedef void (*printvecfunc)(void *, void *);
 typedef clock_t (*benchfunc) (size_t);
 
 /* functor */
@@ -34,7 +33,7 @@ typedef struct enfunctor {
 	void *params;
 } enfunctor;
 
-__attribute__ ((__warn_unused_result__))
+cels_warn_unused
 bool functors_check(const functor *f);
 
 /* maths */
@@ -67,8 +66,6 @@ size_t maths_nearest_two_power(size_t a);
 /* others */
 
 #define own
-
-#define notused __attribute__((unused))
 
 #define null NULL
 
