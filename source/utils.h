@@ -1,78 +1,19 @@
-#ifndef utils_h
-#define utils_h
+#ifndef cels_utils_h
+#define cels_utils_h
 
 #include <stddef.h>
 #include <stdlib.h>
-#include <sys/cdefs.h>
+#include <stdio.h>
 #include <time.h>
 #include <stddef.h>
 #include "errors.h"
 
-/* function-type-definitions */
+/*
+ * The module 'utils' is a collection 
+ * of useful functions.
+ */
 
-typedef void *(*callfunc) (void *);
-typedef void *(*selffunc)(void *, void *);
-typedef bool (*compfunc)(void *, void *);
-typedef void (*shoutfunc) (void *, void *);
-typedef size_t (*hashfunc)(void *);
-typedef void (*cleanfunc)(void *);
-typedef void (*printfunc)(void *);
-typedef bool (*filterfunc)(void *);
-typedef void (*reportfunc)(error_report *);
-typedef clock_t (*benchfunc) (size_t);
-
-/* functor */
-
-typedef struct functor {
-	callfunc func;
-	void *params;
-} functor;
-
-typedef struct enfunctor {
-	selffunc func;
-	void *params;
-} enfunctor;
-
-cels_warn_unused
-bool functors_check(const functor *f);
-
-/* maths */
-
-#define maths_min(a, b) a > b ? b : a
-
-#define maths_max(a, b) a > b ? a : b
-
-#define maths_swap(a, b) \
-	typeof(a) temp = b; \
-	b = a; \
-	a = temp; \
-
-size_t maths_nearest_two_power(size_t a);
-
-/* defaults */
-
-#define defaults_compare(a, b) (*a == *b)
-
-#define defaults_check(a) (false)
-
-#define defaults_hash(a) (*a)
-
-#define defaults_seems(a, b) (tolower(*a) == tolower(*b))
-
-#define defaults_clone(a, mem) *a
-
-#define defaults_free(a, mem)
-
-/* others */
-
-#define own
-
-#define null NULL
-
-typedef unsigned char uchar;
-typedef unsigned long ulong;
-
-/* utils */
+typedef clock_t (*measurefunc) (size_t);
 
 /*
  * A convenience over utils_measure
@@ -94,6 +35,36 @@ typedef unsigned long ulong;
  *
  * #to-review
  */
-void utils_measure_helper(const char *function_name, benchfunc callback);
+void utils_measure_helper(
+	const char *function_name, 
+	measurefunc callback);
+
+/*
+ * A convenience over 'next' which 
+ * encapsulates the iterator within 
+ * scope.
+ *
+ * #to-review
+ */
+#define range(var, start, end, step, body) { \
+	iterator var = {0}; \
+	while (next(start, end, step, &var)) body \
+}
+
+typedef struct iterator {
+	ssize_t data;
+	bool is_init;
+} iterator;
+
+/*
+ * A generic number iterator. 
+ * 'start' is inclusive and 'end' 
+ * is exclusive.
+ * 
+ * Iterator must be initialized to 0.
+ *
+ * #to-review
+ */
+bool next(ssize_t start, ssize_t end, size_t step, iterator *iterator);
 
 #endif

@@ -1,5 +1,6 @@
 #include "utils.h"
 
+/* #to-deprecate
 bool functors_check(const functor *self) {
 	#if cels_debug
 		errors_return("self", !self)
@@ -13,17 +14,9 @@ bool functors_check(const functor *self) {
 
 	return false;
 }
+*/
 
-size_t maths_nearest_two_power(size_t a) {
-	size_t b = 1;
-	while (b < a) {
-		b <<= 1;
-	}
-
-	return b;
-}
-
-void utils_measure_helper(const char *function_name, benchfunc callback) {
+void utils_measure_helper(const char *function_name, measurefunc callback) {
 	#define bucket_size 5
 	static const size_t buckets[bucket_size] = {10, 100, 1000, 10000, 100000};
 
@@ -47,3 +40,35 @@ void utils_measure_helper(const char *function_name, benchfunc callback) {
 
 	#undef bucket_size
 }
+
+bool next(ssize_t start, ssize_t end, size_t step, iterator *iterator) {
+	if (!iterator || !step) return false;
+
+	if (!iterator->is_init) {
+		iterator->data = start;
+		iterator->is_init = true;
+		return true;
+	}
+
+	bool is_reverse = start > end;
+
+	if (!is_reverse) {
+		bool fits = start + (ssize_t)step < end;
+		if (!fits) return false;
+
+		bool is_within = iterator->data + (ssize_t)step < end;
+		if (!is_within) return false;
+
+		iterator->data += step;
+		return true;
+	} 
+
+	bool fits = end + (ssize_t)step < start;
+	if (!fits) return false;
+
+	bool is_within = end < iterator->data - (ssize_t)step;
+	if (!is_within) return false;
+
+	iterator->data -= step;
+	return true;
+} 
