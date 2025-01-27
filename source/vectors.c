@@ -30,7 +30,11 @@ void vectors_debug(const vector *self) {
 
 /* implementations */
 
-void size_print(size_t *number) {
+priv void sizes_print(size_t *number) {
+	#if cels_debug
+		errors_abort("number", !number);
+	#endif
+
 	printf("%zu\n", *number);
 }
 
@@ -39,8 +43,38 @@ vectors_generate_implementation(
 	size_vec, 
 	defaults_check,
 	defaults_clone,
-	size_print,
+	sizes_print,
+	sizes_print,
 	defaults_compare, 
 	defaults_compare, 
 	defaults_free
 )
+
+vectors_generate_arithmetic_implementation(
+	size_vec,
+	size_t)
+
+priv void doubles_print(double *number) {
+	#if cels_debug
+		errors_abort("number", !number);
+	#endif
+
+	printf("%lf", *number);
+}
+
+vectors_generate_implementation(
+	double, 
+	double_vec, 
+	defaults_check,
+	defaults_clone,
+	doubles_print,
+	doubles_print,
+	defaults_compare, 
+	defaults_compare, 
+	defaults_free
+)
+
+vectors_generate_arithmetic_implementation(
+	double_vec,
+	double)
+

@@ -4,91 +4,25 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <stdlib.h>
-#include <sys/cdefs.h>
 
 #include "errors.h"
-
-//
-
-#ifndef cels_debug
-#define cels_debug false
-#endif
-
-//
-
-#define vectors(t) struct { \
-    size_t size; \
-    size_t capacity; \
-    typeof(t) data; \
-}
-
-typedef vectors(void *) vector;
-#define vector_min 4
-
 #include "mems.h"
-#include "utils.h"
 
 /*
  * The module 'vectors' is about the manipulation
  * of a dynamic array structure (aka vector). 
  */
 
-/*
- * Creates an allocated vector with len being the 
- * size of the type followed by the vector capacity.
- *
- * Should be check'd afterwards.
- *
- * #allocates #may-fail #depends:stdio.h #posix-reliant #tested #to-edit
- * vectors_init(len, mem) -> vector
- */
+#define vector_min 4
 
-/*
- * Pushes item (to be owned) to vector.
- * Requiring further capacity, it automaticaly upscales.
- *
- * Shouldn't be used with automatic variables.
- *
- * If it fails to realloc, true is assigned to error.
- * If error is null silent errors happens.
- *
- * #allocates #may-fail #depends:stdio.h #posix-reliant #tested #to-edit
- * vectors_push(self, item, mem) -> error
- */
+#define vectors(type0) \
+	struct { \
+		size_t size; \
+		size_t capacity; \
+		type0 data; \
+	}
 
-/*
- * Frees vector.data shallowly.
- *
- * Shouldn't be used with automatic variables.
- *
- * #may-fail #depends:stdio.h #posix-reliant #tested #to-edit
- * vectors_free(self, mem) -> void
- */
-
-/*
- * Sorts vector depending on compare func 
- * (of type compfunc, defined in utils.h).
- *
- * It uses insert-sort algorithm.
- *
- * #tested
- * vectors_sort(self, compare) -> void
- */
-
-/*
- * Prints a debug-friendly message 
- * about vector's information.
- *
- * #debug
- * vectors_debug(self) -> void
- */
-
-/*
- * Prints elements in vector, provided a 
- * print function (printvecfunc - definition 
- * found in utils.h).
- * vectors_print(self, print) -> void
- */
+typedef vectors(void *) vector;
 
 /*
  * Creates an automatic vector (aka a normal list with size) 
@@ -107,26 +41,27 @@ typedef vectors(void *) vector;
  *
  * #to-review
  */
-#define vectors_range(self, callback, args) { \
+#define vectors_range(self, callback, ...) { \
 	for (size_t i = 0; i < self.size; i++) { \
-		callback(&self.data[i], args);\
+		callback(&self.data[i] cels_vargs(__VA_ARGS__));\
 	} \
 } \
 
 /*
  * Generates all type-specific functions for vectors.
+ *
  * #to-review
  */
 #define vectors_generate_implementation( \
-	type, name, check0, clone0, print0, compare0, compare1, cleanup0 \
+	type, name, check0, clone0, print0, debug0, compare0, compare1, cleanup0 \
 ) \
-	name name##s_init(size_t len, const allocator *mem) { \
+	name name##s_init(size_t capacity, const allocator *mem) { \
 		name self = { \
-			.data=(type *)mems_alloc(mem, sizeof(type) * len), \
-			.capacity=len \
+			.data=(type *)mems_alloc(mem, sizeof(type) * capacity), \
+			.capacity=capacity \
 		}; \
 		\
-		errors_abort("self.data", self.data == null); \
+		errors_abort("self.data", !self.data); \
 		\
 		return self; \
 	} \
@@ -146,12 +81,33 @@ typedef vectors(void *) vector;
 		return other; \
 	} \
 	\
+	type name##s_get(const name *self, size_t position) { \
+		if (cels_debug) { \
+			errors_abort("self", vectors_check((const vector *)self)); \
+		} \
+		\
+		if (self->size == 0) { \
+			return self->data[0]; \
+		} else if (position > self->size - 1) { \
+			return self->data[self->size - 1]; \
+		} \
+		\
+		return self->data[position]; \
+	} \
+	\
 	error name##s_upscale(name *self, const allocator *mem) { \
 		if (cels_debug) { \
 			errors_abort("self", vectors_check((const vector *)self)); \
 		} \
 		\
 		size_t new_capacity = self->capacity << 1; \
+		\
+		if (cels_debug) { \
+			errors_abort( \
+				"new_capacity (overflow)", \
+				new_capacity < self->capacity); \
+		} \
+		\
 		void *new_data = mems_realloc( \
 			mem, \
 			self->data, \
@@ -203,21 +159,6 @@ typedef vectors(void *) vector;
 		return ok; \
 	} \
 	\
-	/* #to-review */ \
-	type name##s_get(const name *self, size_t position) { \
-		if (cels_debug) { \
-			errors_abort("self", vectors_check((const vector *)self)); \
-		} \
-		\
-		if (self->size == 0) { \
-			return (type){0}; \
-		} else if (position > self->size - 1) { \
-			return self->data[self->size - 1]; \
-		} \
-		\
-		return self->data[position]; \
-	} \
-	\
 	error name##s_pop(name *self, const allocator *mem) { \
 		if (cels_debug) { \
 			errors_abort("self", vectors_check((const vector *)self)); \
@@ -234,14 +175,13 @@ typedef vectors(void *) vector;
 		return downscale_error; \
 	} \
 	\
-	/* #to-review */\
 	type name##s_toss(name *self, const allocator *mem) { \
 		if (cels_debug) { \
 			errors_abort("self", vectors_check((const vector *)self)); \
 		} \
 		\
 		if (self->size == 0) { \
-			return (type){0}; \
+			return self->data[0]; \
 		} \
 		\
 		type item = self->data[self->size - 1]; \
@@ -249,10 +189,10 @@ typedef vectors(void *) vector;
 		\
 		if (self->size < self->capacity >> 1) { \
 			name##s_downscale(self, mem); \
+			/*TODO: should treat error*/\
 		} \
 		\
 		return item; \
-		\
 	} \
 	\
 	error name##s_push(name *self, type item, const allocator *mem) { \
@@ -271,8 +211,7 @@ typedef vectors(void *) vector;
 		\
 		return upscale_error; \
 	} \
-	\
-	error name##s_cpush(name *self, type item, const allocator *mem) { \
+	error name##s_press(name *self, type item, const allocator *mem) { \
 		if (cels_debug) { \
 			errors_abort("self", vectors_check((const vector *)self)); \
 			errors_abort("item", check0(&item)); \
@@ -287,7 +226,7 @@ typedef vectors(void *) vector;
 		return ok; \
 	} \
 	\
-	error name##s_fpush(name *self, type item, const allocator *mem) { \
+	error name##s_force(name *self, type item, const allocator *mem) { \
 		if (cels_debug) { \
 			errors_abort("self", vectors_check((const vector *)self)); \
 			errors_abort("item", check0(&item)); \
@@ -348,7 +287,7 @@ typedef vectors(void *) vector;
 			} \
 			\
 			if (filter(&self->data[i])) { \
-				error push_error = name##s_fpush(&other, self->data[i], mem); \
+				error push_error = name##s_force(&other, self->data[i], mem); \
 				if (push_error) { \
 					return fail; \
 				} \
@@ -389,18 +328,14 @@ typedef vectors(void *) vector;
  			\
 			if (!match) { \
 				error push_error = name##s_push(&other, self->data[i], mem); \
-				if (push_error) { \
-					return fail; \
-				} \
+				if (push_error) { return fail; } \
 			} else { \
 				cleanup0(&self->data[i], mem); \
-			}\
+			} \
 		} \
  		\
 		error dealloc_error = mems_dealloc(mem, self->data, self->capacity); \
-		if (dealloc_error) { \
-			return fail; \
-		} \
+		if (dealloc_error) { return fail; } \
 		\
 		*self = other; \
  		\
@@ -413,8 +348,30 @@ typedef vectors(void *) vector;
 		} \
 		\
 		printf( \
-			"<" #name ">{size: %zu, capacity: %zu, data: %p}\n", \
-			self->size, self->capacity, (void *)self->data); \
+			"<" #name ">{.size: %zu, .capacity: %zu, .data: {",  \
+			self->size, \
+			self->capacity); \
+		\
+		for (size_t i = 0; (long)i < (long)self->size; i++) { \
+			printf("\""); \
+			debug0(&self->data[i]); \
+			printf("\""); \
+			\
+			if (i != self->size - 1) { \
+				printf(", "); \
+			} \
+		} \
+		\
+		printf("}}"); \
+	} \
+	\
+	void name##s_debugln(const name *self) { \
+		if (cels_debug) { \
+			errors_abort("self", vectors_check((void *)self)); \
+		} \
+		\
+		name##s_debug(self); \
+		printf("\n"); \
 	} \
 	\
 	void name##s_print(const name *self) { \
@@ -424,6 +381,20 @@ typedef vectors(void *) vector;
 		\
 		for (size_t i = 0; i < self->size; i++) { \
 			print0(&self->data[i]); \
+			if (i != self->size - 1) { \
+				printf(", "); \
+			} \
+		} \
+	} \
+	\
+	void name##s_println(const name *self) { \
+		if (cels_debug) { \
+			errors_abort("self", vectors_check((void *)self)); \
+		} \
+		\
+		for (size_t i = 0; i < self->size; i++) { \
+			print0(&self->data[i]); \
+			printf("\n"); \
 		} \
 	} \
 	\
@@ -573,68 +544,421 @@ typedef vectors(void *) vector;
 	}
 
 /*
- * Generates all type-specific function-definitions for vectors.
+ * Generates all type-specific function-definitions 
+ * for vectors.
+ *
  * #to-review
  */
 #define vectors_generate_definition(type, name) \
 	typedef vectors(type *) name; \
 	\
+	/*
+	 * Creates an allocated vector 
+	 * with capacity 'capacity'.
+	 *
+	 * #allocates #may-panic #tested
+	 */ \
 	cels_warn_unused \
-	name name##s_init(size_t len, const allocator *mem); \
+	name name##s_init(size_t capacity, const allocator *mem); \
 	\
+	/*
+	 * Creates a clone of vector 'self' 
+	 *
+	 * #allocates #may-panic #tested
+	 */ \
 	cels_warn_unused \
 	name name##s_clone(name *self, const allocator *mem); \
 	\
-	error name##s_upscale(name *self, const allocator *mem); \
-	\
-	error name##s_downscale(name *self, const allocator *mem); \
-	\
+	/* 
+	 * Gets 'type' at position 'position' 
+	 * with bound-checking defaulting to 
+	 * last item.
+	 */ \
 	cels_warn_unused \
 	type name##s_get(const name *self, size_t position); \
 	\
+	/*
+	 * Upscales vector 'self' to double its capacity.
+	 *
+	 * #allocates #may-error #tested
+	 */ \
+	error name##s_upscale(name *self, const allocator *mem); \
+	\
+	/*
+	 * Downscales vector 'self' to half its capacity.
+	 *
+	 * #allocates #may-error #tested
+	 */ \
+	error name##s_downscale(name *self, const allocator *mem); \
+	\
+	/*
+	 * Pops item from list, deallocating it 
+	 * and downscaling vector if necessary.
+	 *
+	 * #allocates #may-error
+	 */ \
 	error name##s_pop(name *self, const allocator *mem); \
 	\
+	/* Pops up item from list, returning it 
+	 * and downscaling vector if necessary. 
+	 *
+	 * #allocates #to-review
+	 */\
 	type name##s_toss(name *self, const allocator *mem); \
 	\
+	/*
+	 * Pushes an item to vector 'self', 
+	 * upscaling it if necessary.
+	 *
+	 * #allocates #may-error
+	 */ \
 	error name##s_push(name *self, type item, const allocator *mem); \
 	\
-	error name##s_cpush(name *self, type item, const allocator *mem); \
+	/*
+	 * Pushes an item to 'self' and if an 
+	 * error happens it automatically frees item.
+	 *
+	 * #allocates #may-error
+	 */ \
+	error name##s_press(name *self, type item, const allocator *mem); \
 	\
-	error name##s_fpush(name *self, type item, const allocator *mem); \
+	/*
+	 * Pushes an item to 'self' and if an 
+	 * error happens it automatically frees 
+	 * item and 'self'.
+	 *
+	 * #allocates #may-error
+	 */ \
+	error name##s_force(name *self, type item, const allocator *mem); \
 	\
+	/*
+	 * Resizes vector to fit. 
+	 *
+	 * #allocates
+	 */ \
+	error name##s_fit(name *self, const allocator *mem); \
+	\
+	/*
+	 * Frees vector 'self'.
+	 *
+	 * #allocates
+	 */ \
 	void name##s_free(name *self, const allocator *mem); \
 	\
+	/*
+	 * Sorts vector according to compare function.
+	 * Insert-sort is the algorithm implemented.
+	 */ \
 	void name##s_sort(name *self, compfunc compare); \
 	\
+	/*
+	 * Filters vector with filter.
+	 *
+	 * #allocates #may-error
+	 */ \
 	error name##s_filter(name *self, filterfunc filter, const allocator *mem); \
 	\
+	/*
+	 * Filters vector with unique-items only.
+	 *
+	 * #allocates #may-error
+	 */ \
 	error name##s_filter_unique(name *self, const allocator *mem); \
 	\
+	/*
+	 * Prints a debug-friendly message to 
+	 * terminal with its internals.
+	 */ \
 	void name##s_debug(const name *self); \
 	\
+	/*
+	 * Prints a debug-friendly message to 
+	 * terminal with its internals and feeds 
+	 * it new-line.
+	 */ \
+	void name##s_debugln(const name *self); \
+	\
+	/*
+	 * Prints items to terminal.
+	 */ \
 	void name##s_print(const name *self); \
 	\
+	/*
+	 * Prints items in each line to terminal.
+	 */ \
+	void name##s_println(const name *self); \
+	\
+	/*
+	 * Returns true if and only if 
+	 * 'self' and 'other' are equal.
+	 *
+	 * #case-sensitive
+	 */ \
 	cels_warn_unused \
 	bool name##s_equals(const name *self, const name *other); \
 	\
+	/*
+	 * Returns true if and only if 
+	 * 'self' and 'other' are alike.
+	 *
+	 * #case-insensitive
+	 */ \
 	cels_warn_unused \
 	bool name##s_seems(const name *self, const name *other); \
 	\
+	/*
+	 * Finds item within self and returns position.
+	 *
+	 * If item isn't found -1 is returned instead.
+	 *
+	 * #case-sensitive
+	 */ \
 	cels_warn_unused \
 	ssize_t name##s_find(const name *self, type item); \
 	\
+	/*
+	 * Finds item within self and returns position.
+	 *
+	 * If item isn't found -1 is returned instead.
+	 *
+	 * #case-insensitive
+	 */ \
 	cels_warn_unused \
 	ssize_t name##s_search(const name *self, type item); \
 	\
+	/*
+	 * Shifts whole vector to the side, 
+	 * popping an item.
+	 *
+	 * #allocates
+	 */ \
 	void name##s_shift(name *self, size_t position, notused const allocator *mem); \
 	\
+	/*
+	 * Unites 'other' to end of 'self' 
+	 * and frees it.
+	 *
+	 * #allocates
+	 */ \
 	error name##s_unite(name *self, name* other, const allocator *mem); \
 	\
-	void name##s_range(name *self, shoutfunc callback, void *args); \
-	\
-	error name##s_fit(name *self, const allocator *mem);
+	/*
+	 * Applies callback to all items.
+	 */ \
+	void name##s_range(name *self, shoutfunc callback, void *args);
 
-/**
+/*
+ * Helps the generation of an operation over 
+ * a vector data-structure. 
+ */
+#define vectors_generate_operation_implementation(name, operation, operator) \
+	error name##s_##operation(const name *self, const name *other, name *result) { \
+		if (cels_debug) { \
+			errors_abort("self", vectors_check((void *)self)); \
+			errors_abort("other", vectors_check((void *)other)); \
+			errors_abort("result", vectors_check((void *)result)); \
+		} \
+		\
+		if (self->size != other->size) { return fail; } \
+		\
+		if (self->size > result->capacity) { return fail; } \
+		\
+		for (size_t i = 0; i < self->size; i++) { \
+			typeof(result->data[i]) new_result = self->data[i] operator other->data[i]; \
+			\
+			if (cels_debug) { \
+				errors_abort( \
+					"new_result (overflow)", \
+					new_result < result->data[i]); \
+			} \
+			\
+			result->data[i] = new_result; \
+		} \
+		 \
+		result->size = self->size; \
+		\
+		return ok; \
+	}
+
+/*
+ * Generates arithmetic code 
+ * for number-like types.
+ */
+#define vectors_generate_arithmetic_implementation(name, type) \
+	vectors_generate_operation_implementation(name, add, +) \
+	\
+	vectors_generate_operation_implementation(name, multiply, *) \
+	\
+	vectors_generate_operation_implementation(name, divide, /) \
+	\
+	vectors_generate_operation_implementation(name, subtract, -) \
+	\
+	error name##s_power(const name *self, const name *other, name *result) { \
+		if (cels_debug) { \
+			errors_abort("self", vectors_check((void *)self)); \
+			errors_abort("other", vectors_check((void *)other)); \
+			errors_abort("result", vectors_check((void *)result)); \
+		} \
+		\
+		if (self->size != other->size) { return fail; } \
+		\
+		if (self->size > result->capacity) { return fail; } \
+		\
+		for (size_t i = 0; i < self->size; i++) { \
+			typeof(result->data[i]) new_result = pow(self->data[i], other->data[i]); \
+			\
+			if (cels_debug) { \
+				errors_abort( \
+					"new_result (overflow)", \
+					new_result < result->data[i]); \
+			} \
+			\
+			result->data[i] = new_result; \
+		} \
+		 \
+		result->size = self->size; \
+		\
+		return ok; \
+	} \
+	\
+	type name##s_summation(name *self) { \
+		if (cels_debug) { \
+			errors_abort("self", vectors_check((void *)self)); \
+		} \
+		\
+		type result = 0; \
+		for (size_t i = 0; i < self->size; i++) { \
+			type new_result = result + self->data[i]; \
+			if (cels_debug) { \
+				errors_abort( \
+					"new_result (overflow)", \
+					new_result < result); \
+			} \
+			\
+			result = new_result; \
+		} \
+		\
+		return result; \
+	} \
+	\
+	type name##s_product(name *self) { \
+		if (cels_debug) { \
+			errors_abort("self", vectors_check((void *)self)); \
+		} \
+		\
+		type result = 0; \
+		for (size_t i = 0; i < self->size; i++) { \
+			type new_result = result * self->data[i]; \
+			\
+			if (cels_debug) { \
+				errors_abort( \
+					"new_result (overflow)", \
+					new_result < result); \
+			} \
+			\
+			result = new_result; \
+		} \
+		\
+		return result; \
+	} \
+	\
+	type name##s_mean(name *self) { \
+		if (cels_debug) { \
+			errors_abort("self", vectors_check((void *)self)); \
+		} \
+		\
+		if (self->size == 0) { return 0; } \
+		return name##s_product(self)/self->size; \
+	} \
+	\
+	type name##s_dot(const name *self, const name *other, name *by_product) { \
+		if (cels_debug) { \
+			errors_abort("self", vectors_check((void *)self)); \
+			errors_abort("other", vectors_check((void *)other)); \
+			errors_abort("by_product", vectors_check((void *)by_product)); \
+		} \
+		\
+		error multiply_error = name##s_multiply(self, other, by_product); \
+		if (multiply_error) { return 0; } \
+		\
+		return name##s_summation(by_product); \
+	}
+
+/*
+ * Generates arithmetic definitions 
+ * for number-like types.
+ */
+#define vectors_generate_arithmetic_definition(name, type) \
+	/*
+	 * Adds element of 'self' with its 
+	 * pair of 'other' and puts it 
+	 * in 'result'.
+	 *
+	 * #may-error
+	 */ \
+	error name##s_##add(const name *self, const name *other, name *result); \
+	\
+	/*
+	 * Multiplies element of 'self' with its 
+	 * pair of 'other' and puts it 
+	 * in 'result'.
+	 *
+	 * #may-error
+	 */ \
+	error name##s_##multiply(const name *self, const name *other, name *result); \
+	\
+	/*
+	 * Divides element of 'self' with its 
+	 * pair of 'other' and puts it 
+	 * in 'result'.
+	 *
+	 * #may-error
+	 */ \
+	error name##s_##divide(const name *self, const name *other, name *result); \
+	\
+	/*
+	 * Substract element of 'self' with its 
+	 * pair of 'other' and puts it 
+	 * in 'result'.
+	 *
+	 * #may-error
+	 */ \
+	error name##s_##subtract(const name *self, const name *other, name *result); \
+	/*
+	 * Powers element of 'self' with its 
+	 * pair of 'other' and puts it 
+	 * in 'result'.
+	 *
+	 * #may-error
+	 */ \
+	error name##s_power(const name *self, const name *other, name *result); \
+	\
+	/*
+	 * Makes the summation of all elements 
+	 * of 'self' and returns it.
+	 */ \
+	type name##s_summation(name *self); \
+	\
+	/*
+	 * Makes the product of all elements 
+	 * of 'self' and returns it.
+	 */ \
+	type name##s_product(name *self);  \
+	\
+	/*
+	 * Takes the average of 'self' 
+	 * and returns it.
+	 */ \
+	type name##s_mean(name *self); \
+	\
+	/*
+	 * Makes the dot product of 'self' and 'other'; 
+	 * releasing a by_product which is a vector with 
+	 * the results of the multiplication.
+	 */ \
+	type name##s_dot(const name *self, const name *other, name *by_product);
+
+/*
  * Checks shallowly if vector was properly initialized.
  *
  * #tested
@@ -652,5 +976,9 @@ void vectors_debug(const vector *self);
 /* definitions */
 
 vectors_generate_definition(size_t, size_vec)
+vectors_generate_arithmetic_definition(size_vec, size_t)
+
+vectors_generate_definition(double, double_vec)
+vectors_generate_arithmetic_definition(double_vec, double)
 
 #endif
