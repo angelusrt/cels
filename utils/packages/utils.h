@@ -1,5 +1,5 @@
-#ifndef cels_utils_h
-#define cels_utils_h
+#ifndef utils_h
+#define utils_h
 
 #include "../../source/files.h"
 #include "../../source/csvs.h"

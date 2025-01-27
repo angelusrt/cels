@@ -1,5 +1,5 @@
-#ifndef cels_menu_h
-#define cels_menu_h
+#ifndef menu_h
+#define menu_h
 
 #include "../../source/strings.h"
 #include "../../source/files.h"
