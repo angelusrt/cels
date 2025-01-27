@@ -1,6 +1,5 @@
-#ifndef strings_h
-#define strings_h
-#pragma once
+#ifndef cels_strings_h
+#define cels_strings_h
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -13,10 +12,53 @@
 #include "errors.h"
 #include "vectors.h"
 
-/* char_vecs */
+/*
+ * The module 'strings' is about manipulating the 
+ * data structure 'string'.
+ *
+ * It has the shortcoming of not handling 
+ * wide characters nicely.
+ *
+ * Also, all programs writen with it should 
+ * be compiled with '-lm' because it has a 
+ * math.h dependency. 
+ *
+ * And, by a 'string' being the same as a 
+ * 'vectors(char)' you should put a reference 
+ * for vectors.c anywhere in your program 
+ * (as well as strings.c); without it, the 
+ * compile will scream at you.
+ *
+ * 'strings' also pressuposes null 
+ * terminated strings in alot of places - 
+ * where it doesn't, a string_view 
+ * is pressuposed.
+ *
+ * TODO:
+ * - simplify
+ * - better slice
+ * - deprecate shift
+ */
 
 vectors_generate_definition(char, char_vec)
 typedef char_vec string;
+
+typedef errors(string) estring;
+
+typedef enum string_size {
+	string_min_size = 16,
+	string_petit_size = 128,
+	string_small_size = 1024,
+	string_big_size = 4096,
+	string_large_size = 65536,
+	string_very_large_size = 1048576, 
+	string_max_size = SIZE_MAX,
+} string_size;
+
+vectors_generate_definition(string, string_vec)
+typedef errors(string_vec) estring_vec;
+
+/* char_vecs */
 
 /*
  * Verifies if character is a either 
@@ -36,80 +78,7 @@ bool chars_is_whitespace(char letter);
  */
 void chars_print_special(char letter);
 
-/* string_extras */
-
-typedef errors(string) estring;
-
-typedef enum string_size {
-	string_min_size = 16,
-	string_petit_size = 128,
-	string_small_size = 1024,
-	string_big_size = 4096,
-	string_large_size = 65536,
-	string_very_large_size = 1048576, 
-	string_max_size = SIZE_MAX,
-} string_size;
-
-/* string_vecs */
-
-vectors_generate_definition(string, string_vec)
-typedef errors(string_vec) estring_vec;
-
-/*
- * Makes string_vecs from char* list.
- *
- * #allocates #tested
- */
-#define string_vecs_make(mem, ...) \
-  string_vecs_make_helper( \
-	  (char*[]){__VA_ARGS__}, \
-	  sizeof((char*[]){__VA_ARGS__})/sizeof(char*), \
-	  mem)
-
-/*
- * Concatenates strings inside 'self' 
- * with 'sep' in between.
- *
- * #to-review
- */
-cels_warn_unused
-string string_vecs_join(string_vec *self, string sep, const allocator *mem);
-
-/*
- * Use string_vecs_make instead.
- *
- * #not-to-use #to-review
- */
-cels_warn_unused
-string_vec string_vecs_make_helper(char *args[], size_t argn, const allocator *mem);
-
-
 /* strings */
-
-/*
- * The module strings is about manipulating the 
- * data structure 'string'.
- *
- * It has the shortcoming of not handling 
- * wide characters nicely.
- *
- * Also, all programs writen with it should 
- * be compiled with '-lm' because it has a 
- * math.h dependency. 
- *
- * And, by a 'string' being the same as a 
- * 'vectors(char)' you should put a reference 
- * for vectors.c anywhere in your program 
- * (as well as strings.c); without it, the 
- * compile will scream at you.
- *
- * 'strings' also pressuposes null 
- * terminated strings.
- *
- * TODO:
- * - simplify
- * - revise case-insensitivity
- */
 
 /* 
  * Creates an automatic variable that may be 
@@ -121,6 +90,9 @@ string_vec string_vecs_make_helper(char *args[], size_t argn, const allocator *m
 	char buf_##buffer[length] = ""; \
 	buffer = (string) {.data=buf_##buffer, .size=length, .capacity=length}
 
+/*#define strings_preinit(length) \
+	{.data=(char[length]{0}), .size=0, .capacity=length}*/
+
 /* 
  * Creates a static variable from string literal 
  * with size and capacity already specified.
@@ -130,7 +102,7 @@ string_vec string_vecs_make_helper(char *args[], size_t argn, const allocator *m
  * #view-only #tested
  */
 #define strings_premake(lit) \
-	{.data=lit, .size=sizeof(lit), .capacity=sizeof(lit)}
+	{.size=sizeof(lit), .capacity=sizeof(lit), .data=lit}
 
 /* 
  * Creates a static variable from string literal 
@@ -269,6 +241,14 @@ void strings_free(string *self, const allocator *mem);
  * #debug #depends:stdio.h #posix-reliant #to-review
  */
 void strings_debug(const string *self);
+
+/*
+ * Prints a debug-friendly message of 
+ * string's information and line-feeds new-line.
+ *
+ * #debug #depends:stdio.h #posix-reliant #to-review
+ */
+void strings_debugln(const string *self);
 
 /*
  * Prints the string to the terminal 
@@ -517,11 +497,44 @@ bool strings_has_suffix(const string *self, const string suffix);
 cels_warn_unused
 bool strings_has_prefix(const string *self, const string prefix);
 
-/* string_bivecs */
+/* string_vecs */
 
-vectors_generate_definition(string_vec, string_bivec)
+/*
+ * Makes string_vecs from char* list.
+ *
+ * #allocates #tested
+ */
+#define string_vecs_make(mem, ...) \
+  string_vecs_make_helper( \
+	  (char*[]){__VA_ARGS__}, \
+	  sizeof((char*[]){__VA_ARGS__})/sizeof(char*), \
+	  mem)
+
+/*
+ * Concatenates strings inside 'self' 
+ * with 'sep' in between.
+ *
+ * #to-review
+ */
+cels_warn_unused
+string string_vecs_join(string_vec *self, string sep, const allocator *mem);
+
+/*
+ * Use string_vecs_make instead.
+ *
+ * #not-to-use #to-review
+ */
+cels_warn_unused
+string_vec string_vecs_make_helper(char *args[], size_t argn, const allocator *mem);
+
+
+/* string_mats */
+
+vectors_generate_definition(string_vec, string_mat)
 
 /* extras */
+
+//#ifdef cels_nodes_h
 
 #include "nodes.h"
 
@@ -541,7 +554,17 @@ typedef errors(string_map *) estring_map;
  * 
  * #to-review
  */
-bool string_maps_make_push(
-	string_map **self, const char *key, const char *value, const allocator *mem);
+bool string_maps_push_with(
+	string_map *self, 
+	const char *key, 
+	const char *value, 
+	const allocator *mem);
+
+
+/* lists */
+
+lists_generate_definition(string_list, string)
+
+//#endif
 
 #endif

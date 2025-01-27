@@ -2,9 +2,17 @@
 
 /* char_vecs */
 
-/* private */
-void chars_print(const char *letter) {
+void chars_print_private(const char *letter) {
 	printf("%c\n", *letter);
+}
+
+void chars_print_normal_private(char *letter) {
+	char let = *letter;
+	if (let >= 33 && let <= 126) {
+		printf("%c", let);
+	} else {
+		chars_print_special(let);
+	}
 }
 
 bool chars_is_whitespace(char letter) {
@@ -27,12 +35,21 @@ void chars_print_special(char letter) {
 	}
 }
 
+void chars_print_normal(char letter) {
+	if (letter >= 33 && letter <= 126) {
+		printf("%c", letter);
+	} else {
+		chars_print_special(letter);
+	}
+}
+
 vectors_generate_implementation(
 	char, 
 	char_vec, 
 	defaults_check,
 	defaults_clone,
-	chars_print, 
+	chars_print_private, 
+	chars_print_normal_private, 
 	defaults_compare, 
 	defaults_seems, 
 	defaults_free)
@@ -233,6 +250,7 @@ void strings_free(string *self, const allocator *mem) {
 	char_vecs_free(self, mem);
 }
 
+/*
 void strings_debug(const string *self) {
 	#if cels_debug
 		errors_abort("self", strings_check(self));
@@ -241,6 +259,33 @@ void strings_debug(const string *self) {
 	printf(
 		"<string>{.size: %zu, .capacity: %zu, .data: %p}\n", 
 		self->size, self->capacity, self->data);
+}
+*/
+
+void strings_debug(const string *self) {
+	#if cels_debug
+		errors_abort("self", strings_check(self));
+	#endif
+
+	printf(
+		"<string>{.size: %zu, .capacity: %zu, .data: {", 
+		self->size, 
+		self->capacity);
+
+	for (size_t i = 0; (long)i < (long)self->size - 1; i++) {
+		chars_print_normal(self->data[i]);
+	}
+
+	printf("}}");
+}
+
+void strings_debugln(const string *self) {
+	#if cels_debug
+		errors_abort("self", strings_check(self));
+	#endif
+
+	strings_debug(self);
+	printf("\n");
 }
 
 void strings_print(const string *self) {
@@ -938,7 +983,8 @@ vectors_generate_implementation(
 	string_vec, 
 	strings_check,
 	strings_clone,
-	strings_println, 
+	strings_print,
+	strings_imprint,
 	strings_equals, 
 	strings_seems, 
 	strings_free)
@@ -1023,14 +1069,17 @@ void string_vecs_print_private(const string_vec *self) {
 	printf("\n");
 }
 
-/* string_bivecs */
+//#ifdef cels_nodes_h
+
+/* string_mats */
 
 vectors_generate_implementation(
 	string_vec, 
-	string_bivec,
+	string_mat,
 	string_vecs_check_private,
 	string_vecs_clone,
 	string_vecs_print_private,
+	string_vecs_debug,
 	string_vecs_equals,
 	string_vecs_seems,
 	string_vecs_free)
@@ -1060,35 +1109,24 @@ maps_generate_implementation(
 	strings_free,
 	strings_free)
 
-bool string_maps_make_push(string_map **self, const char *key, const char *value, const allocator *mem) {
+bool string_maps_push_with(string_map *self, const char *key, const char *value, const allocator *mem) {
 	#if cels_debug
-		errors_abort("key", key == null);
-		errors_abort("value", value == null);
+		errors_abort("key", !key);
 		errors_abort("#key", strlen(key) <= 1);
+		errors_abort("value", !value);
 		errors_abort("#value", strlen(value) <= 1);
 	#endif
 
 	string skey = strings_make(key, mem);
 	string svalue = strings_make(value, mem);
-	string_key_pair item = {
-		.key = skey, 
-		.value = svalue};
-
-	string_map node = {
-		.hash = strings_hasherize(&item.key),
-		.data = item,
-		.color = bnodes_black_color,
-		.frequency = 1};
-
-	string_map *new_bnode = mems_alloc(mem, sizeof(string_map));
-	errors_abort("new_bnode", !new_bnode);
-
-	*new_bnode = node;
-
-	error push_error = bnodes_push((bnode **)self, (bnode *)new_bnode);
-	if (push_error) { 
-		string_maps_free_private(new_bnode, mem); 
-	}
-
-	return push_error;
+	return string_maps_push(self, skey, svalue, mem);
 }
+
+/* lists */
+
+lists_generate_implementation(
+	string_list, 
+	string, 
+	strings_free)
+
+//#endif
