@@ -1,8 +1,6 @@
-#ifndef files_h
-#define files_h
-#pragma once
+#ifndef cels_files_h
+#define cels_files_h
 
-#include <sys/cdefs.h>
 #include <stdio.h>
 #include <fcntl.h>
 #include <unistd.h>
@@ -19,6 +17,12 @@
 #else
 #include <sys/stat.h>
 #endif
+
+/*
+ * The module 'files' deals with 
+ * manipulations over the file-system,
+ * like file and folder manipulations.
+ */
 
 typedef FILE file;
 typedef DIR dir;
@@ -37,10 +41,6 @@ typedef enum file_error {
 	file_allocation_error,
 	file_mal_formed_error,
 } file_error;
-
-/*
- * TODO: add checks.
- */
 
 /*
  * Read files content to string 
@@ -82,12 +82,12 @@ estring_vec files_list(const string path, const allocator *mem);
  * the file position is set.
  *
  * If no substring is found -1 is returned 
- * or -2 if a seek fails.
+ * or -2 if a seek/tell fails.
  *
  * #to-review
  */
 cels_warn_unused
-ssize_t files_find(file *self, string substring, ssize_t pos);
+ssize_t files_find(file *self, const string substring, ssize_t pos);
 
 /*
  * Finds first of any character in seps within 
@@ -97,8 +97,8 @@ ssize_t files_find(file *self, string substring, ssize_t pos);
  * If pos is negative, the search begins where 
  * the file position is set.
  *
- * If nothing is found or this function is 
- * mal-used, it returns -1.
+ * If nothing is found a -1 is returned or a 
+ * -2 if a seek/tell fails.
  *
  * #to-review
  */

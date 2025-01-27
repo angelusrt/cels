@@ -2,6 +2,10 @@
 #include "strings.h"
 
 estring files_read(file *self, const allocator *mem) {
+	#if cels_debug
+		errors_abort("self", !self);
+	#endif
+
 	long current_position = ftell(self);
 	if (current_position == -1) {
 		return (estring){.error=file_telling_position_error};
@@ -47,6 +51,11 @@ estring files_read(file *self, const allocator *mem) {
 }
 
 error files_write(file *self, const string text) {
+	#if cels_debug
+		errors_abort("self", !self);
+		errors_abort("text", strings_check_extra(&text));
+	#endif
+
 	long write_error = fwrite(text.data, 1, text.size - 1, self);
 	if (write_error < (long)text.size - 1) {
 		return file_writing_error;
@@ -56,18 +65,18 @@ error files_write(file *self, const string text) {
 }
 
 estring_vec files_list(const string path, const allocator *mem) {
+	#if cels_debug
+		errors_abort("path", strings_check_extra(&path));
+	#endif
+
 	dir *directory = opendir(path.data);
 	if (!directory) {
 		return (estring_vec){.error=file_directory_not_opened_error};
 	}
 
-	//
-
 	string_vec files = string_vecs_init(vector_min, mem);
-
-	//
-
 	struct dirent *entity;
+
 	while ((entity = readdir(directory))) {
 		if (entity->d_name[0] == '.') {
 			if (entity->d_name[1] == '\0') {
@@ -90,17 +99,18 @@ estring_vec files_list(const string path, const allocator *mem) {
 	return (estring_vec){.value=files};
 }
 
-ssize_t files_find(file *self, string substring, ssize_t pos) {
+ssize_t files_find(file *self, const string substring, ssize_t pos) {
+	#if cels_debug
+		errors_abort("self", !self);
+		errors_abort("substring", strings_check_extra(&substring));
+	#endif
+
 	if (pos >= 0) {
 		error seek_error = fseek(self, pos, SEEK_SET);
-		if (seek_error == -1) {
-			return -2;
-		}
+		if (seek_error == -1) { return -2; }
 	} else {
 		pos = ftell(self);
-		if (pos == -1) {
-			return -1;
-		}
+		if (pos == -1) { return -2; }
 	}
 
 	char letter = '\0';
@@ -118,25 +128,19 @@ ssize_t files_find(file *self, string substring, ssize_t pos) {
 		}
 
 		j++;
-		if (i == substring.size - 1) {
-			return j - i;
-		}
+		if (i == substring.size - 1) { return j - i; }
 	} while(letter != EOF);
 
 	return -1;
 }
 
-ssize_t files_find_from(file *self, string seps, ssize_t pos) {
+ssize_t files_find_from(file *self, const string seps, ssize_t pos) {
 	if (pos >= 0) {
 		ssize_t position = fseek(self, pos, SEEK_SET);
-		if (position == -1) {
-			return -1;
-		}
+		if (position == -1) { return -2; }
 	} else {
 		ssize_t position = ftell(self);
-		if (position == -1) {
-			return -1;
-		}
+		if (position == -1) { return -2; }
 		pos = position;
 	}
 
@@ -157,6 +161,10 @@ ssize_t files_find_from(file *self, string seps, ssize_t pos) {
 }
 
 bool files_next(file *self, string *line_view, const allocator *mem) {
+	#if cels_debug
+		errors_abort("self", !self);
+	#endif
+
 	//check self and line_view
 
 	long current_position = ftell(self);
@@ -164,7 +172,7 @@ bool files_next(file *self, string *line_view, const allocator *mem) {
 		return file_telling_position_error;
 	}
 
-	if (line_view->data == null) {
+	if (!line_view->data) {
 		string buffer = strings_init(string_small_size, mem);
 		*line_view = buffer;
 
@@ -175,6 +183,10 @@ bool files_next(file *self, string *line_view, const allocator *mem) {
 			}
 		}
 	}
+
+	#if cels_debug
+		errors_abort("line_view", strings_check(line_view));
+	#endif
 
 	const string line_separator = {
 		.size=3,
@@ -220,9 +232,13 @@ bool files_next(file *self, string *line_view, const allocator *mem) {
 }
 
 estring files_normalize(const string *filepath, const allocator *mem) {
-	const string file_sep = strings_premake("/");
-	const string one_dots = strings_premake(".");
-	const string two_dots = strings_premake("..");
+	#if cels_debug
+		errors_abort("filepath", strings_check_extra(filepath));
+	#endif
+
+	static const string file_sep = strings_premake("/");
+	static const string one_dots = strings_premake(".");
+	static const string two_dots = strings_premake("..");
 
 	string path_normalized = strings_init(vector_min, mem);
 	string_vec file_nodes = strings_split(filepath, file_sep, 0, mem);
@@ -266,6 +282,10 @@ estring files_normalize(const string *filepath, const allocator *mem) {
 }
 
 estring files_path(const string *filepath, const allocator *mem) {
+	#if cels_debug
+		errors_abort("filepath", strings_check_extra(filepath));
+	#endif
+
 	if (filepath->data[0] == '/') {
 		return (estring){.value=strings_clone(filepath, mem)};
 	} else if (filepath->data[0] != '.') {
@@ -290,6 +310,10 @@ estring files_path(const string *filepath, const allocator *mem) {
 }
 
 error files_make_directory(const char *path, notused __mode_t mode) {
+	#if cels_debug
+		errors_abort("path", strings_check_extra(path));
+	#endif
+
 	error error = ok;
 
 	#ifdef cels_windows

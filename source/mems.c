@@ -1,6 +1,4 @@
 #include "mems.h"
-#include "strings.h"
-#include "utils.h"
 
 /* allocators */
 
@@ -8,21 +6,13 @@ bool allocators_check(const allocator *self) {
 	bool is_group = self->type == allocators_group_type;
 
 	#if cels_debug
-		if (errors_check("allocators_check.self", !self)) {
-			return true;
-		}
-
-		if (is_group && errors_check("allocators_check.self.storage", !self->storage)) {
-			return true;
+		errors_return("self", !self)
+		if (is_group) {
+			errors_return("self.storage", !self->storage)
 		}
 	#else
-		if (!self) {
-			return true;
-		} 
-		
-		if (is_group && !self->storage) {
-			return true;
-		} 
+		if (!self) { return true; } 
+		if (is_group && !self->storage) { return true; } 
 	#endif
 
     return false;
@@ -122,7 +112,6 @@ void *arenas_allocate(arena *self, size_t size) {
 	next->next->size += size;
 	return next->next->data;
 }
-
 
 void arenas_debug(arena *self);
 
@@ -514,7 +503,20 @@ void stack_arenas_debug(stack_arena *self) {
 		if (data[i] >= 33 && data[i] <= 126) {
 			printf("%c ", (unsigned char)data[i]);
 		} else {
-			chars_print_special(data[i]);
+			switch(data[i]) {
+				case '\n': printf("\\n"); break;
+				case '\t': printf("\\t"); break;
+				case '\r': printf("\\r"); break;
+				case '\b': printf("\\b"); break;
+				case '\a': printf("\\a"); break;
+				case '\v': printf("\\v"); break;
+				case '\f': printf("\\f"); break;
+				case '\\': printf("\\\\"); break;
+				case '\'': printf("\\'"); break;
+				case '\"': printf("\\\""); break;
+				default: printf("\\x%02X", data[i]); break;
+			}
+
 			printf(" ");
 		}
 	}
@@ -526,7 +528,7 @@ void stack_arenas_free(stack_arena *self) {
 	free(self);
 }
 
-allocator stack_arenas_make(size_t capacity, char *buffer) {
+allocator stack_arenas_init_helper(size_t capacity, char *buffer) {
 	stack_arena new_arena = (stack_arena){.capacity=capacity, .data=buffer};
 	stack_arena *capsule = malloc(sizeof(stack_arena));
 	errors_abort("capsule", !capsule);
@@ -584,7 +586,12 @@ void *mems_alloc(const allocator *mem, size_t len) {
 	return NULL;
 }
 
-void *mems_realloc(const allocator *mem, void *data, size_t old_size, size_t new_size) {
+void *mems_realloc(
+	const allocator *mem, 
+	void *data, 
+	size_t old_size, 
+	size_t new_size
+) {
 	if (!mem) { 
 		return realloc(data, new_size); 
 	} 

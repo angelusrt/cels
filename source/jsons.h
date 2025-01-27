@@ -1,5 +1,5 @@
-#ifndef jsons_h 
-#define jsons_h
+#ifndef cels_jsons_h 
+#define cels_jsons_h
 
 #include <stdbool.h>
 #include <sys/cdefs.h>
@@ -7,6 +7,12 @@
 #include <stdlib.h>
 
 #include "strings.h"
+
+/*
+ * The 'jsons' module parses and 
+ * manipulate json strings turning 
+ * them into string_map data_structure.
+ */
 
 typedef enum json_error {
 	json_successfull,
@@ -39,8 +45,8 @@ estring_map jsons_unmake(const string *json, const allocator *mem);
 /*
  * Makes a json from a map.
  *
- * Places a json_error into '.error' if 
- * an error happened.
+ * Places a json_error into '.error' 
+ * if an error happened.
  *
  * #to-review
  */

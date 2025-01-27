@@ -21,7 +21,9 @@
 	case '9' 
 
 void jsons_shift_private(string *section, size_t position) {
-	//TODO: check position
+	#if cels_debug
+		errors_abort("section", strings_check_extra(section));
+	#endif
 
 	for (size_t i = position; i < section->size - 1; i++) {
 		section->data[i] = section->data[i + 1];
@@ -31,6 +33,10 @@ void jsons_shift_private(string *section, size_t position) {
 }
 
 void jsons_normalize_private(string *section) {
+	#if cels_debug
+		errors_abort("section", strings_check_extra(section));
+	#endif
+
 	for (size_t i = 0; i < section->size - 1; i++) {
 		if (section->data[i] == '\\') {
 			jsons_shift_private(section, i);
@@ -58,6 +64,10 @@ typedef struct range {
 
 cels_warn_unused
 string jsons_get_section_private(const string *json, range interval, const allocator *mem) {
+	#if cels_debug
+		errors_abort("json", strings_check_extra(json));
+	#endif
+
 	string section_view = {
 		.data=json->data+interval.start,
 		.size=interval.end-interval.start,
@@ -72,6 +82,11 @@ string jsons_get_section_private(const string *json, range interval, const alloc
 }
 
 string jsons_parse_text_private(const string *json, size_t *position, const allocator *mem) {
+	#if cels_debug
+		errors_abort("json", strings_check_extra(json));
+		errors_abort("position", !position);
+	#endif
+
 	size_t pos = *position;
 	range quote = {0};
 
@@ -106,6 +121,11 @@ string jsons_parse_text_private(const string *json, size_t *position, const allo
 }
 
 string jsons_parse_struct_private(const string *json, size_t *position, bool is_object, const allocator *mem) {
+	#if cels_debug
+		errors_abort("json", strings_check_extra(json));
+		errors_abort("position", !position);
+	#endif
+
 	size_t pos = *position;
 	range bracket = {0};
 
@@ -165,6 +185,11 @@ string jsons_parse_struct_private(const string *json, size_t *position, bool is_
 }
 
 string jsons_parse_naked_private(const string *json, size_t *position, const allocator *mem) {
+	#if cels_debug
+		errors_abort("json", strings_check_extra(json));
+		errors_abort("position", !position);
+	#endif
+
 	range interval = {0};
 	size_t pos = *position;
 
@@ -254,6 +279,10 @@ string jsons_parse_naked_private(const string *json, size_t *position, const all
 }
 
 estring_map jsons_unmake_object_private(const string *json, const allocator *mem) {
+	#if cels_debug
+		errors_abort("json", strings_check_extra(json));
+	#endif
+
 	int error = 0;
 	string_map *map = null;
 
@@ -373,6 +402,10 @@ estring_map jsons_unmake_object_private(const string *json, const allocator *mem
 }
 
 estring_map jsons_unmake_list_private(const string *json, const allocator *mem) {
+	#if cels_debug
+		errors_abort("json", strings_check_extra(json));
+	#endif
+
 	int error = 0;
 	string_map *map = null;
 
@@ -469,7 +502,9 @@ estring_map jsons_unmake_list_private(const string *json, const allocator *mem) 
 }
 
 estring_map jsons_unmake(const string *json, const allocator *mem) {
-	//TODO: check json
+	#if cels_debug
+		errors_abort("json", strings_check_extra(json));
+	#endif
 
 	//json should be trimmed
 	bool is_object = json->data[0] == '{' && json->data[json->size - 2] == '}';
@@ -491,8 +526,13 @@ typedef struct jsons_make_private_params {
 	bool *error;
 } jsons_make_private_params;
 
-void *jsons_make_private(string_map *self, void *args) {
-	jsons_make_private_params *params = args;
+void *jsons_make_private(string_map *self, jsons_make_private_params *params) {
+	#if cels_debug
+		errors_abort("self", bnodes_check((const void *)self));
+		errors_abort("params", !params);
+		errors_abort("params.json", strings_check_extra(params->json));
+		errors_abort("params.error", !params->error);
+	#endif
 
 	const string quote = strings_premake("\"");
 	bool push_error = strings_push(params->json, quote, params->mem);
@@ -509,7 +549,6 @@ void *jsons_make_private(string_map *self, void *args) {
 	if (push_error) {
 		goto cleanup;
 	}
-
 
 	const string colon = strings_premake(":");
 	push_error = strings_push(params->json, colon, params->mem);
@@ -556,6 +595,10 @@ void *jsons_make_private(string_map *self, void *args) {
 }
 
 estring jsons_make(const string_map *self, const allocator *mem) {
+	#if cels_debug
+		errors_abort("self", bnodes_check((const void *)self));
+	#endif
+
 	string json = strings_make("{", mem);
 
 	bool private_error = false;
@@ -563,24 +606,18 @@ estring jsons_make(const string_map *self, const allocator *mem) {
 		.error=&private_error, .json=&json, .mem=mem};
 
 	enfunctor func = {
-		.func=(selffunc)jsons_make_private, .params=&params};
+		.func=(selffunc)jsons_make_private, 
+		.params=&params};
 
-	bnodes_iterate((bnode *)self, func);
-
-	if (private_error) { 
-		goto cleanup; 
-	}
+	bnodes_iterate((bnode *)self, (enfunctor)func);
+	if (private_error) { goto cleanup; }
 
 	bool pop_error = strings_pop(&json, mem);
-	if (pop_error) { 
-		goto cleanup; 
-	}
+	if (pop_error) { goto cleanup; }
 
 	const string close_bracket = strings_premake("}");
 	bool push_error = strings_push(&json, close_bracket, mem);
-	if (push_error) { 
-		goto cleanup; 
-	}
+	if (push_error) { goto cleanup; }
 
 	return (estring){.value=json};
 

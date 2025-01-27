@@ -22,17 +22,15 @@ void templates_print(const template *self) {
 	#endif
 
 	printf("%c{", self->operator);
-	for (size_t i = 0; i < self->text.size; i++) {
-		if (chars_is_whitespace(self->text.data[i])) {
-			printf(" ");
-		} else {
-			printf("%c", self->text.data[i]);
-		}
-	}
+	strings_imprint(&self->text);
 	printf("}\n");
 }
 
 template templates_clone(template *self, const allocator *mem) {
+	#if cels_debug
+		errors_abort("self", templates_check(self));
+	#endif
+
 	template_vec *temps = null;
 	if (self->next) {
 		template_vec temps_clone = template_vecs_clone(self->next, mem);
@@ -93,6 +91,7 @@ vectors_generate_implementation(
 	templates_check,
 	templates_clone,
 	templates_print,
+	templates_print,
 	templates_equals,
 	templates_seems,
 	templates_free)
@@ -126,6 +125,10 @@ typedef enum template_operator {
 
 cels_warn_unused
 template templates_parse_tag(string *tag, const allocator *mem) {
+	#if cels_debug
+		errors_abort("tag", strings_check_extra(tag));
+	#endif
+
 	const string alt_whitespaces = strings_premake("\t\r\n");
 	const string the_whitespace = strings_premake(" ");
 
@@ -140,9 +143,7 @@ template templates_parse_tag(string *tag, const allocator *mem) {
 			.operator=template_assignment_operator
 		};
 	} else if (tokens.size == 2) {
-		if (tokens.data[1].size == 0) {
-			goto error;
-		}
+		if (tokens.data[1].size == 0) { goto error; }
 
 		const string define_keyword = strings_premake("define");
 		bool is_define = strings_equals(&tokens.data[0], &define_keyword);
@@ -161,6 +162,11 @@ template templates_parse_tag(string *tag, const allocator *mem) {
 
 cels_warn_unused
 error templates_parse(template_map **templates, const string *template, const allocator *mem) {
+	#if cels_debug
+		errors_abort("templates", bnodes_check((const bnode *)templates));
+		errors_abort("template", strings_check_extra(template));
+	#endif
+
 	static const string tag_open = strings_premake("<%");
 	static const string tag_close = strings_premake("%>");
 
@@ -258,6 +264,10 @@ error templates_parse(template_map **templates, const string *template, const al
 /* public */
 
 etemplate_map templates_make(const string path, const allocator *mem) {
+	#if cels_debug
+		errors_abort("path", strings_check_extra(&path));
+	#endif
+
 	estring_vec files = files_list(path, mem);
 	if (files.error != file_successfull) {
 		return (etemplate_map){.error=template_not_found_error};

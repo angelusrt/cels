@@ -1,8 +1,14 @@
-#ifndef ios_h
-#define ios_h
+#ifndef cels_ios_h
+#define cels_ios_h
 
 #include <termios.h>
 #include "strings.h"
+
+/*
+ * The module 'ios' deals with input/output
+ * functionality like terminal mode, 
+ * getting user input and printing to the screen.
+ */
 
 /*
  * Turns terminal into canonical mode.

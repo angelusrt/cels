@@ -7,9 +7,12 @@ const string attribute_sep = strings_premake(": ");
 const string route_sep = strings_premake("/");
 const string route_var_sep = strings_premake(":");
 
-const string variable_charset = strings_premake("abcdefghijklmnopqrstuvwxyz0123456789_");
+const string variable_charset = strings_premake(
+	"abcdefghijklmnopqrstuvwxyz0123456789_");
 const string regex_charset = strings_premake(
-	"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789+[]|()\\-*._");
+	"abcdefghijklmnopqrstuvwxyz"
+	"ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	"0123456789+[]|()\\-*._");
 
 /* routers */
 
@@ -74,11 +77,18 @@ vectors_generate_implementation(
 	routers_check, 
 	routers_clone,
 	routers_print,
+	routers_debug,
 	routers_equals, 
 	routers_seems,
 	defaults_free)
 
-bool router_vecs_make_push(router_vec *self, char *location, httpfunc callback, void *params, const allocator *mem) {
+bool router_vecs_make_push(
+	router_vec *self, 
+	char *location, 
+	httpfunc callback, 
+	void *params, 
+	const allocator *mem
+) {
 	#if cels_debug
 		errors_abort("self", vectors_check((const vector *)self));
 		errors_abort("location", location == null);
@@ -110,7 +120,7 @@ void router_nodes_debug(const router_node *self) {
 }
 
 void router_nodes_full_debug_private(const router_node *self, size_t stackframe) {
-	if (stackframe > nodes_max_recursion) { return; }
+	if (stackframe > cels_max_recursion) { return; }
 
 	router_nodes_debug(self);
 	if (self->next == null) { return; }
@@ -164,8 +174,9 @@ vectors_generate_implementation(
 	router_node, 
 	router_node_vec,
 	router_nodes_check,
-	defaults_clone, //placeholder
+	defaults_clone, 
 	router_nodes_print,
+	router_nodes_debug,
 	router_nodes_equals,
 	router_nodes_seems,
 	defaults_free)
@@ -275,7 +286,7 @@ string_map *https_tokenize(string *request, const allocator *mem) {
 	for (size_t i = 0; i < header_size; i++) {
 		string key = strings_clone(&headers[i], mem);
 		bool push_status = string_maps_push(
-			&requests_attributes, key, header.data[i], mem);
+			requests_attributes, key, header.data[i], mem);
 
 		if (push_status) {
 			strings_free(&key, mem);
@@ -296,7 +307,7 @@ string_map *https_tokenize(string *request, const allocator *mem) {
 			string value = strings_clone(&attributes.data[i], mem);
 
 			bool push_status = string_maps_push(
-				&requests_attributes, body_key, value, mem);
+				requests_attributes, body_key, value, mem);
 
 			if (push_status) {
 				strings_free(&body_key, mem);
@@ -306,7 +317,7 @@ string_map *https_tokenize(string *request, const allocator *mem) {
 			mems_dealloc(mem, attribute.data, attribute.capacity);
 		} else if (attribute.size == 2) {
 			bool push_status = string_maps_push(
-				&requests_attributes, attribute.data[0], attribute.data[1], mem);
+				requests_attributes, attribute.data[0], attribute.data[1], mem);
 
 			if (push_status) {
 				strings_free(&attribute.data[0], mem);
@@ -372,7 +383,7 @@ router_private *https_find_route(router_node *router, string_map *request, const
 				if (has_matched) {
 					string key = strings_clone(&route->data.name, mem);
 					string value = strings_clone(&routes.data[i], mem);
-					bool push_status = string_maps_push(&request, key, value, mem);
+					bool push_status = string_maps_push(request, key, value, mem);
 
 					if (push_status) {
 						strings_free(&key, mem);

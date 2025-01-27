@@ -1,5 +1,5 @@
-#ifndef errors_h
-#define errors_h
+#ifndef cels_errors_h
+#define cels_errors_h
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -8,20 +8,23 @@
 #include <string.h>
 #include <unistd.h>
 
-/* colors */
+#include "colors.h"
+#include "types.h"
 
-#define colors_error(text) "\033[31m" text "\033[0m\n"
-
-#define colors_warn(text) "\033[33m" text "\033[0m\n"
-
-#define colors_success(text) "\033[32m" text "\033[0m\n"
-
-/* errors */
+/*
+ * The module 'errors' implement 
+ * ways to check unexpected 
+ * behaviours, assert and test; 
+ * it also implements go-like 
+ * error as values.
+ */
 
 typedef struct error_report {
 	size_t successfull;
 	size_t total;
 } error_report;
+
+typedef void (*reportfunc)(error_report *);
 
 typedef enum errors_mode {
 	errors_error_mode,
@@ -31,15 +34,6 @@ typedef enum errors_mode {
 } errors_mode;
 
 typedef int error;
-
-
-#ifdef __GNUC__
-#define cels_warn_unused __attribute__((warn_unused_result))
-#define notused __attribute__((unused))
-#else
-#define cels_warn_unused
-#define notused
-#endif
 
 #define ok 0
 #define fail 1
@@ -91,7 +85,10 @@ error errors_assert(const char *message, bool statement);
  *
  * #to-review
  */
-void errors_expect(const char *message, bool statement, error_report *report);
+void errors_expect(
+	const char *message, 
+	bool statement, 
+	error_report *report);
 
 /*
  * Panics if statement is true and 
@@ -102,7 +99,10 @@ void errors_expect(const char *message, bool statement, error_report *report);
  *
  * #may-panic #depends:stdio.h #to-review
  */
-void errors_abort_helper(const char *function_name, const char *message, bool statement);
+void errors_abort_helper(
+	const char *function_name, 
+	const char *message, 
+	bool statement);
 
 /*
  * Panics if statement is true and 
@@ -119,7 +119,10 @@ void errors_panic(const char *message, bool statement);
  *
  * #depends:stdio.h #to-review
  */
-error errors_inform_helper(const char* function_name, const char *message, bool statement);
+error errors_inform_helper(
+	const char* function_name, 
+	const char *message, 
+	bool statement);
 
 /*
  * Warns to the terminal if statement holds.
@@ -139,7 +142,9 @@ error errors_warn(const char *message, bool statement);
  * #depends:stdio.h #to-review
  */
 error errors_ensure_helper(
-	const char *function_name, const char *message, bool statement);
+	const char *function_name, 
+	const char *message, 
+	bool statement);
 
 /*
  * Checks statement, printing message if 

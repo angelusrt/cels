@@ -1,11 +1,16 @@
-#ifndef templates_h
-#define templates_h
+#ifndef cels_templates_h
+#define cels_templates_h
 
 #include "mems.h"
 #include "vectors.h"
 #include "strings.h"
 #include "files.h"
 #include "utils.h"
+
+/*
+ * The module 'templates' is responsible 
+ * for parsing html and creating views.
+ */
 
 /* template_errors */
 
@@ -38,6 +43,11 @@ typedef errors(template_map *) etemplate_map;
 
 /* templates */
 
+/*
+ * Creates a map of parsed-template 
+ * files provided by glob-path ready 
+ * to be executed.
+ */
 cels_warn_unused
 etemplate_map templates_make(const string path, const allocator *mem);
 

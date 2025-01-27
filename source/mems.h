@@ -1,12 +1,19 @@
-#ifndef mems_h
-#define mems_h
+#ifndef cels_mems_h
+#define cels_mems_h
 
 #include <stddef.h>
 #include <stdlib.h>
-#include <sys/cdefs.h>
 #include "errors.h"
+#include "maths.h"
+
+/*
+ * The module 'mems' implements 
+ * memory-allocators like group and 
+ * individual allocators.
+ */
 
 /* definitions */
+
 typedef void *(*allocfunc)(void *, size_t);
 typedef error (*deallocfunc)(void *, void *, size_t);
 typedef void *(*reallocfunc)(void *, void *, size_t, size_t);
@@ -66,7 +73,7 @@ allocator arenas_init(size_t capacity);
  * #to-review
  */
 #define stack_arenas_init(cap) \
-	stack_arenas_make(cap, alloca(cap))
+	stack_arenas_init_helper(cap, alloca(cap))
 
 /*
  * Use stack_arenas_init instead.
@@ -74,7 +81,7 @@ allocator arenas_init(size_t capacity);
  * #private #shouldnt-be-used
  */
 cels_warn_unused
-allocator stack_arenas_make(size_t capacity, char *buffer);
+allocator stack_arenas_init_helper(size_t capacity, char *buffer);
 
 /* allocs */
 
@@ -127,7 +134,11 @@ void *mems_alloc(const allocator *mem, size_t len);
  * #to-review
  */
 cels_warn_unused
-void *mems_realloc(const allocator *mem, void *data, size_t old_size, size_t new_size);
+void *mems_realloc(
+	const allocator *mem, 
+	void *data, 
+	size_t old_size, 
+	size_t new_size);
 
 /*
  * An adapter that manages (generically)

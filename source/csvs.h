@@ -1,8 +1,14 @@
-#ifndef csvs_h
-#define csvs_h
+#ifndef cels_csvs_h
+#define cels_csvs_h
 
 #include "strings.h"
 #include <sys/cdefs.h>
+
+/*
+ * The module 'csvs' deals with 
+ * processing .csv files either 
+ * buffered or at-once.
+ */
 
 /*
  * Creates a matrix containing rows 
@@ -14,7 +20,10 @@
  * #allocates #to-review
  */
 cels_warn_unused
-string_bivec csvs_unmake(const string *text, const string column_sep, const allocator *mem);
+string_mat csvs_unmake(
+	const string *text, 
+	const string column_sep, 
+	const allocator *mem);
 
 /*
  * Splits csv-row into columns and puts 
@@ -29,7 +38,11 @@ string_bivec csvs_unmake(const string *text, const string column_sep, const allo
  *
  * #allocates #to-review
  */
-bool csvs_split(string_vec *column_views, const string row_view, const string column_sep, const allocator *mem);
+bool csvs_split(
+	string_vec *column_views, 
+	const string row_view, 
+	const string column_sep, 
+	const allocator *mem);
 
 /*
  * Iterates through csv rows, 
@@ -49,7 +62,6 @@ bool csvs_next(
 	string_vec *column_views, 
 	string *row_view, 
 	const string column_sep, 
-	const allocator *mem
-);
+	const allocator *mem);
 
 #endif

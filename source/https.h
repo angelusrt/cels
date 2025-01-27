@@ -27,6 +27,15 @@
 #include "nodes.h"
 #include "utils.h"
 
+/*
+ * The module 'https' provides conveniences 
+ * to comunicate via http - be it a web-server 
+ * or a network-request.
+ *
+ * If you use it, you need to compile with 
+ * "-lm -lpthread -lssl -lcrypto"
+ */
+
 /* routers */
 
 typedef void (*httpfunc) (string_map *, int, void *);
@@ -96,9 +105,13 @@ bool routers_seems(const router *r0, const router *r1);
 vectors_generate_definition(router, router_vec)
 
 bool router_vecs_make_push(
-	router_vec *self, char *location, httpfunc callback, void *params, const allocator *mem);
+	router_vec *self, 
+	char *location, 
+	httpfunc callback, 
+	void *params, 
+	const allocator *mem);
 
-/* router_nodes & router_node_vecs */
+/* router_nodes and router_node_vecs */
 
 typedef struct router_node router_node;
 vectors_generate_definition(router_node, router_node_vec)
@@ -185,19 +198,40 @@ typedef struct request_options {
 
 /* https */
 
-static const string https_default_head = strings_premake("HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\r\n");
+static const string https_default_head = 
+	strings_premake("HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\r\n");
 
+/*
+ * Serves a web-server to port 
+ * with list of router callbacks 
+ * provided.
+ *
+ * #allocates
+ */
 void https_serve(short port, router_vec *callbacks, const allocator *mem);
 
+/*
+ * Provides standard not_found response.
+ */
 void https_default_not_found(string_map *request, int client_connection, void *params);
 
+/*
+ * Sends body and head to client. 
+ */
 void https_send(int client_connection, const string *body, const string *head);
 
 /*
- * #implicitly-allocates
+ * Requests a site and returns 
+ * response in estring.
+ *
+ * #implicitly-allocates #allocates
  */
 cels_warn_unused
 estring https_request(
-	const string *host, const string *header, const string *body, const request_options *opts, const allocator *mem);
+	const string *host, 
+	const string *header, 
+	const string *body, 
+	const request_options *opts, 
+	const allocator *mem);
 
 #endif
