@@ -4,11 +4,11 @@ bool bnodes_check(const bnode *self) {
 	#if cels_debug
 		errors_return("self", !self)
 
-		bool is_color_out_of_range = self->color > bnodes_black_color;
+		bool is_color_out_of_range = self->color > bnode_black_color;
 		errors_return("self.color", is_color_out_of_range)
 	#else
-		if (self == null) return true;
-		if (self->color > bnodes_black_color) return true;
+		if (!self) return true;
+		if (self->color > bnode_black_color) return true;
 	#endif
 
 	return false;
@@ -79,7 +79,7 @@ void bnodes_normalize_private(bnode *self, bnode *new_node) {
 	#endif
 
 	bool is_new_node_unique =  new_node != self && new_node != self->left && new_node != self->right;
-	bool is_new_node_parent_red = new_node->parent && new_node->parent->color == bnodes_red_color;
+	bool is_new_node_parent_red = new_node->parent && new_node->parent->color == bnode_red_color;
 
     // iterate until new_node is not the self and new_node's parent color is red
     while (is_new_node_unique && is_new_node_parent_red) {
@@ -99,10 +99,10 @@ void bnodes_normalize_private(bnode *self, bnode *new_node) {
         // (iii) Move new_node to grandparent
         if (!y) {
             new_node = new_node->parent->parent;
-		} else if (y->color == bnodes_red_color) {
-            y->color = bnodes_black_color;
-            new_node->parent->color = bnodes_black_color;
-            new_node->parent->parent->color = bnodes_red_color;
+		} else if (y->color == bnode_red_color) {
+            y->color = bnode_black_color;
+            new_node->parent->color = bnode_black_color;
+            new_node->parent->parent->color = bnode_red_color;
             new_node = new_node->parent->parent;
         } else {
             // Left-Left (LL) case, do following
@@ -115,7 +115,7 @@ void bnodes_normalize_private(bnode *self, bnode *new_node) {
 				new_node == new_node->parent->left;
 
             if (case1) {
-                bnodes_color color = new_node->parent->color ;
+                bnode_color color = new_node->parent->color ;
                 new_node->parent->color = new_node->parent->parent->color;
                 new_node->parent->parent->color = color;
                 bnodes_right_rotate_private(self,new_node->parent->parent);
@@ -132,7 +132,7 @@ void bnodes_normalize_private(bnode *self, bnode *new_node) {
 				new_node == new_node->parent->right;
 
             if (case2) {
-                bnodes_color color = new_node->color ;
+                bnode_color color = new_node->color ;
                 new_node->color = new_node->parent->parent->color;
                 new_node->parent->parent->color = color;
                 bnodes_left_rotate_private(self,new_node->parent);
@@ -149,7 +149,7 @@ void bnodes_normalize_private(bnode *self, bnode *new_node) {
 				new_node == new_node->parent->right;
 
             if (case3) {
-                bnodes_color color = new_node->parent->color;
+                bnode_color color = new_node->parent->color;
                 new_node->parent->color = new_node->parent->parent->color;
                 new_node->parent->parent->color = color;
                 bnodes_left_rotate_private(self,new_node->parent->parent);
@@ -166,7 +166,7 @@ void bnodes_normalize_private(bnode *self, bnode *new_node) {
 			new_node == new_node->parent->left;
 
             if (case4) {
-                bnodes_color color = new_node->color;
+                bnode_color color = new_node->color;
                 new_node->color = new_node->parent->parent->color;
                 new_node->parent->parent->color = color;
                 bnodes_right_rotate_private(self,new_node->parent);
@@ -174,7 +174,7 @@ void bnodes_normalize_private(bnode *self, bnode *new_node) {
             }
         }
     }
-    self->color = bnodes_black_color; 
+    self->color = bnode_black_color; 
 	//keep self always black
 }
 
@@ -186,7 +186,7 @@ bnode* bnodes_push_private(bnode *self, bnode *new_node, bool *error, size_t sta
 
     if (self == null) { return new_node; }
 
-	if (stackframe > nodes_max_recursion) {
+	if (stackframe > cels_max_recursion) {
 		*error = true;
 
 		return self;
@@ -232,7 +232,7 @@ bnode* bnodes_get_private(bnode *self, size_t hash, size_t stackframe) {
 		return null;
 	}
 
-	if (stackframe > nodes_max_recursion) {
+	if (stackframe > cels_max_recursion) {
 		return null;
 	}
 
@@ -280,7 +280,7 @@ size_t bnodes_get_frequency(bnode *self, size_t hash) {
 }
 
 void bnodes_traverse_private(bnode *self, callfunc callback, size_t stackframe) {
-    if (self == null || stackframe > nodes_max_recursion) { 
+    if (self == null || stackframe > cels_max_recursion) { 
 		return; 
 	}
 
@@ -301,7 +301,7 @@ void bnodes_traverse(bnode *self, callfunc callback) {
 }
 
 void bnodes_iterate_private(bnode *self, enfunctor func, size_t stackframe) {
-    if (self == null || stackframe > nodes_max_recursion) { 
+    if (self == null || stackframe > cels_max_recursion) { 
 		return; 
 	}
 
@@ -324,7 +324,7 @@ void bnodes_iterate(bnode *self, enfunctor func) {
 void bnodes_free_all_private(
 	bnode *self, const allocator *mem, freefunc cleanup, size_t stackframe
 ) {
-    if (self == null || stackframe > nodes_max_recursion) { 
+    if (self == null || stackframe > cels_max_recursion) { 
 		return; 
 	}
 
@@ -345,7 +345,7 @@ void bnodes_free_all(bnode *self, const allocator *mem, freefunc cleanup) {
 }
 
 size_t bnodes_length_private(bnode *self, size_t stackframe) {
-    if (self == null || stackframe > nodes_max_recursion) { 
+    if (self == null || stackframe > cels_max_recursion) { 
 		return 0; 
 	}
 
