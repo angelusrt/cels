@@ -78,6 +78,14 @@ bool chars_is_whitespace(char letter);
  */
 void chars_print_special(char letter);
 
+/*
+ * Checks if string literal is invalid.
+ * Returns true if it is.
+ *
+ * #to-review
+ */
+bool strs_check(const char *self);
+
 /* strings */
 
 /* 
@@ -86,12 +94,8 @@ void chars_print_special(char letter);
  *
  * #automatic
  */
-#define strings_preinit(buffer, length) \
-	char buf_##buffer[length] = ""; \
-	buffer = (string) {.data=buf_##buffer, .size=length, .capacity=length}
-
-/*#define strings_preinit(length) \
-	{.data=(char[length]{0}), .size=0, .capacity=length}*/
+#define strings_preinit(length) \
+	{.data=((char[length]){0}), .size=0, .capacity=length}
 
 /* 
  * Creates a static variable from string literal 
@@ -175,7 +179,7 @@ string strings_init(size_t quantity, const allocator *mem);
  * #tested #posix-reliant #to-edit
  */
 cels_warn_unused
-string strings_make(const char *lit, const allocator *mem);
+string strings_make(const char *literal, const allocator *mem);
 
 /*
  * Allocates a new string hard-copying 'self'.
@@ -185,6 +189,15 @@ string strings_make(const char *lit, const allocator *mem);
  */
 cels_warn_unused
 string strings_clone(const string *self, const allocator *mem);
+
+/*
+ * Creates a capsule over a string literal 
+ * which computes its lenght.
+ *
+ * #to-review
+ */
+cels_warn_unused
+string strings_encapsulate(const char *literal);
 
 /*
  * Creates a view of 'self' delimited 
@@ -318,6 +331,15 @@ cels_warn_unused
 ssize_t strings_find(const string *self, const string substring, size_t pos);
 
 /*
+ * Convenience over 'strings_find' which lets 
+ * you use string literal for the substring.
+ *
+ * #case-insensitive #to-review
+ */
+cels_warn_unused
+ssize_t strings_find_with(const string *self, const char *substring, size_t pos);
+
+/*
  * Finds any character from seps within 'self' 
  * beginning from position 'pos' and returns 
  * the position of where matching began. 
@@ -397,6 +419,14 @@ string strings_replace(
  */
 cels_warn_unused
 string_vec strings_split(const string *self, const string sep, size_t n, const allocator *mem);
+
+/*
+ * A convenience over 'strings_split' which uses 'char *'.
+ *
+ * #to-review
+ */
+cels_warn_unused
+string_vec strings_split_with(const string *self, const char *sep, size_t n, const allocator *mem);
 
 /*
  * Formats the string in form with arguments and 

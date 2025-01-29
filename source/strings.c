@@ -43,6 +43,18 @@ void chars_print_normal(char letter) {
 	}
 }
 
+bool strs_check(const char *self) {
+	#if cels_debug
+		errors_return("self", !self)
+		errors_return("#self", self[0] == '\0')
+	#else
+		if (!self) return true;
+		if (self[0] == '\0') return true;
+	#endif
+
+	return false;
+}
+
 vectors_generate_implementation(
 	char, 
 	char_vec, 
@@ -124,8 +136,7 @@ string strings_init(size_t quantity, const allocator *mem) {
 
 string strings_make(const char *text, const allocator *mem) {
 	#if cels_debug
-		errors_abort("text", !text);
-		errors_abort("text == '\\0'", text[0] == '\0');
+		errors_abort("text", strs_check(text));
 	#endif
 
 	size_t size = strlen(text) + 1;
@@ -158,6 +169,15 @@ string strings_clone(const string *self, const allocator *mem) {
 	#endif
 
 	return dest;
+}
+
+string strings_encapsulate(const char *literal) {
+	#if cels_debug
+		errors_abort("literal", strs_check(literal));
+	#endif
+
+	size_t len = strlen(literal) + 1;
+	return (string){.data=(char *)literal, .size=len, .capacity=len};
 }
 
 string strings_view(const string *self, size_t start, size_t end) {
@@ -249,18 +269,6 @@ void strings_free(string *self, const allocator *mem) {
 
 	char_vecs_free(self, mem);
 }
-
-/*
-void strings_debug(const string *self) {
-	#if cels_debug
-		errors_abort("self", strings_check(self));
-	#endif
-
-	printf(
-		"<string>{.size: %zu, .capacity: %zu, .data: %p}\n", 
-		self->size, self->capacity, self->data);
-}
-*/
 
 void strings_debug(const string *self) {
 	#if cels_debug
@@ -411,6 +419,11 @@ ssize_t strings_find(const string *self, const string substring, size_t pos) {
     }
 
 	return -1;
+}
+
+ssize_t strings_find_with(const string *self, const char *substring, size_t pos) {
+	string substring_capsule = strings_encapsulate(substring);
+	return strings_find(self, substring_capsule, pos);
 }
 
 ssize_t strings_find_from(const string *self, const string seps, size_t pos) {
@@ -705,23 +718,28 @@ string_vec strings_split(const string *self, const string sep, size_t n, const a
     return sentences;
 }
 
-string strings_format(const char *const form, const allocator *mem, ...) {
+string_vec strings_split_with(const string *self, const char *sep, size_t n, const allocator *mem) {
+	string sep_capsule = strings_encapsulate(sep);
+	return strings_split(self, sep_capsule, n, mem);
+}
+
+string strings_format(const char *const format, const allocator *mem, ...) {
 	#if cels_debug
-		errors_abort("form", !form);
-		errors_abort("form == '\\0'", form[0] == '\0');
+		errors_abort("format", !format);
+		errors_abort("format == '\\0'", format[0] == '\0');
 	#endif
 
     va_list args, args2;
     va_start(args, mem);
     *args2 = *args;
 
-    size_t buff_size = vsnprintf(null, 0, form, args) + 1;
+    size_t buff_size = vsnprintf(null, 0, format, args) + 1;
 	size_t new_capacity = buff_size;
 
     char *text = mems_alloc(mem, sizeof(char) * new_capacity);
     errors_abort("text", !text);
 
-    vsnprintf(text, buff_size, form, args2);
+    vsnprintf(text, buff_size, format, args2);
     va_end(args);
 
 	string self = {
@@ -1014,6 +1032,7 @@ string string_vecs_join(string_vec *self, string sep, const allocator *mem) {
 	string joined = strings_init(capacity, mem);
 	for (size_t i = 0; i < self->size; i++) {
 		error push_error = strings_push(&joined, self->data[i], mem);
+		/*TODO?: oblige the usage of allocators and put allocation errors within allocator*/
 		errors_abort("string_push failed", push_error);
 
 		if (i < self->size - 1) {
@@ -1038,13 +1057,17 @@ string_vec string_vecs_make_helper(char *args[], size_t argn, const allocator *m
 	string_vec self = string_vecs_init(vector_min, mem);
 
 	for (size_t i = 0; i < argn; i++) {
+		#if cels_debug
+			errors_abort("args[i]", strs_check(args[i]));
+		#endif
+
 		string text = strings_make(args[i], mem);
 		error push_error = string_vecs_push(&self, text, mem);
 		errors_abort("string_vecs_push failed", push_error);
 	}
 
 	#if cels_debug
-		errors_abort("self", vectors_check((void *)&self));
+		errors_abort("self", vectors_check((const vector *)&self));
 	#endif
 
 	return self;
@@ -1111,10 +1134,8 @@ maps_generate_implementation(
 
 bool string_maps_push_with(string_map *self, const char *key, const char *value, const allocator *mem) {
 	#if cels_debug
-		errors_abort("key", !key);
-		errors_abort("#key", strlen(key) <= 1);
-		errors_abort("value", !value);
-		errors_abort("#value", strlen(value) <= 1);
+		errors_abort("key", strs_check(key));
+		errors_abort("value", strs_check(value));
 	#endif
 
 	string skey = strings_make(key, mem);
