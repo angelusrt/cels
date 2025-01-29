@@ -282,11 +282,11 @@ string_map *https_tokenize(string *request, const allocator *mem) {
 		goto invalid_request2;
 	}
 
-	string_map *requests_attributes = null;
+	string_map *request_attributes = null;
 	for (size_t i = 0; i < header_size; i++) {
 		string key = strings_clone(&headers[i], mem);
 		bool push_status = string_maps_push(
-			requests_attributes, key, header.data[i], mem);
+			request_attributes, key, header.data[i], mem);
 
 		if (push_status) {
 			strings_free(&key, mem);
@@ -294,7 +294,7 @@ string_map *https_tokenize(string *request, const allocator *mem) {
 		}
 	}
 
-	bool is_head_valid = https_head_check(requests_attributes);
+	bool is_head_valid = https_head_check(request_attributes);
 	if (errors_check("https_tokenize.head invalid", is_head_valid == false)) {
 		goto invalid_request3;
 	}
@@ -307,7 +307,7 @@ string_map *https_tokenize(string *request, const allocator *mem) {
 			string value = strings_clone(&attributes.data[i], mem);
 
 			bool push_status = string_maps_push(
-				requests_attributes, body_key, value, mem);
+				request_attributes, body_key, value, mem);
 
 			if (push_status) {
 				strings_free(&body_key, mem);
@@ -317,7 +317,7 @@ string_map *https_tokenize(string *request, const allocator *mem) {
 			mems_dealloc(mem, attribute.data, attribute.capacity);
 		} else if (attribute.size == 2) {
 			bool push_status = string_maps_push(
-				requests_attributes, attribute.data[0], attribute.data[1], mem);
+				request_attributes, attribute.data[0], attribute.data[1], mem);
 
 			if (push_status) {
 				strings_free(&attribute.data[0], mem);
@@ -333,10 +333,10 @@ string_map *https_tokenize(string *request, const allocator *mem) {
 	//string_vecs_free(&header, mem);
 	mems_dealloc(mem, header.data, header.capacity);
 	string_vecs_free(&attributes, mem);
-	return requests_attributes;
+	return request_attributes;
 
 	invalid_request3:
-		string_maps_free(requests_attributes, mem);
+		string_maps_free(request_attributes, mem);
 		mems_dealloc(mem, header.data, header.capacity);
 		string_vecs_free(&attributes, mem);
 		return null;
@@ -437,15 +437,15 @@ void *https_handle_client(void *args) {
 
 	#define https_request_size 1024
 	string request = strings_init(https_request_size, mem);
-    ssize_t requests_bytes = recv(
+    ssize_t request_bytes = recv(
 		client_descriptor, 
 		request.data, 
 		request.capacity, 
 		0);
 
 	#if cels_debug
-		errors_warn("https_handle_client.recv error'ed", requests_bytes < 0);
-		if (requests_bytes < 0) {
+		errors_warn("https_handle_client.recv error'ed", request_bytes < 0);
+		if (request_bytes < 0) {
 			fprintf(
 				stderr, 
 				"recv: %s (%d), client_descriptor: %d\n", 
@@ -455,28 +455,28 @@ void *https_handle_client(void *args) {
 		} 
 	#endif
 
-    if(requests_bytes > 0) {
-		request.size = requests_bytes + 1;
+    if(request_bytes > 0) {
+		request.size = request_bytes + 1;
 
-		string_map *requests_attributes = https_tokenize(&request, mem);
+		string_map *request_attributes = https_tokenize(&request, mem);
 
-		if (!requests_attributes) { 
+		if (!request_attributes) { 
 			goto cleanup0; 
 		}
 
-		if (requests_attributes) {
-			size_t size = bnodes_length((bnode *)requests_attributes);
+		if (request_attributes) {
+			size_t size = bnodes_length((bnode *)request_attributes);
 			if (size == 0) { 
 				goto cleanup1; 
 			}
 		}
 
-		router_private *callback = https_find_route(routes, requests_attributes, mem);
+		router_private *callback = https_find_route(routes, request_attributes, mem);
 		errors_abort("callback.func", !callback->func);
-		callback->func(requests_attributes, client_descriptor, callback->params);
+		callback->func(request_attributes, client_descriptor, callback->params);
 
 		cleanup1:
-		string_maps_free(requests_attributes, mem);
+		string_maps_free(request_attributes, mem);
     }
 
 	cleanup0:
@@ -730,8 +730,8 @@ void https_serve(short port, router_vec *callbacks, const allocator *mem) {
 
 	errors_abort("bind failed", bind_statusus == -1);
 
-	#define https_requests_maximum 200
-    short listen_statusus = listen(socket_descriptor, https_requests_maximum);
+	#define https_request_maximum 200
+    short listen_statusus = listen(socket_descriptor, https_request_maximum);
 	errors_abort("listen failed", listen_statusus == -1);
 
     while (true) {
@@ -777,360 +777,4 @@ void https_send(int client_connection, const string *body, const string *head) {
 
 	send(client_connection, head->data, head->size, 0);
 	send(client_connection, body->data, body->size, 0);
-}
-
-/*
- * TODO: Make it cross-platform.
- * TODO: Convert host to url and create.
- * function to pre-process it.
- * TODO: Strengthen validation.
- * TODO: Implement ssl/https.
- * TODO: Convert header from string to string_vec.
- */
-
-#define https_buffer_size 1024
-
-estring https_request_securely_private(
-	int socket_descriptor, const string *header, const string *body, const allocator *mem
-) {
-	int crypto_options = 
-		OPENSSL_INIT_ADD_ALL_CIPHERS | 
-		OPENSSL_INIT_ADD_ALL_DIGESTS | 
-		OPENSSL_INIT_LOAD_CRYPTO_STRINGS;
-
-    int init_status = OPENSSL_init_crypto(crypto_options, null);
-
-	if(init_status < 0) {
-		return (estring){.error=requests_initializing_crypto_error};
-	}
-
-	//
-
-	int ssl_options = 
-		OPENSSL_INIT_LOAD_SSL_STRINGS | 
-		OPENSSL_INIT_LOAD_CRYPTO_STRINGS;
-
-	init_status = OPENSSL_init_ssl(ssl_options, null);
-
-	if(init_status < 0) {
-		return (estring){.error=requests_initializing_ssl_error};
-	}
-
-	//
-
-	/*
-	BIO *certbio = BIO_new(BIO_s_file());
-	BIO *outbio  = BIO_new_fp(stdout, BIO_NOCLOSE);
-
-	if(!certbio || !outbio) {
-		return (estring){.error=requests_initializing_bio_error};
-	}
-
-	init_status = SSL_library_init();
-	if(init_status < 0) {
-		return (estring){.error=requests_initializing_library_error};
-	}
-	*/
-
-	//
-
-	const SSL_METHOD *method = TLS_client_method();
-	SSL_CTX *ctx = SSL_CTX_new(method);
-
-	if(!method || !ctx) {
-		return (estring){.error=requests_creating_context_error};
-	}
-
-	SSL_CTX_set_options(ctx, 0);
-	SSL *ssl = SSL_new(ctx);
-
-	if(!ssl) {
-		SSL_CTX_free(ctx);
-		return (estring){.error=requests_creating_context_error};
-	}
-
-	//
-
-	int set_status = SSL_set_fd(ssl, socket_descriptor);
-	
-	if(set_status < 0) {
-		SSL_free(ssl);
-		SSL_CTX_free(ctx);
-
-		return (estring){.error=requests_binding_secure_connection_error};
-	}
-
-	//
-
-	int connection_status = SSL_connect(ssl);
-
-	if(connection_status != 1) {
-        ERR_print_errors_fp(stderr);
-
-		SSL_free(ssl);
-		SSL_CTX_free(ctx);
-
-		return (estring){.error=requests_opening_secure_connection_error};
-	}
-
-	//
-
-	string message = strings_format(
-		"%s\r\n\r\n%s\r\n", mem, header->data, body->data);
-
-	//
-	
-	int write_status = SSL_write(ssl,message.data, message.size);
-
-	if(write_status <= 0) {
-		SSL_free(ssl);
-		SSL_CTX_free(ctx);
-		return (estring){.error=requests_sending_error};
-	}
-
-	//
-
-	string response = strings_init(https_buffer_size, mem);
-
-    do {
-        long bytes = SSL_read(
-			ssl,
-			response.data + response.size, 
-			response.capacity - response.size);
-
-        if (bytes < 0) {
-			strings_free(&response, mem);
-			SSL_free(ssl);
-			SSL_CTX_free(ctx);
-			return (estring){.error=requests_receiving_error};
-		} else if (bytes == 0) {
-            break;
-		}
-
-        response.size += bytes;
-
-		if (response.size >= response.capacity) {
-			bool upscale_status = char_vecs_upscale(&response, mem);
-
-			if (upscale_status) {
-				strings_free(&response, mem);
-				SSL_free(ssl);
-				SSL_CTX_free(ctx);
-				return (estring){.error=requests_upscaling_error};
-			}
-		}
-    } while (response.size < response.capacity);
-
-	bool push_error = char_vecs_push(&response, '\0', mem);
-	if (push_error) {
-		strings_free(&response, mem);
-		SSL_free(ssl);
-		SSL_CTX_free(ctx);
-		return (estring){.error=requests_upscaling_error};
-	}
-
-	//
-
-	SSL_free(ssl);
-	SSL_CTX_free(ctx);
-
-    return (estring){.value=response};
-}
-
-estring https_request_insecurely_private(
-	int socket_descriptor, const string *header, const string *body, const allocator *mem
-) {
-	string message = strings_format(
-		"%s\r\n\r\n%s\r\n", mem, header->data, body->data);
-    long sent = 0;
-
-	int send_status = send(
-		socket_descriptor, 
-		message.data + sent, 
-		message.size - sent,
-		0);
-
-	strings_free(&message, mem);
-	if (send_status < 0) {
-		return (estring){.error=requests_sending_error};
-	}
-
-	string response = strings_init(https_buffer_size, mem);
-
-    do {
-        long bytes = recv(
-			socket_descriptor, 
-			response.data + response.size, 
-			response.capacity - response.size,
-			0);
-
-        if (bytes < 0) {
-			strings_free(&response, mem);
-			return (estring){.error=requests_receiving_error};
-		} else if (bytes == 0) {
-            break;
-		}
-
-        response.size += bytes;
-
-		if (response.size >= response.capacity) {
-			bool upscale_status = char_vecs_upscale(&response, mem);
-
-			if (upscale_status) {
-				strings_free(&response, mem);
-				return (estring){.error=requests_upscaling_error};
-			}
-		}
-    } while (response.size < response.capacity);
-
-	//
-
-    close(socket_descriptor);
-    return (estring){.value=response};
-}
-
-cels_warn_unused
-estring https_request(
-	const string *host, 
-	const string *header, 
-	const string *body, 
-	const request_options *opts, 
-	const allocator *mem
-) {
-	#if cels_debug
-		errors_abort("host", strings_check(host));
-		errors_abort("header", strings_check(header));
-	#endif
-
-	// validation
-	
-	string host_charset = strings_premake("abcdefghijklmnopqrstuvwxyz.-1234567890");
-	bool is_host_valid = strings_check_charset(host, host_charset);
-
-	if (!is_host_valid) {
-		return (estring){.error=requests_illegal_host_error};
-	}
-
-	//
-	
-	string port = strings_premake("80");
-	if (opts && opts->port.data) {
-		port = opts->port;
-	}
-
-	struct addrinfo server_info = {
-		.ai_family=AF_UNSPEC,
-		.ai_socktype=SOCK_STREAM,
-		.ai_flags = 0,
-		.ai_protocol = 0,
-	};
-
-	struct addrinfo *server;
-	int get_status = getaddrinfo(host->data, port.data, &server_info, &server);
-	printf("get_status: %d\n", get_status);
-
-	if (get_status < 0) {
-		return (estring){.error=requests_dns_not_resolved_error};
-	}
-
-	if (!server) {
-		return (estring){.error=requests_dns_not_resolved_error};
-	}
-
-	//
-
-	#if cels_debug
-		void *address = null;
-		if (server->ai_family == AF_INET) {
-			struct sockaddr_in *ipv4 = (struct sockaddr_in *)server->ai_addr;
-			address = &(ipv4->sin_addr);
-		} else {
-			struct sockaddr_in6 *ipv6 = (struct sockaddr_in6 *)server->ai_addr;  
-			address = &(ipv6->sin6_addr);
-		}
-
-		char ip[INET6_ADDRSTRLEN];
-		inet_ntop(server->ai_family, address, ip, sizeof(ip)); 
-
-		string address_formated = strings_format(
-			"https_request.address = %s", mem, ip);
-
-		errors_print(errors_success_mode, address_formated.data, null);
-	#endif 
-
-	//
-
-	int socket_descriptor = socket(
-		server->ai_family, 
-		server->ai_socktype, 
-		server->ai_protocol);
-
-	#if cels_debug
-		printf("\n");
-		errors_print(
-			errors_success_mode, 
-			"https_request.socket_descriptor = %d\n", 
-			socket_descriptor);
-	#endif 
-
-	if (socket_descriptor < 0) {
-		return (estring){.error=requests_socket_creation_error};
-	}
-
-	//
-
-	#define https_requests_timeout 5
-	struct timeval timeout = {
-		.tv_sec=https_requests_timeout, 
-		.tv_usec=0};
-
-	if (opts && opts->timeout != 0) {
-		timeout.tv_sec = opts->timeout;
-	}
-
-	int set_status = setsockopt(
-		socket_descriptor, 
-		SOL_SOCKET, 
-		SO_RCVTIMEO, 
-		(const char*)&timeout, 
-		sizeof(timeout));
-
-	if (set_status < 0) {
-		return (estring){.error=requests_set_socket_option_error};
-	}
-
-	//
-
-	int conn_status = connect(
-		socket_descriptor, 
-		server->ai_addr, 
-		server->ai_addrlen);
-
-	freeaddrinfo(server);
-
-	#if cels_debug
-		errors_print(
-			errors_success_mode, 
-			"https_request.connect = %d\n",
-			conn_status);
-	#endif 
-
-	if (conn_status < 0) { 
-		return (estring){.error=requests_connection_error};
-	}
-
-	//
-
-	const string https_default_port = strings_premake("80");
-	const string https_default_secure_port = strings_premake("443");
-
-	if (strings_equals(&port, &https_default_port)) {
-		return https_request_insecurely_private(
-			socket_descriptor, header, body, mem);
-	} else if (strings_equals(&port, &https_default_secure_port)) {
-		return https_request_securely_private(
-			socket_descriptor, header, body, mem);
-	}
-
-	return (estring){.error=requests_port_error};
 }

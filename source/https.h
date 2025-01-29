@@ -168,34 +168,6 @@ bool router_nodes_equals(const router_node *r0, const router_node *r1);
 cels_warn_unused
 bool router_nodes_seems(const router_node *r0, const router_node *r1);
 
-/* requests */
-
-typedef enum request_error {
-	requests_successfull,
-	requests_illegal_host_error,
-	requests_dns_not_resolved_error,
-	requests_socket_creation_error,
-	requests_set_socket_option_error,
-	requests_connection_error,
-	requests_sending_error,
-	requests_receiving_error,
-	requests_upscaling_error,
-	requests_initializing_crypto_error,
-	requests_initializing_ssl_error,
-	requests_initializing_bio_error,
-	requests_initializing_library_error,
-	requests_creating_context_error,
-	requests_opening_secure_connection_error,
-	requests_binding_secure_connection_error,
-	requests_certification_error,
-	requests_port_error,
-} request_error;
-
-typedef struct request_options {
-	ulong timeout;
-	string port;
-} request_options;
-
 /* https */
 
 static const string https_default_head = 
@@ -219,19 +191,5 @@ void https_default_not_found(string_map *request, int client_connection, void *p
  * Sends body and head to client. 
  */
 void https_send(int client_connection, const string *body, const string *head);
-
-/*
- * Requests a site and returns 
- * response in estring.
- *
- * #implicitly-allocates #allocates
- */
-cels_warn_unused
-estring https_request(
-	const string *host, 
-	const string *header, 
-	const string *body, 
-	const request_options *opts, 
-	const allocator *mem);
 
 #endif
