@@ -14,12 +14,11 @@
 
 /* definitions */
 
-typedef void *(*allocfunc)(void *, size_t);
-typedef error (*deallocfunc)(void *, void *, size_t);
-typedef void *(*reallocfunc)(void *, void *, size_t, size_t);
-typedef void (*debugfunc)(void *);
-typedef void (*cleanfunc)(void *);
-typedef void *(*mallocfunc)(size_t);
+typedef void *(*allocfunc)(void *storage, size_t size);
+typedef error (*deallocfunc)(void *storage, void *data, size_t size);
+typedef void *(*reallocfunc)(void *storage, void *data, size_t prev, size_t size);
+typedef void (*debugfunc)(void *storage);
+typedef void (*cleanfunc)(void *data);
 
 /* allocators */
 
@@ -30,15 +29,16 @@ typedef enum allocator_type {
 
 typedef struct allocator {
 	allocator_type type;
+	error error;
+	void *storage;
 	allocfunc alloc;
 	reallocfunc realloc;
 	cleanfunc free;
-	void *storage;
 	deallocfunc dealloc;
 	debugfunc debug;
 } allocator;
 
-typedef void (*freefunc)(void *, const allocator *);
+typedef void (*freefunc)(void *storage, const allocator *mem);
 
 /* 
  * Checks the validity of an allocator.
@@ -85,15 +85,6 @@ allocator stack_arenas_init_helper(size_t capacity, char *buffer);
 
 /* allocs */
 
-typedef struct alloc {
-	allocator_type type;
-	cels_warn_unused
-	mallocfunc alloc;
-	cels_warn_unused
-	allocfunc realloc;
-	cleanfunc free;
-} alloc;
-
 /*
  * It returns a static individual allocator 
  * that allocates to the heap. Cleanup should 
@@ -102,7 +93,7 @@ typedef struct alloc {
  * #to-review
  */
 cels_warn_unused
-alloc allocs_init(void);
+allocator allocs_init(void);
 
 /* mems */
 

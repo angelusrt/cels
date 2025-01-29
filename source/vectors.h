@@ -164,11 +164,16 @@ typedef vectors(void *) vector;
 			errors_abort("self", vectors_check((const vector *)self)); \
 		} \
 		\
+		bool is_oversized = false; \
+		if (self->size < self->capacity >> 1) { \
+			is_oversized = true; \
+		} \
+		\
 		cleanup0(&self->data[self->size - 1], mem); \
 		self->size--; \
 		error downscale_error = ok; \
 		\
-		if (self->size < self->capacity >> 1) { \
+		if (!is_oversized && self->size < self->capacity >> 1) { \
 			downscale_error = name##s_downscale(self, mem); \
 		} \
 		\

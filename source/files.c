@@ -6,24 +6,29 @@ estring files_read(file *self, const allocator *mem) {
 		errors_abort("self", !self);
 	#endif
 
+	error error = ok;
 	long current_position = ftell(self);
 	if (current_position == -1) {
-		return (estring){.error=file_telling_position_error};
+		error = file_telling_position_error;
+		goto cleanup0;
 	}
 
 	int seek_error = fseek(self, 0, SEEK_END);
 	if (seek_error == -1) {
-		return (estring){.error=file_seeking_position_error};
+		error = file_seeking_position_error;
+		goto cleanup0;
 	}
 
 	long last_position = ftell(self);
 	if (last_position == -1) {
-		return (estring){.error=file_telling_position_error};
+		error = file_telling_position_error;
+		goto cleanup0;
 	}
 
 	seek_error = fseek(self, 0, SEEK_SET);
 	if (seek_error == -1) {
-		return (estring){.error=file_seeking_position_error};
+		error = file_seeking_position_error;
+		goto cleanup0;
 	}
 
 	size_t new_capacity = (last_position + 1) - current_position;
@@ -32,21 +37,22 @@ estring files_read(file *self, const allocator *mem) {
 	long bytes_read = fread(buffer.data, 1, buffer.capacity - 1, self);
 	buffer.size = bytes_read + 1;
 
-	int error = 0;
 	if (feof(self)) {
 		error = file_did_not_end_error;
-		goto error;
+		goto cleanup1;
 	}
 
 	if (ferror(self)) {
 		error = file_other_error;
-		goto error;
+		goto cleanup1;
 	}
 
 	return (estring){.value=buffer};
 
-	error:
+	cleanup1:
 	strings_free(&buffer, mem);
+
+	cleanup0:
 	return (estring){.error=error};
 }
 
@@ -90,7 +96,7 @@ estring_vec files_list(const string path, const allocator *mem) {
 
 		string file = strings_make(entity->d_name, mem);
 
-		bool push_error = string_vecs_fpush(&files, file, mem);
+		bool push_error = string_vecs_force(&files, file, mem);
 		if (push_error) {
 			return (estring_vec){.error=file_allocation_error};
 		}
@@ -135,6 +141,11 @@ ssize_t files_find(file *self, const string substring, ssize_t pos) {
 }
 
 ssize_t files_find_from(file *self, const string seps, ssize_t pos) {
+	#if cels_debug
+		errors_abort("self", !self);
+		errors_abort("seps", strings_check_extra(&seps));
+	#endif
+
 	if (pos >= 0) {
 		ssize_t position = fseek(self, pos, SEEK_SET);
 		if (position == -1) { return -2; }
@@ -163,9 +174,8 @@ ssize_t files_find_from(file *self, const string seps, ssize_t pos) {
 bool files_next(file *self, string *line_view, const allocator *mem) {
 	#if cels_debug
 		errors_abort("self", !self);
+		errors_abort("line_view", strings_check(line_view));
 	#endif
-
-	//check self and line_view
 
 	long current_position = ftell(self);
 	if (current_position == -1) {
@@ -178,9 +188,7 @@ bool files_next(file *self, string *line_view, const allocator *mem) {
 
 		if (current_position != 0) {
 			long pos = fseek(self, 0, SEEK_SET);
-			if (pos == -1) {
-				return file_seeking_position_error;
-			}
+			if (pos == -1) { return file_seeking_position_error; }
 		}
 	}
 
@@ -195,38 +203,24 @@ bool files_next(file *self, string *line_view, const allocator *mem) {
 	};
 
 	ssize_t next_position = files_find_from(self, line_separator, current_position + 1);
-	if (next_position == -1) {
-		return true;
-	}
+	if (next_position == -1) { return true; }
 
 	size_t capacity = next_position + 1 - current_position;
 	while (capacity > line_view->capacity) {
 		error upscale_error = char_vecs_upscale(line_view, mem);
-		if (upscale_error) {
-			return file_allocation_error;
-		}
+		if (upscale_error) { return file_allocation_error; }
 	}
 
 	long seek_error = fseek(self, current_position, SEEK_SET);
-	if (seek_error == -1) {
-		return file_seeking_position_error;
-	}
+	if (seek_error == -1) { return file_seeking_position_error; }
 
 	size_t bytes_read = fread(line_view->data, 1, capacity, self);
-	if (bytes_read == 0) {
-		return file_reading_error;
-	}
+	if (bytes_read == 0) { return file_reading_error; }
 
 	line_view->size = bytes_read;
 	line_view->data[line_view->size - 1] = '\0';
 
-	/*if (feof(self)) {
-		return file_did_not_end_error;
-	}*/
-
-	if (ferror(self)) {
-		return file_other_error;
-	}
+	if (ferror(self)) { return file_other_error; }
 
 	return false;
 }
@@ -246,9 +240,7 @@ estring files_normalize(const string *filepath, const allocator *mem) {
 	size_t i = 0;
 	while(true) {
 		if (strings_seems(&file_nodes.data[i], &two_dots)) {
-			if (i == 0) {
-				goto error;
-			}
+			if (i == 0) { goto cleanup; }
 
 			string_vecs_shift(&file_nodes, i - 1, mem);
 			string_vecs_shift(&file_nodes, i - 1, mem);
@@ -266,16 +258,16 @@ estring files_normalize(const string *filepath, const allocator *mem) {
 
 	for (size_t i = 0; i < file_nodes.size; i++) {
 		error push_error = strings_push(&path_normalized, file_sep, mem);
-		if (push_error) { goto error; }
+		if (push_error) { goto cleanup; }
 
 		push_error = strings_push(&path_normalized, file_nodes.data[i], mem);
-		if (push_error) { goto error; }
+		if (push_error) { goto cleanup; }
 	}
 
 	string_vecs_free(&file_nodes, mem);
 	return (estring){.value=path_normalized};
 
-	error:
+	cleanup:
 	strings_free(&path_normalized, mem);
 	string_vecs_free(&file_nodes, mem);
 	return (estring){.error=file_mal_formed_error};
@@ -293,9 +285,7 @@ estring files_path(const string *filepath, const allocator *mem) {
 		return (estring){.value=strings_clone(filepath, mem)};
 	}
 
-	string working_directory = {0};
-	strings_preinit(working_directory, PATH_MAX);
-
+	string working_directory = strings_preinit(PATH_MAX);
 	getcwd(working_directory.data, working_directory.capacity);
 	working_directory.size = strlen(working_directory.data) + 1;
 	working_directory.data[working_directory.size - 1] = '\0';
@@ -311,7 +301,7 @@ estring files_path(const string *filepath, const allocator *mem) {
 
 error files_make_directory(const char *path, notused __mode_t mode) {
 	#if cels_debug
-		errors_abort("path", strings_check_extra(path));
+		errors_abort("path", strs_check(path));
 	#endif
 
 	error error = ok;
@@ -332,5 +322,5 @@ error files_make_directory(const char *path, notused __mode_t mode) {
 		error = mkdir(path, mode); 
 	#endif
 
-	return error == 1 ? file_directory_not_created_error : 0;
+	return error == fail ? file_directory_not_created_error : ok;
 }

@@ -547,23 +547,23 @@ allocator stack_arenas_init_helper(size_t capacity, char *buffer) {
 
 /* allocs */
 
-void *allocs_allocate(size_t size) {
+void *allocs_allocate(notused void *storage, size_t size) {
 	return malloc(size);
 }
 
-void *allocs_reallocate(void *data, size_t size) {
+void *allocs_reallocate(notused void *storage, void *data, notused size_t prev, size_t size) {
 	return realloc(data, size);
 }
 
-void allocs_free(void *data) {
+void allocs_free(notused void *storage, void *data) {
 	free(data);
 }
 
-alloc allocs_init(void) {
-	static alloc alloc = {
+allocator allocs_init(void) {
+	static allocator alloc = {
 		.type=allocators_individual_type,
-		.alloc=(mallocfunc)allocs_allocate,
-		.realloc=(allocfunc)allocs_reallocate,
+		.alloc=(allocfunc)allocs_allocate,
+		.realloc=(reallocfunc)allocs_reallocate,
 		.free=(cleanfunc)allocs_free,
 	};
 
@@ -578,7 +578,7 @@ void *mems_alloc(const allocator *mem, size_t len) {
 	} 
 
 	if (mem->type == allocators_individual_type) {
-		return ((alloc *)mem)->alloc(len);
+		return mem->alloc(null, len);
 	} else if (mem->type == allocators_group_type) {
 		return mem->alloc(mem->storage, len);
 	}
@@ -597,7 +597,7 @@ void *mems_realloc(
 	} 
 
 	if (mem->type == allocators_individual_type) {
-		return ((alloc *)mem)->realloc(data, new_size);
+		return mem->realloc(null, data, null, new_size);
 	} else if (mem->type == allocators_group_type) {
 		return mem->realloc(mem->storage, data, old_size, new_size);
 	}
@@ -616,7 +616,7 @@ error mems_dealloc(const allocator *mem, void *data, size_t block_size) {
 	} 
 
 	if (mem->type == allocators_individual_type) {
-		((alloc *)mem)->free(data);
+		mem->free(data);
 		return ok;
 	} else if (mem->type == allocators_group_type) {
 		return mem->dealloc(mem->storage, data, block_size);
@@ -631,7 +631,7 @@ void mems_free(const allocator *mem, void *data) {
 	} 
 
 	if (mem->type == allocators_individual_type) {
-		((alloc *)mem)->free(data);
+		mem->free(data);
 	} else if (mem->type == allocators_group_type) {
 		mem->free(mem->storage);
 	}
