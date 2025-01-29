@@ -17,7 +17,7 @@ typedef enum task_state {
 	task_ready_state,
 } task_state;
 
-typedef task_state (*taskfunc)(void *, size_t *state);
+typedef task_state (*taskfunc)(void *params);
 
 typedef struct task_functor {
 	taskfunc func;
@@ -26,18 +26,29 @@ typedef struct task_functor {
 
 typedef struct task {
 	task_functor callback;
-	size_t state;
 	task_state status;
 } task;
 
 lists_generate_definition(routine, task)
+
+typedef task_state (*supervisorfunc)(routine *routine, task *task, void *params);
+
+typedef struct supervisor_functor {
+	supervisorfunc func;
+	void *params;
+} supervisor_functor;
+
+typedef struct supervisor {
+	supervisor_functor callback;
+	task_state status;
+} supervisor;
 
 /*
  * Executes tasks in a concurrent manner.
  *
  * #to-review
  */
-bool routines_make(routine *self);
+bool routines_make(routine *self, supervisor *supervisor);
 
 /*
  * Convenience over 'push' that 

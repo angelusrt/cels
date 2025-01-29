@@ -2,22 +2,31 @@
 
 lists_generate_implementation(routine, task, defaults_free)
 
-bool routines_make(routine *self) {
+bool routines_make(routine *self, supervisor *supervisor) {
 	while (true) {
 		bool is_finished = true;
 
 		routine_iterator it = {0};
 		while (routines_next(self, &it)) {
-			int status = it.data->callback.func(
-				it.data->callback.params,
-				&it.data->state);
-
-			if (status != task_finished_state) {
-				it.data->status = status;
-				is_finished = false;
-			} else {
-				it.data->status = 0;
+			if (it.data->status == task_finished_state) {
+				continue;
 			}
+
+			int status = it.data->callback.func(
+				it.data->callback.params);
+
+			it.data->status = status;
+			if (status != task_finished_state) {
+				is_finished = false;
+			} 
+
+			if (supervisor && supervisor->status != task_finished_state) {
+				int super_status = supervisor->callback.func(
+					self, it.data, supervisor->callback.params);
+
+				supervisor->status = super_status;
+ 			}
+
 		}
 
 		if (is_finished) {
