@@ -56,6 +56,45 @@ estring files_read(file *self, const allocator *mem) {
 	return (estring){.error=error};
 }
 
+bool files_read_async(file *self, string *file, size_t size, error *error, const allocator *mem) {
+	#if cels_debug
+		errors_abort("self", !self);
+		errors_abort("file", strings_check(file));
+		errors_abort("error", !error);
+	#endif
+
+	long current_position = ftell(self);
+	if (current_position == -1) {
+		*error = file_telling_position_error;
+		goto cleanup0;
+	}
+
+	if (!file->data) {
+		*file = strings_init(string_small_size, mem);
+	}
+
+	size_t step = maths_min((file->capacity - file->size), size);
+	long bytes_read = fread(file->data + file->size, 1, step, self);
+	file->size += bytes_read + 1;
+
+	if (bytes_read == 0) {
+		return false;
+	}
+
+	if (ferror(self)) {
+		*error = file_other_error;
+		goto cleanup1;
+	}
+
+	return true;
+
+	cleanup1:
+	strings_free(file, mem);
+
+	cleanup0:
+	return false;
+}
+
 error files_write(file *self, const string text) {
 	#if cels_debug
 		errors_abort("self", !self);
@@ -69,6 +108,32 @@ error files_write(file *self, const string text) {
 
 	return file_successfull;
 }
+
+bool files_write_async(file *self, const string text, size_t size, size_t *cursor, error *error) {
+	#if cels_debug
+		errors_abort("self", !self);
+		errors_abort("text", strings_check_extra(&text));
+		errors_abort("error", !error);
+		errors_abort("cursor", !cursor);
+	#endif
+
+	size_t step = maths_min((text.size - 1 - *cursor), size);
+	size_t writen = fwrite(text.data + *cursor, 1, step, self);
+
+	if ((long)writen < (long)step) {
+		*error = file_writing_error;
+		return false;
+	}
+
+	*cursor += writen;
+
+	if (writen == 0) {
+		return false;
+	}
+
+	return true;
+}
+
 
 estring_vec files_list(const string path, const allocator *mem) {
 	#if cels_debug

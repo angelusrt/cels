@@ -53,12 +53,28 @@ cels_warn_unused
 estring files_read(file *self, const allocator *mem);
 
 /*
+ * Read files without blocking.
+ *
+ * #to-review
+ */
+cels_warn_unused
+bool files_read_async(file *self, string *file, size_t size, error *error, const allocator *mem);
+
+/*
  * Write text to file and reports 
  * a file_error if any happened.
  *
  * #to-review
  */
 error files_write(file *self, const string text);
+
+/*
+ * Write text to file non-blocking.
+ *
+ * #to-review
+ */
+bool files_write_async(file *self, const string text, size_t size, size_t *cursor, error *error);
+
 
 /*
  * Lists all files and folders of 
