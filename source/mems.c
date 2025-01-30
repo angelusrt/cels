@@ -555,7 +555,7 @@ void *allocs_reallocate(notused void *storage, void *data, notused size_t prev, 
 	return realloc(data, size);
 }
 
-void allocs_free(notused void *storage, void *data) {
+void allocs_free(void *data) {
 	free(data);
 }
 
@@ -597,7 +597,7 @@ void *mems_realloc(
 	} 
 
 	if (mem->type == allocators_individual_type) {
-		return mem->realloc(null, data, null, new_size);
+		return mem->realloc(null, data, 0, new_size);
 	} else if (mem->type == allocators_group_type) {
 		return mem->realloc(mem->storage, data, old_size, new_size);
 	}
