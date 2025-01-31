@@ -20,67 +20,6 @@
 	case '8': \
 	case '9' 
 
-void jsons_shift_private(string *section, size_t position) {
-	#if cels_debug
-		errors_abort("section", strings_check_extra(section));
-	#endif
-
-	for (size_t i = position; i < section->size - 1; i++) {
-		section->data[i] = section->data[i + 1];
-	}
-
-	section->size--;
-}
-
-void jsons_normalize_private(string *section) {
-	#if cels_debug
-		errors_abort("section", strings_check_extra(section));
-	#endif
-
-	for (size_t i = 0; i < section->size - 1; i++) {
-		if (section->data[i] == '\\') {
-			jsons_shift_private(section, i);
-
-			switch (section->data[i]) {
-			case '\\':
-				continue;
-			case 't':
-				section->data[i] = '\t';
-				continue;
-			case 'r':
-				section->data[i] = '\r';
-				continue;
-			case 'n':
-				section->data[i] = '\n';
-				continue;
-			}
-		}
-	}
-}
-
-typedef struct range {
-	size_t start, end;
-} range;
-
-cels_warn_unused
-string jsons_get_section_private(const string *json, range interval, const allocator *mem) {
-	#if cels_debug
-		errors_abort("json", strings_check_extra(json));
-	#endif
-
-	string section_view = {
-		.data=json->data+interval.start,
-		.size=interval.end-interval.start,
-		.capacity=(interval.end-interval.start)+1,
-	};
-
-	string section = strings_clone(&section_view, mem);
-	section.size++;
-	section.data[section.capacity] = '\0';
-
-	return section;
-}
-
 string jsons_parse_text_private(const string *json, size_t *position, const allocator *mem) {
 	#if cels_debug
 		errors_abort("json", strings_check_extra(json));
@@ -88,46 +27,50 @@ string jsons_parse_text_private(const string *json, size_t *position, const allo
 	#endif
 
 	size_t pos = *position;
-	range quote = {0};
+	size_t start = 0;
+	size_t end = 0;
 
 	for (size_t i = pos; i < json->size - 1; i++) {
 		if (json->data[i] == '"') {
-			if (quote.start == 0) {
-				quote.start = i + 1;
+			if (start == 0) {
+				start = i + 1;
 			} else {
 				bool was_escaped = json->data[i - 1] == '\\';
 				if (was_escaped) {
 					continue;
 				}
 
-				quote.end = i;
+				end = i;
 				break;
 			}
 		}
 	}
 
-	if ((quote.start > quote.end) || (quote.start == quote.end)) {
+	if ((start > end) || (start == end)) {
 		goto error;
 	}
 
-	string text = jsons_get_section_private(json, quote, mem);
-	jsons_normalize_private(&text);
+	string text = strings_copy(json, start, end, mem);
+	strings_normalize(&text);
 
-	*position += (quote.end - quote.start) + 1;
+	*position += (end - start) + 1;
 	return text;
 
 	error:
 	return (string){0};
 }
 
-string jsons_parse_struct_private(const string *json, size_t *position, bool is_object, const allocator *mem) {
+string jsons_parse_struct_private(
+	const string *json, size_t *position, bool is_object, const allocator *mem
+) {
 	#if cels_debug
 		errors_abort("json", strings_check_extra(json));
 		errors_abort("position", !position);
 	#endif
 
 	size_t pos = *position;
-	range bracket = {0};
+	size_t start = 0;
+	size_t end = 0;
 
 	char opening = is_object ? '{' : '[';
 	char closing = is_object ? '}' : ']';
@@ -137,9 +80,7 @@ string jsons_parse_struct_private(const string *json, size_t *position, bool is_
 	ssize_t count = 0;
 	for (size_t i = pos; i < json->size - 1; i++) {
 		if (json->data[i] == opening && !is_inside_quotes) {
-			if (!has_startet) {
-				bracket.start = i;
-			}
+			if (!has_startet) { start = i; }
 
 			count++;
 			has_startet = true;
@@ -165,19 +106,19 @@ string jsons_parse_struct_private(const string *json, size_t *position, bool is_
 				} 
 
 				if (count == 0) {
-					bracket.end = i + 1;
+					end = i + 1;
 					break;
 				}
 			}
 		}
 	}
 
-	if ((bracket.start > bracket.end) || (bracket.start == bracket.end)) {
+	if ((start > end) || (start == end)) {
 		goto error;
 	}
 
-	string text = jsons_get_section_private(json, bracket, mem);
-	*position += (bracket.end - 1) - bracket.start;
+	string text = strings_copy(json, start, end, mem);
+	*position += (end - 1) - start;
 	return text;
 
 	error:
@@ -190,7 +131,8 @@ string jsons_parse_naked_private(const string *json, size_t *position, const all
 		errors_abort("position", !position);
 	#endif
 
-	range interval = {0};
+	size_t start = 0;
+	size_t end = 0;
 	size_t pos = *position;
 
 	switch (json->data[pos]) {
@@ -205,8 +147,8 @@ string jsons_parse_naked_private(const string *json, size_t *position, const all
 			json->data[pos + 3] == 'e';
 
 		if (is_valid_true) {
-			interval.start = pos;
-			interval.end = pos + 4;
+			start = pos;
+			end = pos + 4;
 		} else {
 			goto error;
 		}
@@ -223,8 +165,8 @@ string jsons_parse_naked_private(const string *json, size_t *position, const all
 			json->data[pos + 4] == 'e';
 
 		if (is_valid_false) {
-			interval.start = pos;
-			interval.end = pos + 5;
+			start = pos;
+			end = pos + 5;
 		} else {
 			goto error;
 		}
@@ -240,8 +182,8 @@ string jsons_parse_naked_private(const string *json, size_t *position, const all
 			json->data[pos + 3] == 'l';
 
 		if (is_valid_null) {
-			interval.start = pos;
-			interval.end = pos + 4;
+			start = pos;
+			end = pos + 4;
 		} else {
 			goto error;
 		}
@@ -255,8 +197,8 @@ string jsons_parse_naked_private(const string *json, size_t *position, const all
 			case ',':
 			case ']':
 			case '}':
-				interval.start = pos;
-				interval.end = i;
+				start = pos;
+				end = i;
 				is_end = true;
 				break;
 			}
@@ -268,10 +210,10 @@ string jsons_parse_naked_private(const string *json, size_t *position, const all
 		//TODO: check numbers
 	}
 
-	string text = jsons_get_section_private(json, interval, mem);
-	jsons_normalize_private(&text);
+	string text = strings_copy(json, start, end, mem);
+	strings_normalize(&text);
 
-	*position += (interval.end - 1) - interval.start;
+	*position += (end - 1) - start;
 	return text;
 
 	error:
@@ -284,7 +226,7 @@ estring_map jsons_unmake_object_private(const string *json, const allocator *mem
 	#endif
 
 	int error = 0;
-	string_map *map = null;
+	string_map map = string_maps_init();
 
 	bool is_key_valid = true;
 	string key = {0};
@@ -369,15 +311,15 @@ estring_map jsons_unmake_object_private(const string *json, const allocator *mem
 			break;
 		}
 
-		if (key.size != 0 && value.size != 0) {
+		if (key.data && value.data) {
 			bool push_error = string_maps_push(&map, key, value, mem);
 			if (push_error) {
 				error = json_invalid_state_error;
 				goto error;
 			}
 
-			key.size = 0;
-			value.size = 0;
+			strings_erase(&key);
+			strings_erase(&value);
 			is_key_valid = false;
 			is_value_valid = false;
 		}
@@ -386,8 +328,8 @@ estring_map jsons_unmake_object_private(const string *json, const allocator *mem
 	return (estring_map) {.value=map};
 
 	error:
-	if (map) {
-		string_maps_free(map, mem);
+	if (map.data) {
+		string_maps_free(&map, mem);
 	}
 
 	if (key.size != 0) {
@@ -407,7 +349,7 @@ estring_map jsons_unmake_list_private(const string *json, const allocator *mem) 
 	#endif
 
 	int error = 0;
-	string_map *map = null;
+	string_map map = string_maps_init();
 
 	size_t count = 0;
 	bool is_value_valid = true;
@@ -481,7 +423,7 @@ estring_map jsons_unmake_list_private(const string *json, const allocator *mem) 
 				goto error;
 			}
 
-			value.size = 0;
+			strings_empty(&value);
 			is_value_valid = false;
 			count++;
 		}
@@ -490,8 +432,8 @@ estring_map jsons_unmake_list_private(const string *json, const allocator *mem) 
 	return (estring_map) {.value=map};
 
 	error:
-	if (map) {
-		string_maps_free(map, mem);
+	if (map.data) {
+		string_maps_free(&map, mem);
 	}
 
 	if (value.size != 0) {
@@ -534,55 +476,52 @@ void *jsons_make_private(string_map *self, jsons_make_private_params *params) {
 		errors_abort("params.error", !params->error);
 	#endif
 
-	const string quote = strings_premake("\"");
-	bool push_error = strings_push(params->json, quote, params->mem);
+	bool push_error = strings_push_with(params->json, "\"", params->mem);
 	if (push_error) {
 		goto cleanup;
 	}
 
-	push_error = strings_push(params->json, self->data.key, params->mem);
+	push_error = strings_push(params->json, self->data->data.key, params->mem);
 	if (push_error) {
 		goto cleanup;
 	}
 
-	push_error = strings_push(params->json, quote, params->mem);
+	push_error = strings_push_with(params->json, "\"", params->mem);
 	if (push_error) {
 		goto cleanup;
 	}
 
-	const string colon = strings_premake(":");
-	push_error = strings_push(params->json, colon, params->mem);
+	push_error = strings_push_with(params->json, ":", params->mem);
 	if (push_error) {
 		goto cleanup;
 	}
 
-	char value_start_char = self->data.value.data[0];
+	char value_start_char = self->data->data.value.data[0];
 	bool is_value_text = value_start_char != '[' && value_start_char != '{';
 
 	if (is_value_text) {
-		push_error = strings_push(params->json, quote, params->mem);
+		push_error = strings_push_with(params->json, "\"", params->mem);
 		if (push_error) {
 			goto cleanup;
 		}
 
-		push_error = strings_push(params->json, self->data.value, params->mem);
+		push_error = strings_push(params->json, self->data->data.value, params->mem);
 		if (push_error) {
 			goto cleanup;
 		}
 
-		push_error = strings_push(params->json, quote, params->mem);
+		push_error = strings_push_with(params->json, "\"", params->mem);
 		if (push_error) {
 			goto cleanup;
 		}
 	} else {
-		push_error = strings_push(params->json, self->data.value, params->mem);
+		push_error = strings_push(params->json, self->data->data.value, params->mem);
 		if (push_error) {
 			goto cleanup;
 		}
 	}
 
-	const string comma = strings_premake(",");
-	push_error = strings_push(params->json, comma, params->mem);
+	push_error = strings_push_with(params->json, ",", params->mem);
 	if (push_error) {
 		goto cleanup;
 	}
@@ -609,14 +548,13 @@ estring jsons_make(const string_map *self, const allocator *mem) {
 		.func=(selffunc)jsons_make_private, 
 		.params=&params};
 
-	bnodes_iterate((bnode *)self, (enfunctor)func);
+	bnodes_iterate((bnode *)self, func);
 	if (private_error) { goto cleanup; }
 
 	bool pop_error = strings_pop(&json, mem);
 	if (pop_error) { goto cleanup; }
 
-	const string close_bracket = strings_premake("}");
-	bool push_error = strings_push(&json, close_bracket, mem);
+	bool push_error = strings_push_with(&json, "}", mem);
 	if (push_error) { goto cleanup; }
 
 	return (estring){.value=json};
