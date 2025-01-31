@@ -109,7 +109,7 @@ void menus_handle_build(bool is_build_mode) {
 		goto cleanup;
 	}
 
-	strings_trim(&json.value);
+	//strings_trim(&json.value);
 	estring_map json_map = jsons_unmake(&json.value, &mem);
 
 	if (json_map.error != json_successfull) {
@@ -119,11 +119,11 @@ void menus_handle_build(bool is_build_mode) {
 	}
 
 	const string build_key = strings_premake("build");
-	const string dev_key = strings_premake("dev");
+	const string prod_key = strings_premake("prod");
 
 	string *value = string_maps_get(
-			json_map.value, 
-			is_build_mode ? build_key : dev_key);
+			&json_map.value, 
+			is_build_mode ? build_key : prod_key);
 
 	if (!value) {
 		printf("cels-package is mal-formed.\n");

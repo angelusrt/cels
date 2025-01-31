@@ -14,6 +14,7 @@
 #include "../source/jsons.c"
 #include "../source/files.c"
 #include "../source/csvs.c"
+#include "../source/maths.c"
 
 int main(int arg, char **argc) {
 	if (arg < 2) {
@@ -21,7 +22,7 @@ int main(int arg, char **argc) {
 		return 0;
 	} 
 
-	const allocator mem = arenas_init(4096);
+	const allocator mem = arenas_init(2048);
 
 	size_t init_hash = strings_prehash("init");
 	size_t build_hash = strings_prehash("build");

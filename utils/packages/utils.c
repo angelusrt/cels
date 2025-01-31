@@ -58,9 +58,7 @@ estring utils_get_main_file(const allocator *mem) {
 
 	for (size_t i = 0; i < files.value.size; i++) {
 		file *file = fopen(files.value.data[i].data, "r");
-		if (!file) {
-			continue;
-		}
+		if (!file) { continue; }
 
 		const string main_function = strings_premake("main");
 		ssize_t position = files_find(file, main_function, 0);
@@ -96,16 +94,12 @@ estring_vec utils_get_packages(const string path, const allocator *mem) {
 		return (estring_vec){.error=-1};
 	}
 	
-	const string one_dot = strings_premake("./");
-	const string two_dots = strings_premake("/../");
-
 	string_vec non_terminals = string_vecs_init(vector_min, mem);
 	string_vec terminals = string_vecs_init(vector_min, mem);
 
 	string line = {0};
 	while (!files_next(file, &line, mem)) {
-		const string directive = strings_premake("#include");
-		if (strings_find(&line, directive, 0) < 0) {
+		if (strings_find_with(&line, "#include", 0) < 0) {
 			continue;
 		}
 
@@ -119,11 +113,9 @@ estring_vec utils_get_packages(const string path, const allocator *mem) {
 			continue;
 		}
 
-		const string quote = strings_premake("\"");
-		ssize_t position = strings_find(&line_view, quote, 0);
+		ssize_t position = strings_find_with(&line_view, "\"", 0);
 		if (position > 0) {
-			const string end = strings_premake(".h\"");
-			ssize_t pos = strings_find(&line_view, end, position);
+			ssize_t pos = strings_find_with(&line_view, ".h\"", position);
 			if (pos < 0) {
 				continue;
 			}
@@ -133,9 +125,9 @@ estring_vec utils_get_packages(const string path, const allocator *mem) {
 			//TODO: strings_slice_from()
 
 			string path_workaround = strings_init(vector_min, mem);
-			strings_push(&path_workaround, one_dot, mem);
+			strings_push_with(&path_workaround, "./", mem);
 			strings_push(&path_workaround, path, mem);
-			strings_push(&path_workaround, two_dots, mem);
+			strings_push_with(&path_workaround, "/../", mem);
 			strings_push(&path_workaround, new_path, mem);
 			strings_free(&new_path, mem);
 			string_vecs_push(&non_terminals, path_workaround, mem);
@@ -143,12 +135,10 @@ estring_vec utils_get_packages(const string path, const allocator *mem) {
 			continue;
 		}
 
-		const string bracket = strings_premake("<");
-		position = strings_find(&line_view, bracket, 0);
+		position = strings_find_with(&line_view, "<", 0);
 
 		if (position > 0) {
-			const string end = strings_premake(".h>");
-			ssize_t pos = strings_find(&line_view, end, position);
+			ssize_t pos = strings_find_with(&line_view, ".h>", position);
 			if (pos < 0) {
 				continue;
 			}
@@ -188,13 +178,6 @@ estring utils_get_flags(string main_file_name, const allocator *mem) {
 
 	//error filter_error = string_vecs_filter_unique(&packages.value, mem);
 	packages.value = string_vecs_filter_unique2(&packages.value, mem);
-	string_vecs_print(&packages.value);
-
-	//if (filter_error) {
-	//	return (estring){.error=1};
-	//}
-
-	string_vecs_print(&packages.value);
 
 	char *home = getenv("HOME");
 	const string homepath = strings_format(
@@ -205,9 +188,6 @@ estring utils_get_flags(string main_file_name, const allocator *mem) {
 		return (estring){.error=-1};
 	}
 
-	const string space = strings_premake(" ");
-	const string column_separator = strings_premake(", ");
-
 	string line = {0};
 	string flag = strings_init(vector_min, mem);
 	for (size_t i = 0; i < packages.value.size; i++) {
@@ -216,13 +196,13 @@ estring utils_get_flags(string main_file_name, const allocator *mem) {
 				continue;
 			}
 
-			ssize_t pos = strings_find(&line, column_separator, 0);
+			ssize_t pos = strings_find_with(&line, ", ", 0);
 			if (pos < 0) {
 				continue;
 			}
 			
 			string flag_view = strings_view(&line, pos + 2, line.size - 1);
-			strings_push(&flag, space, mem);
+			strings_push_with(&flag, " ", mem);
 			strings_push(&flag, flag_view, mem);
 		}
 
@@ -266,7 +246,7 @@ string utils_create_configuration(own configuration *configuration, const alloca
 		"\t\"author\": \"%s\",\n"
 		"\t\"compiler\": \"%s\",\n"
 		"\t\"build\": \"%s\",\n"
-		"\t\"dev\": \"%s\"\n"
+		"\t\"prod\": \"%s\"\n"
 	"}");
 
 	const string_vec compilers = vectors_premake(
@@ -277,8 +257,8 @@ string utils_create_configuration(own configuration *configuration, const alloca
 
 	const string_vec gccs = vectors_premake(
 		string, 
-		strings_premake("gcc -Wall -Wextra -Wpedantic %s.c -o %s.o%s"), 
-		strings_premake("gcc -Wall -Wextra -Wpedantic -g -rdynamic %s.c -o %s.o%s -Dcels_debug=true")
+		strings_premake("gcc -Wall -Wextra -Wpedantic -g -rdynamic %s.c -o %s.o%s -Dcels_debug=true"),
+		strings_premake("gcc -Wall -Wextra -Wpedantic %s.c -o %s.o%s -Dcels_debug=false")
 	);
 	
 	const string_vec clangs = vectors_premake(
@@ -290,7 +270,7 @@ string utils_create_configuration(own configuration *configuration, const alloca
 	string name = {0};
 	if (configuration->main.size > 0) {
 		const string extension = strings_premake(".c");
-		name = strings_replace(&configuration->main, extension, strings_do(""), 0, mem);
+		name = strings_replace_with(&configuration->main, extension, "", 0, mem);
 	} else {
 		name = strings_clone(&configuration->name, mem);
 	}
@@ -304,14 +284,14 @@ string utils_create_configuration(own configuration *configuration, const alloca
 	if (configuration->compiler == 0) {
 		build = strings_format(
 			gccs.data[0].data, 
-			null, 
+			mem, 
 			name.data, 
 			name.data, 
 			configuration->flags.data);
 
 		dev = strings_format(
 			gccs.data[1].data, 
-			null, 
+			mem, 
 			name.data, 
 			name.data, 
 			configuration->flags.data);
@@ -322,17 +302,12 @@ string utils_create_configuration(own configuration *configuration, const alloca
 
 	string configuration_json = strings_format(
 		template.data, 
-		null, 
+		mem, 
 		configuration->name.data, 
 		configuration->author.data, 
 		compilers.data[configuration->compiler].data,
 		build.data,
 		dev.data);
-
-	strings_free(&build, mem);
-	strings_free(&dev, mem);
-	strings_free(&name, mem);
-	configurations_free(configuration, mem);
 
 	return configuration_json;
 }
