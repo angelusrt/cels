@@ -133,6 +133,16 @@ bool strs_check(const char *self);
 	strings_hasherize(&(string)strings_premake(lit))
 
 /* 
+ * Checks string, regardless of obeying to null-termination
+ * and returns true if something illegal happened.
+ *
+ * #tested
+ */
+cels_warn_unused
+bool strings_check_view(const string *self);
+
+
+/* 
  * Checks if string was properly initialized 
  * returning true if something illegal happened.
  *
@@ -180,6 +190,16 @@ string strings_init(size_t quantity, const allocator *mem);
  */
 cels_warn_unused
 string strings_make(const char *literal, const allocator *mem);
+
+/*
+ * Allocates a new string hard-copying 
+ * a portion of 'self'.
+ *
+ * #allocates #may-panic 
+ * #depends:string.h #posix-reliant #to-review
+ */
+cels_warn_unused
+string strings_copy(const string *self, size_t start, size_t end, const allocator *mem);
 
 /*
  * Allocates a new string hard-copying 'self'.
@@ -238,6 +258,14 @@ error strings_pop(string *self, const allocator *mem);
 error strings_push(string *self, string item, const allocator *mem);
 
 /*
+ * Concatenates item into 'self' string with 'char *'.
+ * Returns fail if error happens.
+ *
+ * #allocates #may-fail #depends:stdio.h #posix-reliant #to-review
+ */
+error strings_push_with(string *self, char *item, const allocator *mem);
+
+/*
  * Frees alocated string.
  *
  * Shouldn't be used for non-allocated strings!
@@ -246,6 +274,27 @@ error strings_push(string *self, string item, const allocator *mem);
  * #tested #to-edit
  */
 void strings_free(string *self, const allocator *mem);
+
+/*
+ * Sets all fields of string to 0.
+ *
+ * #to-review
+ */
+void strings_erase(string *self);
+
+/*
+ * Sets all memory of 'self' to 0.
+ *
+ * #to-review
+ */
+void strings_empty(string *self);
+
+/*
+ * Processes escape characters.
+ *
+ * #to-edit
+ */
+void strings_normalize(string *self);
 
 /*
  * Prints a debug-friendly message of 
@@ -402,9 +451,25 @@ void strings_replace_from(string *self, const string seps, const char rep, size_
  * 
  * #case-insensitive #allocates #may-fail #tested #to-edit
  */
-cels_warn_unused
-string strings_replace(
-	const string *self, const string substring, const string replace, size_t n, const allocator *mem);
+ cels_warn_unused
+ string strings_replace(
+	const string *self, 
+	const string substring, 
+	const string replace, 
+	size_t n, 
+	const allocator *mem);
+
+/*
+ * Convenience over strings_replace where 'rep' is a 'char *'.
+ *
+ * #case-insensitive #allocates #may-fail #tested #to-edit
+ */
+string strings_replace_with(
+	const string *self, 
+	const string substring, 
+	const char *rep, 
+	size_t n, 
+	const allocator *mem);
 
 /*
  * Creates a string_vec (aka vectors(string)) containing the 
@@ -575,7 +640,7 @@ sets_generate_definition(string, string_set)
 /* maps */
 
 maps_generate_definition(string, string, string_key_pair, string_map)
-typedef errors(string_map *) estring_map;
+typedef errors(string_map) estring_map;
 
 /*
  * Push key and value over string_map allocating 
