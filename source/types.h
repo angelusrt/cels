@@ -17,7 +17,7 @@
 #endif
 
 #ifndef cels_debug
-#define cels_debug false
+#define cels_debug true
 #endif
 
 #ifndef cels_max_recusion
