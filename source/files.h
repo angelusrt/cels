@@ -42,6 +42,19 @@ typedef enum file_error {
 	file_mal_formed_error,
 } file_error;
 
+typedef struct file_read {
+	string file;
+	size_t size;
+	error error;
+} file_read;
+
+typedef struct file_write {
+	string file;
+	size_t size;
+	size_t position;
+	error error;
+} file_write;
+
 /*
  * Read files content to string 
  * and if any error happens a 
@@ -58,7 +71,7 @@ estring files_read(file *self, const allocator *mem);
  * #to-review
  */
 cels_warn_unused
-bool files_read_async(file *self, string *file, size_t size, error *error, const allocator *mem);
+bool files_read_async(file *self, file_read *read, const allocator *mem);
 
 /*
  * Write text to file and reports 
@@ -73,8 +86,7 @@ error files_write(file *self, const string text);
  *
  * #to-review
  */
-bool files_write_async(file *self, const string text, size_t size, size_t *cursor, error *error);
-
+bool files_write_async(file *self, file_write *file_write);
 
 /*
  * Lists all files and folders of 
