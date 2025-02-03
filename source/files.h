@@ -51,8 +51,11 @@ typedef struct file_read {
 typedef struct file_write {
 	string file;
 	size_t size;
-	size_t position;
 	error error;
+	bool consume;
+
+	/* internal */
+	size_t position;
 } file_write;
 
 /*

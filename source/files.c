@@ -129,7 +129,11 @@ bool files_write_async(file *self, file_write *file_write) {
 		return false;
 	}
 
-	file_write->position += writen;
+	if (file_write->consume) {
+		char_vecs_shift(&file_write->file, 0, writen, null);
+	} else {
+		file_write->position += writen;
+	}
 
 	if (writen == 0) {
 		return false;
@@ -162,6 +166,10 @@ estring_vec files_list(const string path, const allocator *mem) {
 			}
 		}
 
+		if (entity->d_type != DT_REG || entity->d_type != DT_DIR) {
+			continue;
+		}
+
 		string file = strings_make(entity->d_name, mem);
 
 		bool push_error = string_vecs_force(&files, file, mem);
@@ -171,6 +179,78 @@ estring_vec files_list(const string path, const allocator *mem) {
 	}
 
 	return (estring_vec){.value=files};
+}
+
+estring_vec files_list_all(const string path, const allocator *mem) {
+	error err = ok;
+	string_vec shallow_files = string_vecs_init(vector_min, mem);
+
+	estring_vec files = files_list(path, mem); 
+	if (files.error != file_successfull) {
+		err = files.error;
+		goto cleanup0;
+	}
+
+	for (size_t i = 0; i < files.value.size; i++) {
+		dir *directory = opendir(files.value.data[i].data);
+		if (!directory) { 
+			string file = strings_clone(&files.value.data[i], mem);
+			error push_error = string_vecs_press(&shallow_files, file, mem);
+			if (push_error) {
+				err = file_allocation_error;
+				goto cleanup1;
+			}
+
+			continue; 
+		}
+
+		struct dirent *entity;
+		while ((entity = readdir(directory))) {
+			if (entity->d_name[0] == '.') {
+				if (entity->d_name[1] == '\0') {
+					continue;
+				} else if (entity->d_name[1] == '.') {
+					if (entity->d_name[2] == '\0') {
+						continue;
+					}
+				}
+			}
+
+			if (entity->d_type == DT_REG) {
+				string file = strings_make(entity->d_name, mem);
+
+				error push_error = string_vecs_press(&shallow_files, file, mem);
+				if (push_error) {
+					err = file_allocation_error;
+					goto cleanup1;
+				}
+			} else if (entity->d_type == DT_DIR) {
+				string file_capsule = strings_encapsulate(entity->d_name);
+				estring_vec files = files_list_all(file_capsule, mem);
+				if (files.error != file_successfull) {
+					continue;
+				}
+
+				error unite_error = string_vecs_unite(&shallow_files, &files.value, mem);
+				if (unite_error) {
+					err = file_allocation_error;
+					goto cleanup1;
+				}
+			} else {
+				continue;
+			}
+		}
+	}
+
+	string_vecs_free(&files.value, mem);
+	return (estring_vec){.value=shallow_files};
+
+	cleanup1:
+	string_vecs_free(&files.value, mem);
+
+	cleanup0:
+	string_vecs_free(&shallow_files, mem);
+	return (estring_vec){.error=err};
 }
 
 ssize_t files_find(file *self, const string substring, ssize_t pos) {
@@ -309,11 +389,10 @@ estring files_normalize(const string *filepath, const allocator *mem) {
 		if (strings_seems(&file_nodes.data[i], &two_dots)) {
 			if (i == 0) { goto cleanup; }
 
-			string_vecs_shift(&file_nodes, i - 1, mem);
-			string_vecs_shift(&file_nodes, i - 1, mem);
+			string_vecs_shift(&file_nodes, i - 1, 2, mem);
 			i--;
 		} else if (strings_seems(&file_nodes.data[i], &one_dots)) {
-			string_vecs_shift(&file_nodes, i, mem);
+			string_vecs_shift(&file_nodes, i, 1, mem);
 		} else {
 			i++;
 		}
