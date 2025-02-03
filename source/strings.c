@@ -36,7 +36,7 @@ void chars_print_special(char letter) {
 }
 
 void chars_print_normal(char letter) {
-	if (letter >= 33 && letter <= 126) {
+	if (letter >= 32 && letter <= 126) {
 		printf("%c", letter);
 	} else {
 		chars_print_special(letter);
@@ -306,16 +306,16 @@ error strings_push_with(string *self, char *item, const allocator *mem) {
 }
 
 void strings_free(string *self, const allocator *mem) {
-	#if cels_debug
+	/*#if cels_debug
 		errors_abort("self", strings_check(self));
-	#endif
+	#endif*/
 
 	char_vecs_free(self, mem);
 }
 
 void strings_erase(string *self) {
 	#if cels_debug
-		errors_abort("self", strings_check(self));
+		errors_abort("self", !self);
 	#endif
 
 	self->data = null;
@@ -338,7 +338,7 @@ void strings_normalize(string *self) {
 
 	for (size_t i = 0; i < self->size - 1; i++) {
 		if (self->data[i] == '\\') {
-			strings_shift(self, i);
+			strings_shift(self, i, 1);
 
 			switch (self->data[i]) {
 			case '\\':
@@ -976,50 +976,49 @@ void strings_slice(string *self, size_t start, size_t end) {
 	#endif
 }
 
-void strings_shift(string *self, size_t position) {
+void strings_shift(string *self, size_t position, size_t amount) {
 	#if cels_debug 
 		errors_abort("self", strings_check_extra(self));
 	#endif
 
-	if (position + 1 >= self->size) {
+	if (position + amount >= self->size || amount == 0) {
 		return;
 	}
 
-	for (size_t i = position; i < self->size - 1; i++) {
-		self->data[i] = self->data[i + 1];
+	for (size_t i = position; i < self->size - amount; i++) {
+		self->data[i] = self->data[i + amount];
 	}
 
-	self->size--;
+	self->size -= amount;
 
 	#if cels_debug 
-		errors_abort("self", strings_check_extra(self));
+		errors_abort("self", strings_check(self));
 	#endif
 }
 
-/*TODO?:downsize*/
-/*TODO?:recreate*/
 void strings_trim(string *self) {
 	#if cels_debug
 		errors_abort("self", strings_check_extra(self));
 	#endif
 
+	size_t start = 0;
+	size_t end = 0;
+
 	for (size_t i = 0; i < self->size; i++) {
-		if (chars_is_whitespace(self->data[i])) {
-			strings_shift(self, i);
-			continue;
+		if (!chars_is_whitespace(self->data[i])) {
+			start = i;
+			break;
 		} 
-		
-		break;
 	}
 
 	for (ssize_t i = self->size - 2; i >= 0; i--) {
-		if (chars_is_whitespace(self->data[i])) {
-			strings_shift(self, i);
-			continue;
+		if (!chars_is_whitespace(self->data[i])) {
+			end = i + 1;
+			break;
 		} 
-		
-		break;
 	}
+
+	strings_slice(self, start, end);
 
 	#if cels_debug
 		errors_abort("self", strings_check(self));

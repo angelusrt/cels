@@ -556,7 +556,7 @@ void strings_slice(string *self, size_t start, size_t end);
  *
  * #to-review
  */
-void strings_shift(string *self, size_t position);
+void strings_shift(string *self, size_t position, size_t amount);
 
 /*
  * Trims leading white-spaces on both 
