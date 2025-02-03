@@ -81,15 +81,17 @@ typedef vectors(void *) vector;
 		return other; \
 	} \
 	\
-	type name##s_get(const name *self, size_t position) { \
+	type name##s_get(const name *self, ssize_t position) { \
 		if (cels_debug) { \
 			errors_abort("self", vectors_check((const vector *)self)); \
 		} \
 		\
 		if (self->size == 0) { \
 			return self->data[0]; \
-		} else if (position > self->size - 1) { \
+		} else if (position > (ssize_t)self->size - 1) { \
 			return self->data[self->size - 1]; \
+		} else if (position < 0 && ((ssize_t)self->size - position) >= 0) { \
+			return self->data[(ssize_t)self->size - position]; \
 		} \
 		\
 		return self->data[position]; \
@@ -248,11 +250,11 @@ typedef vectors(void *) vector;
 	} \
 	\
 	void name##s_free(name *self, const allocator *mem) { \
-		if (cels_debug) { \
+		/*if (cels_debug) { \
 			errors_abort("self", vectors_check((const vector *)self)); \
-		} \
+		}*/ \
 		\
-		if (self->data != null) { \
+		if (!self->data) { \
 			for (size_t i = 0; i < self->size; i++) { \
 				cleanup0(&self->data[i], mem); \
 			} \
@@ -471,28 +473,30 @@ typedef vectors(void *) vector;
 		return -1; \
 	} \
 	\
-	void name##s_shift(name *self, size_t position, notused const allocator *mem) { \
+	void name##s_shift(name *self, size_t position, size_t amount, notused const allocator *mem) { \
 		if (cels_debug) { \
 			errors_abort("self", vectors_check((void *)self)); \
 		} \
 		\
-		if (position + 1 >= self->size) { \
+		if (position + amount >= self->size || amount == 0) { \
 			return; \
 		} \
 		\
-		cleanup0(&self->data[position], mem); \
-		\
-		for (size_t i = position; i < self->size - 1; i++) { \
-			self->data[i] = self->data[i + 1]; \
+		for (size_t i = position; i < amount; i++) { \
+			cleanup0(&self->data[i], mem); \
 		} \
 		\
-		self->size--; \
+		for (size_t i = position; i < self->size - amount; i++) { \
+			self->data[i] = self->data[i + amount]; \
+		} \
+		\
+		self->size -= amount; \
 		\
 		return; \
 	} \
 	\
 	/* #to-review */ \
-	error name##s_unite(name *self, name* other, notused const allocator *mem) { \
+	error name##s_unite(name *self, own name* other, notused const allocator *mem) { \
 		if (cels_debug) { \
 			errors_abort("self", vectors_check((void *)self)); \
 			errors_abort("other", vectors_check((void *)other)); \
@@ -578,9 +582,12 @@ typedef vectors(void *) vector;
 	 * Gets 'type' at position 'position' 
 	 * with bound-checking defaulting to 
 	 * last item.
+	 *
+	 * It also allows negative position 
+	 * to look at the back of the list.
 	 */ \
 	cels_warn_unused \
-	type name##s_get(const name *self, size_t position); \
+	type name##s_get(const name *self, ssize_t position); \
 	\
 	/*
 	 * Upscales vector 'self' to double its capacity.
@@ -737,7 +744,7 @@ typedef vectors(void *) vector;
 	 *
 	 * #allocates
 	 */ \
-	void name##s_shift(name *self, size_t position, notused const allocator *mem); \
+	void name##s_shift(name *self, size_t position, size_t amount, notused const allocator *mem); \
 	\
 	/*
 	 * Unites 'other' to end of 'self' 
@@ -745,7 +752,7 @@ typedef vectors(void *) vector;
 	 *
 	 * #allocates
 	 */ \
-	error name##s_unite(name *self, name* other, const allocator *mem); \
+	error name##s_unite(name *self, own name* other, const allocator *mem); \
 	\
 	/*
 	 * Applies callback to all items.
