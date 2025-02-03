@@ -1,10 +1,10 @@
 #ifndef menu_h
 #define menu_h
 
-#include "../../source/strings.h"
-#include "../../source/files.h"
-#include "../../source/ios.h"
-#include "../../source/jsons.h"
+#include "../packages/cels/strings.h"
+#include "../packages/cels/files.h"
+#include "../packages/cels/ios.h"
+#include "../packages/cels/jsons.h"
 #include "utils.h"
 
 /*
@@ -37,5 +37,12 @@ void menus_handle_build(bool is_build_mode);
  * #to-review
  */
 void menus_handle_install(void);
+
+/*
+ * Generates code.
+ *
+ * #to-review
+ */
+void menus_handle_generate();
 
 #endif

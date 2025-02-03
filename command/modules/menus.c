@@ -85,7 +85,7 @@ void menus_handle_init(void) {
 	fclose(json);
 
 	cleanup:
-	mem.free(mem.storage);
+	mems_free(&mem, null);
 }
 
 void menus_handle_build(bool is_build_mode) {
@@ -186,4 +186,65 @@ void menus_handle_install(void) {
 
 	cleanup:
 	mem.free(mem.storage);
+}
+
+const string package_folder = strings_premake("packages");
+bool utils_filter_packages_private(string *self) {
+	return !strings_equals(self, &package_folder);
+}
+
+void menus_handle_generate() {
+	const allocator mem = arenas_init(2048);
+
+	file *json_file = fopen(".cels-package.json", "r");
+	if (!json_file) {
+		printf("a package must be initialized.\n\n");
+
+		size_t option = ios_select("initialize?", options);
+		if (option > 0) { goto cleanup; }
+
+		menus_handle_init();
+ 	}
+
+	estring json = files_read(json_file, &mem);
+	fclose(json_file);
+
+	if (json.error != file_successfull) {
+		printf("an error occurred.\n\n");
+		goto cleanup;
+	}
+
+	//strings_trim(&json.value);
+	estring_map json_map = jsons_unmake(&json.value, &mem);
+
+	if (json_map.error != json_successfull) {
+		printf("an error parsing occurred.\n");
+		printf("%d\n", json_map.error);
+		goto cleanup;
+	}
+
+	/*
+	const string entry_key = strings_premake("entry");
+	string *entry = string_maps_get(&json_map.value, entry_key);
+
+	if (!entry) {
+		printf("cels-package is mal-formed.\n");
+		goto cleanup;
+	}
+
+	string this_folder = strings_premake("./");
+	estring_vec files = files_list(this_folder, &mem);
+	if (files.error != file_successfull) {
+		printf("no files found.\n");
+		goto cleanup;
+	}
+
+	string_vecs_filter(
+		&files.value, 
+		(filterfunc)utils_filter_packages_private, 
+		&mem);
+	*/
+
+	cleanup:
+	mems_free(&mem, null);
 }

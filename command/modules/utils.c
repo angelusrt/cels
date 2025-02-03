@@ -215,6 +215,118 @@ estring utils_get_flags(string main_file_name, const allocator *mem) {
 	return (estring){.value=flag};
 }
 
+/* private */
+estring_vec utils_get_includes(const string path, const allocator *mem) {
+	#if cels_debug
+		errors_abort("path", strings_check_extra(&path));
+	#endif
+
+	file *file = fopen(path.data, "r");
+	if (!file) {
+		printf("file not found\n");
+		return (estring_vec){.error=-1};
+	}
+	
+	string_vec file_paths = string_vecs_init(vector_min, mem);
+
+	string line = {0};
+	while (!files_next(file, &line, mem)) {
+		strings_trim(&line);
+		
+		if (line.size < 1) {
+			continue;
+		}
+
+		if (line.data[0] != '#' && line.data[0] != '/' && line.data[0] != '*') {
+			break;
+		}
+
+		if (strings_find_with(&line, "#include", 0) < 0) {
+			continue;
+		}
+
+		ssize_t position = strings_find_with(&line, "\"", 0);
+		if (position > 0) {
+			ssize_t pos = strings_find_with(&line, "\"", position + 1);
+			if (pos < 0) { continue; }
+
+			string new_path = strings_clone(&line, mem);
+			strings_slice(&new_path, position + 1, pos);
+			string_vecs_push(&file_paths, new_path, mem);
+
+			continue;
+		}
+	}
+
+	fclose(file);
+	return (estring_vec){.value=file_paths};
+}
+
+typedef struct program_entity {
+	string name;
+	string_vec arguments;
+	string returned;
+	size_t range[2];
+} program_entity;
+
+//TODO: maybe I have to read file to string to tokenize it
+estring_vec utils_get_entities(const string path, const allocator *mem) {
+	#if cels_debug
+		errors_abort("path", strings_check_extra(&path));
+	#endif
+
+	file *file = fopen(path.data, "r");
+	if (!file) {
+		printf("file not found\n");
+		return (estring_vec){.error=fail};
+	}
+
+	estring file_buffer = files_read(file, mem);
+	fclose(file);
+
+	if (file_buffer.error != file_successfull) {
+		printf("file not read\n");
+		return (estring_vec){.error=fail};
+	}
+	
+	for (size_t i = 0; i < file_buffer.value.size; i++) {
+
+	}
+
+	string line = {0};
+	while (!files_next(file, &line, mem)) {
+		strings_trim(&line);
+		
+		if (line.size < 1) {
+			continue;
+		}
+
+		if (line.data[0] == '#' || line.data[0] == '/' && line.data[0] == '*') {
+			continue;
+		}
+
+		if (strings_find_with(&line, "#include", 0) < 0) {
+			continue;
+		}
+
+		ssize_t position = strings_find_with(&line, "\"", 0);
+		if (position > 0) {
+			ssize_t pos = strings_find_with(&line, "\"", position + 1);
+			if (pos < 0) { continue; }
+
+			string new_path = strings_clone(&line, mem);
+			strings_slice(&new_path, position + 1, pos);
+			string_vecs_push(&file_paths, new_path, mem);
+
+			continue;
+		}
+	}
+
+	fclose(file);
+	return (estring_vec){.value=file_paths};
+}
+*/
+
 void configurations_free(configuration *configuration, const allocator *mem) {
 	strings_free(&configuration->name, mem);
 	strings_free(&configuration->flags, mem);
@@ -244,6 +356,7 @@ string utils_create_configuration(own configuration *configuration, const alloca
 	const string template = strings_premake("{\n"
 		"\t\"name\": \"%s\",\n"
 		"\t\"author\": \"%s\",\n"
+		"\t\"entry\": \"%s\",\n"
 		"\t\"compiler\": \"%s\",\n"
 		"\t\"build\": \"%s\",\n"
 		"\t\"prod\": \"%s\"\n"
@@ -267,12 +380,17 @@ string utils_create_configuration(own configuration *configuration, const alloca
 		strings_premake("nada")
 	);
 
+	const string extension = strings_premake(".c");
+	string main = {0};
 	string name = {0};
+
 	if (configuration->main.size > 0) {
-		const string extension = strings_premake(".c");
 		name = strings_replace_with(&configuration->main, extension, "", 0, mem);
+		main = strings_clone(&configuration->main, mem);
 	} else {
 		name = strings_clone(&configuration->name, mem);
+		main = strings_clone(&configuration->name, mem);
+		strings_push_with(&main, ".c", mem);
 	}
 
 	if (configuration->flags.size == 0) {
@@ -281,7 +399,7 @@ string utils_create_configuration(own configuration *configuration, const alloca
 	
 	string build = {0};
 	string dev = {0};
-	if (configuration->compiler == 0) {
+	if (configuration->compiler == compiler_gcc) {
 		build = strings_format(
 			gccs.data[0].data, 
 			mem, 
@@ -305,6 +423,7 @@ string utils_create_configuration(own configuration *configuration, const alloca
 		mem, 
 		configuration->name.data, 
 		configuration->author.data, 
+		main.data, 
 		compilers.data[configuration->compiler].data,
 		build.data,
 		dev.data);

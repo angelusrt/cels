@@ -1,22 +1,26 @@
-#include "./packages/menus.h"
-#include "./packages/menus.c"
-#include "./packages/utils.c"
+#include "modules/menus.h"
+#include "modules/menus.c"
+#include "modules/utils.c"
 
-#include "../source/strings.h"
-#include "../source/strings.c"
+#include "modules/utils.h"
+#include "packages/cels/strings.h"
+#include "packages/cels/strings.c"
 
-#include "../source/utils.c"
-#include "../source/vectors.c"
-#include "../source/mems.c"
-#include "../source/errors.c"
-#include "../source/nodes.c"
-#include "../source/ios.c"
-#include "../source/jsons.c"
-#include "../source/files.c"
-#include "../source/csvs.c"
-#include "../source/maths.c"
+#include "packages/cels/utils.c"
+#include "packages/cels/vectors.c"
+#include "packages/cels/mems.c"
+#include "packages/cels/errors.c"
+#include "packages/cels/nodes.c"
+#include "packages/cels/ios.c"
+#include "packages/cels/jsons.c"
+#include "packages/cels/files.c"
+#include "packages/cels/csvs.c"
+#include "packages/cels/maths.c"
 
 int main(int arg, char **argc) {
+	utils_get_includes(strings_do("cels.c"), null);
+	exit(1);
+
 	if (arg < 2) {
 		menus_print_help();
 		return 0;
@@ -29,6 +33,7 @@ int main(int arg, char **argc) {
 	size_t help_hash = strings_prehash("help");
 	size_t debug_hash = strings_prehash("debug");
 	size_t install_hash = strings_prehash("install");
+	size_t generate_hash = strings_prehash("generate");
 
 	string command = strings_make(argc[1], &mem);
 	size_t command_hash = strings_hasherize(&command);
@@ -43,6 +48,8 @@ int main(int arg, char **argc) {
 		menus_print_help();
 	} else if (command_hash == install_hash) {
 		menus_handle_install();
+	} else if (command_hash == generate_hash) {
+		menus_handle_generate();
 	} else {
 		printf("invalid option - use 'cels help' for help.\n");
 	}

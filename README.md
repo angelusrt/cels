@@ -4,6 +4,8 @@ Cels (C Extended Library's) is a libray for the C language
 that proposes to provide convenience with fundamental 
 utilities in a well-designed manner.
 
+It requires a C99 compiler or C++11 one.
+
 # Features
 
 Cels has:

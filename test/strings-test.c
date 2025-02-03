@@ -417,13 +417,13 @@ void string_vecs_join_test(error_report *report) {
 }
 
 void string_maps_get_and_push_test(error_report *report) {
-	string_map *json = null;
+	string_map json = string_maps_init();
 	string namepredict = strings_premake("angelus");
 	string key = strings_premake("name");
 
-	string_maps_make_push(&json, "name", "angelus", null);
-	string_maps_make_push(&json, "age", "10", null);
-	string *name = string_maps_get(json, key);
+	string_maps_push_with(&json, "name", "angelus", null);
+	string_maps_push_with(&json, "age", "10", null);
+	string *name = string_maps_get(&json, key);
 
 	bool is_valid = name != null;
 	if (is_valid) { 
@@ -432,12 +432,21 @@ void string_maps_get_and_push_test(error_report *report) {
 
 	errors_expect("get(json, 'name') == 'angelus'", is_valid, report);
 	
-	string_maps_make_push(&json, "name", "angelus", null);
-	size_t name_freq = string_maps_get_frequency(json, key);
+	string_maps_push_with(&json, "name", "angelus", null);
+	size_t name_freq = string_maps_frequency(&json, key);
 	is_valid = name_freq == 2; 
 	errors_expect("push(json, 'name', 'angelus').frequency == 2", is_valid, report);
 	
-	string_maps_free(json, null);
+	string_maps_free(&json, null);
+}
+
+void reportfuncs_do(reportfunc *functions, error_report *report) {
+	size_t i = 0;
+	while (functions[i]) {
+		functions[i](report);
+		printf("\n");
+		i++;
+	}
 }
 
 void strings_test(void) {
@@ -445,6 +454,7 @@ void strings_test(void) {
 	printf("strings\n");
 	printf("=======\n\n");
 
+	error_report report = {0};
 	reportfunc functions[] = {
 		strings_push_test,
 		strings_check_test,
@@ -473,13 +483,6 @@ void strings_test(void) {
 		null,
 	};
 
-	error_report report = {0};
-	size_t i = 0;
-	while (functions[i]) {
-		functions[i](&report);
-		printf("\n");
-		i++;
-	}
-
+	reportfuncs_do(functions, &report);
 	error_reports_print(&report);
 }
