@@ -1,5 +1,281 @@
 #include "requests.h"
+#include "strings.h"
 
+/* private */
+
+typedef struct request {
+	string packet;
+	string host;
+	string port;
+	struct addrinfo info;
+	struct timeval timeout;
+	size_t max_retry;
+	size_t initial_buffer_size;
+	bool is_secure;
+} request;
+
+typedef errors(request) erequest;
+
+static const string request_port = strings_premake("80");
+static const string request_port_secure = strings_premake("443");
+
+void requests_free_private(request *self, const allocator *mem) {
+	#if cels_debug
+		errors_abort("self", !self);
+	#endif
+
+	if (self->packet.data) {
+		strings_free(&self->packet, mem);
+	}
+
+	if (self->host.data) {
+		strings_free(&self->host, mem);
+	}
+
+	#if cels_debug
+		strings_erase(&self->packet);
+		strings_erase(&self->host);
+	#endif
+}
+
+void request_internals_free_private(request_internal *self, const allocator *mem) {
+	#if cels_debug
+		errors_abort("self", !self);
+	#endif
+
+	if (self->response.data) {
+		strings_free(&self->response, mem);
+	}
+
+	if (self->packet.data) {
+		strings_free(&self->packet, mem);
+	}
+
+	#if cels_debug
+		self->socket = 0;
+		strings_erase(&self->response);
+		strings_erase(&self->packet);
+	#endif
+}
+
+erequest requests_contruct_private(const string *url, const request_option *option, const allocator *mem) {
+	#if cels_debug
+		errors_abort("url", strings_check_extra(url));
+	#endif
+
+	error err = ok;
+
+	request request = {0};
+	request_option empty = {0};
+	if (!option) { option = &empty; }
+
+	//
+
+	if (option->head.data) {
+		static const string host = strings_premake("Host"); 
+		ssize_t pos = strings_find(&option->head, host, 0);
+		if (pos != -1) {
+			err = request_precomputed_field_set_error;
+			goto cleanup0;
+		}
+	}
+
+	ssize_t protocol_position = strings_find_with(url, "://", 0);
+	if (protocol_position >= 0) { 
+		err = request_protocol_in_url_error;
+		goto cleanup0;
+	}
+
+	string method = strings_do("GET"); 
+	if (option->method >= 0 && option->method < request_private_method) {
+		method = strings_do((void *)request_methods[option->method]);
+	}
+
+	string version = strings_do("HTTP/1.0");
+	if (option->version >= 0 && option->version < request_private_version) {
+		version = strings_do((void *)request_versions[option->method]);
+	}
+
+	//
+
+	string_vec paths = strings_split_with(url, "/", 1, mem);
+	if (paths.size == 0) { 
+		err = request_malformed_url_error;
+		goto cleanup1;
+	}
+
+	string host = paths.data[0];
+	static const string host_charset = strings_premake("abcdefghijklmnopqrstuvwxyz.-1234567890");
+	bool is_host_valid = strings_check_charset(&host, host_charset);
+	if (!is_host_valid) { 
+		err = request_illegal_host_error;
+		goto cleanup1;
+	}
+
+	string path = paths.size == 1 ? strings_do("") : paths.data[1];
+	string head = !option->head.data ? strings_do("") : option->head;
+	string body = !option->body.data ? strings_do("") : option->body;
+
+	//
+
+	request.max_retry = 
+		option->max_retry == 0 ? 
+		5 : 
+		option->max_retry;
+
+	request.initial_buffer_size = 
+		option->initial_buffer_size == 0 ? 
+		string_small_size : 
+		option->initial_buffer_size;
+
+	request.host = host;
+	request.packet = strings_format(
+		"%s /%s %s\r\nHost:%s\r\n%s\r\n\r\n%s\r\n", 
+		mem,
+		method.data, 
+		path.data,
+		version.data,
+		host.data,
+		head.data, 
+		body.data);
+
+	request.port = option->port.data ? option->port : strings_do("80");
+	request.info = (struct addrinfo) {
+		.ai_family=AF_UNSPEC,
+		.ai_socktype=SOCK_STREAM,
+	};
+
+	if (strings_equals(&request.port, &request_port)) {
+		request.is_secure = false;
+	} else if (strings_equals(&request.port, &request_port_secure)) {
+		request.is_secure = true;
+	} else {
+		err = request_port_error;
+		goto cleanup1;
+	}
+
+	#define request_timeout 5
+	size_t timeout = option->timeout == 0 ? request_timeout : option->timeout;
+	request.timeout = (struct timeval) {.tv_sec=timeout, .tv_usec=0};
+	#undef request_timeout
+
+	mems_dealloc(mem, paths.data, paths.capacity);
+	return (erequest){.value=request};
+
+	cleanup1:
+	string_vecs_free(&paths, mem);
+
+	cleanup0:
+	return (erequest){.error=err};
+}
+
+cels_warn_unused
+erequest_internal requests_init_private(const string *url, const request_option *option, const allocator *mem) {
+	error err = ok;
+
+	erequest request = requests_contruct_private(url, option, mem);
+	if (request.error != request_successfull) {
+		err = request.error;
+		goto cleanup0;
+	}
+
+	struct addrinfo *server;
+	int get_status = getaddrinfo(
+		request.value.host.data,
+		request.value.port.data,
+		&request.value.info,
+		&server);
+
+	if (get_status < 0 || !server) {
+		err = request_dns_not_resolved_error;
+		freeaddrinfo(server);
+		goto cleanup1;
+	}
+
+	//
+
+	#if cels_debug
+		void *address = null;
+		if (server->ai_family == AF_INET) {
+			struct sockaddr_in *ipv4 = (struct sockaddr_in *)server->ai_addr;
+			address = &(ipv4->sin_addr);
+		} else {
+			struct sockaddr_in6 *ipv6 = (struct sockaddr_in6 *)server->ai_addr;  
+			address = &(ipv6->sin6_addr);
+		}
+
+		char ip[INET6_ADDRSTRLEN];
+		inet_ntop(server->ai_family, address, ip, sizeof(ip)); 
+
+		string address_formated = strings_format("https_request.address = %s", mem, ip);
+		errors_print(errors_success_mode, address_formated.data, null);
+	#endif
+
+	//
+
+	int socket_descriptor = socket(
+		server->ai_family, 
+		server->ai_socktype, 
+		server->ai_protocol);
+
+	if (socket_descriptor < 0) {
+		err = request_socket_creation_error;
+		goto cleanup1;
+	}
+
+	//
+
+	int set_status = setsockopt(
+		socket_descriptor, 
+		SOL_SOCKET, 
+		SO_RCVTIMEO, 
+		(const char*)&request.value.timeout, 
+		sizeof(request.value.timeout));
+
+	if (set_status < 0) {
+		err = request_set_socket_option_error;
+		goto cleanup2;
+	}
+
+	//
+
+	int conn_status = connect(
+		socket_descriptor, 
+		server->ai_addr, 
+		server->ai_addrlen);
+
+	freeaddrinfo(server);
+
+	if (conn_status < 0) { 
+		err = request_connection_error;
+		goto cleanup2;
+	}
+
+	//
+
+	request_internal internal = {
+		.socket = socket_descriptor,
+		.packet = request.value.packet,
+		.port = request.value.port,
+		.state = request_send_state,
+		.max_retry = request.value.max_retry,
+		.initial_buffer_size = request.value.initial_buffer_size,
+		.is_secure = request.value.is_secure,
+	};
+
+	return (erequest_internal){.value=internal};
+
+	cleanup2:
+	close(socket_descriptor);
+
+	cleanup1:
+	requests_free_private(&request.value, mem);
+
+	cleanup0:
+	return (erequest_internal){.error=err};
+}
+
+#if cels_openssl
 estring requests_connect_securely_private(int socket, const string packet, const allocator *mem) {
 	#if cels_debug
 		errors_abort("packet", strings_check_extra(&packet));
@@ -23,7 +299,6 @@ estring requests_connect_securely_private(int socket, const string packet, const
 		OPENSSL_INIT_LOAD_CRYPTO_STRINGS;
 
 	init_status = OPENSSL_init_ssl(ssl_options, null);
-
 	if(init_status < 0) {
 		err = request_initializing_ssl_error;
 		goto cleanup0;
@@ -35,29 +310,25 @@ estring requests_connect_securely_private(int socket, const string packet, const
 		goto cleanup0;
 	}
 
-	SSL_CTX *ctx = SSL_CTX_new(method);
-	if(!ctx) {
+	SSL_CTX *ssl_context = SSL_CTX_new(method);
+	if(!ssl_context) {
 		err = request_creating_context_error;
 		goto cleanup0;
 	}
 
-	SSL_CTX_set_options(ctx, 0);
-	SSL *ssl = SSL_new(ctx);
+	SSL_CTX_set_options(ssl_context, 0);
+	SSL *ssl = SSL_new(ssl_context);
 
 	if(!ssl) {
 		err = request_creating_context_error;
 		goto cleanup1;
 	}
 
-	//
-
 	int set_status = SSL_set_fd(ssl, socket);
 	if(set_status < 0) {
 		err = request_binding_secure_connection_error;
 		goto cleanup2;
 	}
-
-	//
 
 	int connection_status = SSL_connect(ssl);
 	if(connection_status != 1) {
@@ -66,18 +337,13 @@ estring requests_connect_securely_private(int socket, const string packet, const
 		goto cleanup2;
 	}
 
-	//
-	
 	int write_status = SSL_write(ssl,packet.data, packet.size);
 	if(write_status <= 0) {
 		err = request_sending_error;
 		goto cleanup2;
 	}
 
-	//
-
 	string response = strings_init(string_small_size, mem);
-
     while(response.size < response.capacity) {
         long bytes = SSL_read(
 			ssl,
@@ -109,10 +375,8 @@ estring requests_connect_securely_private(int socket, const string packet, const
 		goto cleanup3;
 	}
 
-	//
-
 	SSL_free(ssl);
-	SSL_CTX_free(ctx);
+	SSL_CTX_free(ssl_context);
 
     return (estring){.value=response};
 
@@ -123,11 +387,167 @@ estring requests_connect_securely_private(int socket, const string packet, const
 	SSL_free(ssl);
 
 	cleanup1:
-	SSL_CTX_free(ctx);
+	SSL_CTX_free(ssl_context);
 
 	cleanup0:
     return (estring){.error=err};
 }
+
+bool requests_connect_securely_async_private(request_async *request, const allocator *mem) {
+	#if cels_debug
+		errors_abort("packet", strings_check_extra(&request->internal.packet));
+	#endif
+
+	switch (request->internal.state) {
+		case request_init_state: return false;
+		case request_send_state: goto send;
+		case request_receive_state: goto receive;
+		case request_finished_state: return false;
+	}
+
+	send: {
+		int crypto_options = 
+			OPENSSL_INIT_ADD_ALL_CIPHERS | 
+			OPENSSL_INIT_ADD_ALL_DIGESTS | 
+			OPENSSL_INIT_LOAD_CRYPTO_STRINGS;
+
+		int init_status = OPENSSL_init_crypto(crypto_options, null);
+		if(init_status < 0) {
+			request->response.error = request_initializing_crypto_error;
+			goto send_cleanup0;
+		}
+
+		int ssl_options = 
+			OPENSSL_INIT_LOAD_SSL_STRINGS | 
+			OPENSSL_INIT_LOAD_CRYPTO_STRINGS;
+
+		init_status = OPENSSL_init_ssl(ssl_options, null);
+		if(init_status < 0) {
+			request->response.error = request_initializing_ssl_error;
+			goto send_cleanup0;
+		}
+
+		const SSL_METHOD *method = TLS_client_method();
+		if(!method) {
+			request->response.error = request_creating_context_error;
+			goto send_cleanup0;
+		}
+
+		SSL_CTX *ssl_context = SSL_CTX_new(method);
+		if(!ssl_context) {
+			request->response.error = request_creating_context_error;
+			goto send_cleanup0;
+		}
+
+		SSL_CTX_set_options(ssl_context, 0);
+		SSL *ssl = SSL_new(ssl_context);
+
+		if(!ssl) {
+			request->response.error = request_creating_context_error;
+			goto send_cleanup1;
+		}
+
+		int set_status = SSL_set_fd(ssl, request->internal.socket);
+		if(set_status < 0) {
+			request->response.error = request_binding_secure_connection_error;
+			goto send_cleanup2;
+		}
+
+		int connection_status = SSL_connect(ssl);
+		if(connection_status != 1) {
+			ERR_print_errors_fp(stderr);
+			request->response.error = request_opening_secure_connection_error;
+			goto send_cleanup2;
+		}
+
+		int write_status = SSL_write(
+			ssl, 
+			request->internal.packet.data, 
+			request->internal.packet.size);
+		if(write_status <= 0) {
+			request->response.error = request_sending_error;
+			goto send_cleanup2;
+		}
+
+		request->internal.state = request_receive_state;
+		request->internal.ssl = ssl;
+		request->internal.context = ssl_context;
+		request->internal.response = strings_init(request->internal.initial_buffer_size, mem);
+		return true;
+
+		send_cleanup2:
+		SSL_free(ssl);
+
+		send_cleanup1:
+		SSL_CTX_free(ssl_context);
+
+		send_cleanup0:
+		return false;
+	}
+
+	receive: {
+		char_vec *response = &request->internal.response;
+
+		#if cels_debug
+			errors_abort("request.internal.response", vectors_check((const vector *)response));
+		#endif
+
+		if (response->size > 0) {
+			response->size--;
+		}
+
+		size_t size = response->capacity - response->size;
+		if (size > 0) { size--; }
+
+		long bytes = SSL_read(
+			request->internal.ssl,
+			response->data + response->size, 
+			size);
+
+		if (bytes < 0 && request->internal.max_retry >= request->internal.retried) {
+			request->response.error = request_receiving_error;
+			goto receive_cleanup0;
+		} else if (bytes < 0) {
+			request->internal.retried++;
+			return true;
+		}
+
+		request->internal.retried = 0;
+		response->size += bytes + 1;
+		response->data[response->size - 1] = '\0';
+
+		if (bytes > 0) {
+			if (response->size >= response->capacity) {
+				bool upscale_status = char_vecs_upscale(response, mem);
+
+				if (upscale_status) {
+					request->response.error = request_upscaling_error;
+					goto receive_cleanup1;
+				}
+			}
+
+			#if cels_debug
+				errors_abort("request.internal.response", vectors_check((const vector *)response));
+			#endif
+
+			return true;
+		}
+
+		SSL_free(request->internal.ssl);
+		SSL_CTX_free(request->internal.context);
+		return false;
+
+		receive_cleanup1:
+		strings_free(&request->internal.response, mem);
+
+		receive_cleanup0:
+		SSL_free(request->internal.ssl);
+		SSL_CTX_free(request->internal.context);
+
+		return false;
+	}
+}
+#endif
 
 estring requests_connect_insecurely_private(int socket, const string packet, const allocator *mem) {
 	#if cels_debug
@@ -180,248 +600,138 @@ estring requests_connect_insecurely_private(int socket, const string packet, con
 	return (estring){.error=err};
 }
 
-typedef struct request {
-	string packet;
-	string host;
-	string port;
-	struct addrinfo info;
-	struct timeval timeout;
-} request;
-
-typedef errors(request) erequest;
-
-erequest requests_contruct_private(const string *url, const request_option *opts, const allocator *mem) {
+bool requests_connect_insecurely_async_private(request_async *request, const allocator *mem) {
 	#if cels_debug
-		errors_abort("url", strings_check_extra(url));
+		errors_abort("packet", strings_check_extra(&request->internal.packet));
 	#endif
 
-	error err = ok;
+	switch (request->internal.state) {
+		case request_init_state: return false;
+		case request_send_state: goto send;
+		case request_receive_state: goto receive;
+		case request_finished_state: return false;
+	}
 
-	request_option empty = {0};
-	if (!opts) { opts = &empty; }
+	send: {
+		int send_status = send(
+			request->internal.socket, 
+			request->internal.packet.data, 
+			request->internal.packet.size, 
+			0);
 
-	request request = {0};
-
-	//
-	
-	if (opts->head.data) {
-		const string host = strings_premake("Host"); 
-		ssize_t pos = strings_find(&opts->head, host, 0);
-		if (pos != -1) {
-			err = request_precomputed_field_set_error;
-			goto cleanup0;
+		if (send_status < 0) {
+			request->response.error = request_sending_error;
+			return false;
 		}
+
+		request->internal.response = strings_init(request->internal.initial_buffer_size, mem);
+		request->internal.state = request_receive_state;
+		return true;
 	}
 
-	ssize_t protocol_position = strings_find_with(url, "://", 0);
-	if (protocol_position >= 0) { 
-		err = request_protocol_in_url_error;
-		goto cleanup0;
+	receive: {
+		char_vec *response = &request->internal.response; 
+
+		#if cels_debug
+			errors_abort("request.internal.response", vectors_check((const vector *)response));
+		#endif
+
+		if (response->size > 0) {
+			response->size--;
+		}
+
+		size_t size = response->capacity - response->size;
+		if (size > 0) { size--; }
+
+		long bytes = recv(
+			request->internal.socket, 
+			response->data + response->size, 
+			size, 0);
+
+		if (bytes < 0 && request->internal.retried >= request->internal.max_retry) {
+			request->response.error = request_receiving_error;
+			goto receive_cleanup0;
+		} else if (bytes < 0) {
+			request->internal.retried++;
+			return true;
+		}
+
+		request->internal.retried = 0;
+		response->size += bytes + 1;
+		response->data[response->size - 1] = '\0';
+
+		if (bytes > 0) {
+			if (response->size >= response->capacity) {
+				error upscale_error = char_vecs_upscale(response, mem);
+
+				if (upscale_error) {
+					request->response.error = request_upscaling_error;
+					goto receive_cleanup0;
+				}
+			}
+
+			#if cels_debug
+				errors_abort("request.internal.response", vectors_check((const vector *)response));
+			#endif
+
+			return true;
+		}
+
+		return false;
+
+		receive_cleanup0:
+		strings_free(&request->internal.response, mem);
+		return false;
 	}
-
-
-	//
-	
-	string method = {0}; 
-	switch (opts->method) {
-	case request_get_method:
-		method = strings_do("GET");
-	break;
-	case request_post_method:
-		method = strings_do("POST");
-	break;
-	case request_put_method:
-		method = strings_do("PUT");
-	break;
-	case request_delete_method:
-		method = strings_do("DELETE");
-	break;
-	default:
-		method = strings_do("GET");
-	break;
-	}
-
-	string version = {0};
-	switch (opts->version) {
-	case request_one_version:
-		version = strings_do("HTTP/1.0");
-	break;
-	case request_one_dot_one_version:
-		version = strings_do("HTTP/1.1");
-	break;
-	default:
-		version = strings_do("HTTP/1.0");
-	break;
-	}
-
-	//
-
-	string_vec paths = strings_split_with(url, "/", 1, mem);
-	if (paths.size == 0) { 
-		err = request_malformed_url_error;
-		goto cleanup1;
-	}
-
-	string host = paths.data[0];
-	strings_println(&host);
-
-	const string host_charset = strings_premake("abcdefghijklmnopqrstuvwxyz.-1234567890");
-	bool is_host_valid = strings_check_charset(&host, host_charset);
-	if (!is_host_valid) { 
-		err = request_illegal_host_error;
-		goto cleanup1;
-	}
-
-	string path = paths.size == 1 ? strings_do("") : paths.data[1];
-	string head = !opts->head.data ? strings_do("") : opts->head;
-	string body = !opts->body.data ? strings_do("") : opts->body;
-
-	//
-
-	request.host = host;
-
-	request.packet = strings_format(
-		"%s /%s %s\r\nHost:%s\r\n%s\r\n\r\n%s\r\n", 
-		mem,
-		method.data, 
-		path.data,
-		version.data,
-		host.data,
-		head.data, 
-		body.data);
-
-	request.port = opts->port.data ? opts->port : strings_do("80");
-
-	request.info = (struct addrinfo) {
-		.ai_family=AF_UNSPEC,
-		.ai_socktype=SOCK_STREAM,
-	};
-
-	#define request_timeout 5
-	size_t timeout = opts->timeout == 0 ? request_timeout : opts->timeout;
-	request.timeout = (struct timeval) {.tv_sec=timeout, .tv_usec=0};
-	#undef request_timeout
-
-	string_vecs_free(&paths, mem);
-	return (erequest){.value=request};
-
-	cleanup1:
-	string_vecs_free(&paths, mem);
-
-	cleanup0:
-	return (erequest){.error=err};
 }
 
-cels_warn_unused
-eresponse requests_make(const string *url, const request_option *opts, const allocator *mem) {
+/* public */
+
+void request_errors_println(request_error self) {
+	#if cels_debug
+		errors_abort("self", !self);
+		errors_abort("#self", self < 0 || self >= request_private_error);
+	#endif
+	
+	if (self < 0 || self >= request_private_error) {
+		return;
+	}
+
+	printf("%s\n", request_error_messages[self]);
+}
+
+eresponse requests_make(const string *url, const request_option *option, const allocator *mem) {
 	#if cels_debug
 		errors_abort("url", strings_check_extra(url));
 	#endif
 
 	error err = ok;
-	erequest request = requests_contruct_private(url, opts, mem);
-	if (request.error != request_successfull) {
-		err = request.error;
+	erequest_internal internal = requests_init_private(url, option, mem);
+	if (internal.error != request_successfull) {
+		err = internal.error;
 		goto cleanup0;
 	}
 
-	printf("packet: \n");
-	strings_println(&request.value.packet);
-
-	struct addrinfo *server;
-	int get_status = getaddrinfo(
-		request.value.host.data,
-		request.value.port.data,
-		&request.value.info,
-		&server);
-
-	if (get_status < 0) {
-		err = request_dns_not_resolved_error;
-		goto cleanup1;
-	}
-
-	if (!server) {
-		err = request_dns_not_resolved_error;
-		goto cleanup1;
-	}
-
-	/*
-	void *address = null;
-	if (server->ai_family == AF_INET) {
-		struct sockaddr_in *ipv4 = (struct sockaddr_in *)server->ai_addr;
-		address = &(ipv4->sin_addr);
-	} else {
-		struct sockaddr_in6 *ipv6 = (struct sockaddr_in6 *)server->ai_addr;  
-		address = &(ipv6->sin6_addr);
-	}
-
-	char ip[INET6_ADDRSTRLEN];
-	inet_ntop(server->ai_family, address, ip, sizeof(ip)); 
-
-	string address_formated = strings_format(
-		"https_request.address = %s", mem, ip);
-
-	errors_print(errors_success_mode, address_formated.data, null);
-	*/
-
-	//
-
-	int socket_d = socket(
-		server->ai_family, 
-		server->ai_socktype, 
-		server->ai_protocol);
-
-	if (socket_d < 0) {
-		err = request_socket_creation_error;
-		goto cleanup2;
-	}
-
-	//
-
-	int set_status = setsockopt(
-		socket_d, 
-		SOL_SOCKET, 
-		SO_RCVTIMEO, 
-		(const char*)&request.value.timeout, 
-		sizeof(request.value.timeout));
-
-	if (set_status < 0) {
-		err = request_set_socket_option_error;
-		goto cleanup2;
-	}
-
-	//
-
-	int conn_status = connect(
-		socket_d, 
-		server->ai_addr, 
-		server->ai_addrlen);
-
-	if (conn_status < 0) { 
-		err = request_connection_error;
-		goto cleanup2;
-	}
-
-	//
-
-	const string https_default_port = strings_premake("80");
-	const string https_default_secure_port = strings_premake("443");
-
 	estring response_raw = {0};
-	if (strings_equals(&request.value.port, &https_default_port)) {
+	if (!internal.value.is_secure) {
 		response_raw = requests_connect_insecurely_private(
-			socket_d, request.value.packet, mem);
-	} else if (strings_equals(&request.value.port, &https_default_secure_port)) {
+			internal.value.socket, internal.value.packet, mem);
+	} 
+	#if cels_openssl
+	else {
 		response_raw = requests_connect_securely_private(
-			socket_d, request.value.packet, mem);
-	} else {
-		err = request_port_error;
-		goto cleanup2;
+			internal.value.socket, internal.value.packet, mem);
 	}
+	#else
+	else {
+		err = request_secure_not_implemented_error;
+		goto cleanup0;
+	}
+	#endif
 
 	if (response_raw.error != request_successfull) {
 		err = response_raw.error;
-		goto cleanup2;
+		goto cleanup1;
 	}
 
 	//
@@ -438,99 +748,96 @@ eresponse requests_make(const string *url, const request_option *opts, const all
 		response.body = packets.data[1];
 	}
 
-	close(socket_d);
-	freeaddrinfo(server);
-
 	mems_dealloc(mem, packets.data, sizeof(string) * packets.capacity);
 	strings_free(&response_raw.value, mem);
-	strings_free(&request.value.packet, mem);
-	strings_free(&request.value.host, mem);
+	request_internals_free_private(&internal.value, mem);
+	close(internal.value.socket);
 
 	return (eresponse){.value=response};
 
-	cleanup2:
-	close(socket_d);
-	freeaddrinfo(server);
-
 	cleanup1:
-	strings_free(&request.value.packet, mem);
-	strings_free(&request.value.host, mem);
+	close(internal.value.socket);
+	request_internals_free_private(&internal.value, mem);
 
 	cleanup0:
 	return (eresponse){.error=err};
 }
 
-void request_errors_println(request_error self) {
+bool requests_make_async(const string *url, request_async *request, const allocator *mem) {
 	#if cels_debug
-		errors_abort("self", !self);
+		errors_abort("url", strings_check_extra(url));
 	#endif
 
-    switch (self) {
-	case request_successfull:
-		printf("request was successful.\n");
-	break;
-	case request_default_error:
-		printf("error: unknown.\n");
-	break;
-	case request_protocol_in_url_error:
-		printf("error: url has protocol.\n");
-	break;
-	case request_malformed_url_error:
-		printf("error: url malformed.\n");
-	break;
-	case request_illegal_host_error:
-		printf("error: illegal host.\n");
-	break;
-	case request_precomputed_field_set_error:
-		printf("error: precomputed field set error.\n");
-	break;
-	case request_dns_not_resolved_error:
-		printf("error: dns not resolved.\n");
-	break;
-	case request_socket_creation_error:
-		printf("error: socket creation failed.\n");
-	break;
-	case request_set_socket_option_error:
-		printf("error: failed to set socket options.\n");
-	break;
-	case request_connection_error:
-		printf("error: connection failed.\n");
-	break;
-	case request_sending_error:
-		printf("error: failed to send data.\n");
-	break;
-	case request_receiving_error:
-		printf("error: failed to receive data.\n");
-	break;
-	case request_upscaling_error:
-		printf("error: upscaling failed.\n");
-	break;
-	case request_initializing_crypto_error:
-		printf("error: failed to initialize crypto.\n");
-	break;
-	case request_initializing_ssl_error:
-		printf("error: ssl initialization failed.\n");
-	break;
-	case request_initializing_bio_error:
-		printf("error: failed to initialize bio.\n");
-	break;
-	case request_initializing_library_error:
-		printf("error: failed to initialize library.\n");
-	break;
-	case request_creating_context_error:
-		printf("error: failed to create context.\n");
-	break;
-	case request_opening_secure_connection_error:
-		printf("error: failed to open secure connection.\n");
-	break;
-	case request_binding_secure_connection_error:
-		printf("error: failed to bind secure connection.\n");
-	break;
-	case request_certification_error:
-		printf("error: certification failed.\n");
-	break;
-	case request_port_error:
-		printf("error: invalid port.\n");
-	break;
-    }
+	switch (request->internal.state) {
+		case request_init_state: goto init;
+		case request_send_state: goto connect;
+		case request_receive_state: goto connect;
+		case request_finished_state: return false;
+	}
+
+	init: {
+		erequest_internal internal = requests_init_private(url, &request->option, mem);
+		if (internal.error != request_successfull) {
+			request->internal = internal.value;
+			request->response.error = internal.error;
+			return false;
+		}
+
+		request->internal = internal.value;
+		return true;
+	}
+
+	connect: {
+		bool shall_continue = false;
+		if (!request->internal.is_secure) {
+			shall_continue = requests_connect_insecurely_async_private(request, mem);
+		} 
+		#if cels_openssl
+		else {
+			shall_continue = requests_connect_securely_async_private(request, mem);
+		}
+		#else
+		else {
+			request->response.error = request_secure_not_implemented_error;
+			goto connect_cleanup0;
+		}
+		#endif
+
+		if (shall_continue) {
+			return true;
+		} else if (request->response.error != request_successfull) {
+			goto connect_cleanup0;
+		}
+
+		//
+		
+		bool is_raw = (request->option.flags & request_async_raw_mode_flag) == 1;
+		if (!is_raw) {
+			response response = {0};
+			string_vec packets = strings_split_with(
+				&request->internal.response, "\r\n\r\n", 1, mem);
+			errors_abort("#packets", packets.size == 0);
+
+			if (packets.size == 1) {
+				response.head = packets.data[0];
+				response.body = strings_do("");
+			} else {
+				response.head = packets.data[0];
+				response.body = packets.data[1];
+			}
+
+			request->response.value = response;
+			mems_dealloc(mem, packets.data, sizeof(string) * packets.capacity);
+		}
+
+		close(request->internal.socket);
+		request_internals_free_private(&request->internal, mem);
+
+		return false;
+
+		connect_cleanup0:
+		close(request->internal.socket);
+		request_internals_free_private(&request->internal, mem);
+		return false;
+	}
 }
