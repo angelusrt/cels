@@ -9,17 +9,17 @@
 /*
  * The module 'nodes' is a module 
  * that implements different types of 
- * nodes, linked-lists and trees - which 
+ * nodes, linked-pools and trees - which 
  * are the basis for other data-structures 
  * like maps and sets.
  */
 
-/* bnodes and btrees */
+/* bynary_nodes and bynary_trees */
 
-typedef enum bnode_color {
-	bnode_red_color,
-	bnode_black_color,
-} bnode_color;
+typedef enum bynary_node_color {
+	bynary_node_red_color,
+	bynary_node_black_color,
+} bynary_node_color;
 
 /*
  * A bynary node data-structure to 
@@ -27,9 +27,9 @@ typedef enum bnode_color {
  * algorythm implementation, 
  * know as red-black tree.
  */
-#define bnodes(type0, type1) \
+#define bynary_nodes(type0, type1) \
 	struct type1 { \
-		bnode_color color; \
+		bynary_node_color color; \
 		size_t hash; \
 		ulong frequency; \
 		type1 *parent; \
@@ -38,15 +38,34 @@ typedef enum bnode_color {
 		type0 data; \
 	}
 
-#define btrees(type0) \
+#define bynary_trees(type0) \
 	struct { \
 		type0 *data; \
 		size_t size; \
 	}
 
-typedef struct bnode bnode;
-typedef bnodes(void *, bnode) bnode;
-typedef btrees(bnode) btree;
+typedef struct bynary_node bynary_node;
+typedef bynary_nodes(void *, bynary_node) bynary_node;
+typedef bynary_trees(bynary_node) bynary_tree;
+
+typedef enum bynary_node_iterator_state {
+	bynary_node_initial_iterator_state,
+	bynary_node_left_most_iterator_state,
+	bynary_node_right_most_iterator_state,
+	bynary_node_returning_node_iterator_state,
+	bynary_node_finished_iterator_state,
+} bynary_node_iterator_state;
+
+typedef struct bynary_node_iterator_internal {
+	bynary_node *left;
+	bynary_node *right;
+	bynary_node_iterator_state state;
+} bynary_node_iterator_internal;
+
+typedef struct bynary_node_iterator {
+	bynary_node *data;
+	bynary_node_iterator_internal internal;
+} bynary_node_iterator;
 
 /*
  * Makes a bynary-node of type of 'self' and from data 
@@ -55,11 +74,11 @@ typedef btrees(bnode) btree;
  *
  * #allocates #may-panic #to-review
  */
-#define bnodes_make(self, item, id, mem) { \
+#define bynary_nodes_make(self, item, id, mem) { \
 	typeof(*self) node = { \
 		.hash=id, \
 		.data=item, \
-		.color=bnode_black_color, \
+		.color=bynary_node_black_color, \
 		.frequency=1}; \
 	\
 	self = mems_alloc(mem, sizeof(*self)); \
@@ -68,24 +87,24 @@ typedef btrees(bnode) btree;
 }
 
 /*
- * Checks if bnode is correct.
+ * Checks if bynary_node is correct.
  *
  * #to-review
  */
-bool bnodes_check(const bnode *self);
+bool bynary_nodes_check(const bynary_node *self);
 
 /*
  * Pushes a new node to self. If self is null 
- * then new_bnode becomes root, thus being returned.
+ * then new_bynary_node becomes root, thus being returned.
  *
- * If function errors to push new_bnode 
+ * If function errors to push new_bynary_node 
  * (and, thus, ownership) error will be 
  * set to true. Variable error may be set 
  * to null to silently error.
  *
  * #to-edit
  */
-bool bnodes_push(bnode **self, bnode *new_node);
+bool bynary_nodes_push(bynary_node **self, bynary_node *new_node);
 
 /*
  * Gets node with the same hash as hash, if 
@@ -94,54 +113,46 @@ bool bnodes_push(bnode **self, bnode *new_node);
  *
  * #to-review
  */
-bnode* bnodes_get(bnode* self, size_t hash);
+bynary_node* bynary_nodes_get(bynary_node* self, size_t hash);
 
 /*
  * Gets only the data inside node.
  *
  * #to-review
  */
-void *bnodes_get_data(bnode *self, size_t hash);
+void *bynary_nodes_get_data(bynary_node *self, size_t hash);
 
 /*
  * Gets only the frequency inside node.
  *
  * #to-review
  */
-size_t bnodes_get_frequency(bnode *self, size_t hash);
+size_t bynary_nodes_get_frequency(bynary_node *self, size_t hash);
 
 /*
  * Traverses self in-order executing callback.
  *
  * #to-review
  */
-void bnodes_traverse(bnode *self, callfunc callback);
+void bynary_nodes_traverse(bynary_node *self, callfunc callback);
 
 /*
  * Iterates self in-order executing callback.
  *
  * #to-review
  */
-void bnodes_iterate(bnode *self, enfunctor func);
+bool bynary_nodes_next(bynary_node *self, bynary_node_iterator *iterator);
 
 /*
  * Traverses self in-order to free all nodes
  *
  * #to-review
  */
-void bnodes_free_all(bnode *self, const allocator *mem, freefunc cleanup);
-
-/*
- * Traverses self in-order to get length
- *
- * #to-review
- */
-cels_warn_unused
-size_t bnodes_length(bnode *self);
+void bynary_nodes_free_all(bynary_node *self, const allocator *mem, freefunc cleanup);
 
 /* sets */
 
-#define sets(type, name) bnodes(type, name) 
+#define sets(type, name) bynary_nodes(type, name) 
 
 /*
  * A macro-template code-generator to create 
@@ -150,35 +161,35 @@ size_t bnodes_length(bnode *self);
  * #to-review
  */
 #define sets_generate_implementation(type, name, check0, print0, hasher0, cleanup0) \
-	void name##s_free_private(name##_bnode *self, const allocator *mem) { \
+	void name##s_free_private(name##_bynary_node *self, const allocator *mem) { \
 		if (cels_debug) { \
-			errors_abort("self", bnodes_check((const bnode *)self)); \
+			errors_abort("self", bynary_nodes_check((const bynary_node *)self)); \
 		} \
 		\
 		cleanup0(&self->data, mem); \
-		mems_dealloc(mem, self, sizeof(name##_bnode)); \
+		mems_dealloc(mem, self, sizeof(name##_bynary_node)); \
 	} \
 	\
-	void name##s_free_all_private(name##_bnode *self, const allocator *mem, size_t stackframe) { \
+	void name##s_free_all_private(name##_bynary_node *self, const allocator *mem, size_t stackframe) { \
 		if (!self || stackframe > cels_max_recursion) { \
 			return; \
 		} \
 		\
-		name##_bnode *left = self->left; \
-		name##_bnode *right = self->right; \
+		name##_bynary_node *left = self->left; \
+		name##_bynary_node *right = self->right; \
 		\
 		name##s_free_all_private(left, mem, ++stackframe); \
 		name##s_free_private(self, mem); \
 		name##s_free_all_private(right, mem, ++stackframe); \
 	} \
 	\
-	void *name##s_print_private(const name##_bnode *self) { \
+	void *name##s_print_private(const name##_bynary_node *self) { \
 		print0(&self->data); \
 		printf(", "); \
 		return null; \
 	} \
 	\
-	void *name##s_println_private(const name##_bnode *self) { \
+	void *name##s_println_private(const name##_bynary_node *self) { \
 		print0(&self->data); \
 		printf("\n"); \
 		return null; \
@@ -190,11 +201,11 @@ size_t bnodes_length(bnode *self);
 	\
 	type *name##s_get(const name *self, type item) { \
 		if (cels_debug) { \
-			errors_abort("self.data", bnodes_check((const bnode *)self->data)); \
+			errors_abort("self.data", bynary_nodes_check((const bynary_node *)self->data)); \
 			errors_abort("item", check0(&item)); \
 		} \
 		\
-		return (type *)bnodes_get_data((bnode *)self->data, hasher0(&item)); \
+		return (type *)bynary_nodes_get_data((bynary_node *)self->data, hasher0(&item)); \
 	} \
 	\
 	bool name##s_push(name *self, type item, const allocator *mem) { \
@@ -202,12 +213,12 @@ size_t bnodes_length(bnode *self);
 			errors_abort("item", check0(&item)); \
 		} \
 		\
-		name##_bnode *new_bnode = null; \
-		bnodes_make(new_bnode, item, hasher0(&item), mem) \
+		name##_bynary_node *new_bynary_node = null; \
+		bynary_nodes_make(new_bynary_node, item, hasher0(&item), mem) \
 		\
-		bool push_error = bnodes_push((bnode **)&self->data, (bnode *)new_bnode); \
+		bool push_error = bynary_nodes_push((bynary_node **)&self->data, (bynary_node *)new_bynary_node); \
 		if (push_error) { \
-			name##s_free_private(new_bnode, mem); \
+			name##s_free_private(new_bynary_node, mem); \
 		} else { \
 			self->size++; \
 		}\
@@ -217,7 +228,7 @@ size_t bnodes_length(bnode *self);
 	\
 	void name##s_free(name *self, const allocator *mem) { \
 		if (cels_debug) { \
-			errors_abort("self.data", bnodes_check((const bnode *)self->data)); \
+			errors_abort("self.data", bynary_nodes_check((const bynary_node *)self->data)); \
 		} \
 		\
 		name##s_free_all_private(self->data, mem, 0); \
@@ -225,18 +236,18 @@ size_t bnodes_length(bnode *self);
 	\
 	void name##s_traverse(name *self, callfunc callback) { \
 		if (cels_debug) { \
-			errors_abort("self.data", bnodes_check((const bnode *)self->data)); \
+			errors_abort("self.data", bynary_nodes_check((const bynary_node *)self->data)); \
 		} \
 		\
-		bnodes_traverse((bnode *)self->data, callback); \
+		bynary_nodes_traverse((bynary_node *)self->data, callback); \
 	} \
 	\
 	void name##s_print(const name *self) { \
 		if (cels_debug) { \
-			errors_abort("self.data", bnodes_check((const bnode *)self->data)); \
+			errors_abort("self.data", bynary_nodes_check((const bynary_node *)self->data)); \
 		} \
 		\
-		bnodes_traverse((bnode *)self->data, (callfunc)name##s_print_private); \
+		bynary_nodes_traverse((bynary_node *)self->data, (callfunc)name##s_print_private); \
 		if (self->size > 0) { \
 			putchar('\b'); \
 			putchar('\b'); \
@@ -246,19 +257,19 @@ size_t bnodes_length(bnode *self);
 	\
 	void name##s_println(const name *self) { \
 		if (cels_debug) { \
-			errors_abort("self.data", bnodes_check((const bnode *)self->data)); \
+			errors_abort("self.data", bynary_nodes_check((const bynary_node *)self->data)); \
 		} \
 		\
-		bnodes_traverse((bnode *)self->data, (callfunc)name##s_println_private); \
+		bynary_nodes_traverse((bynary_node *)self->data, (callfunc)name##s_println_private); \
 	} \
 	\
 	void name##s_debug(const name *self) { \
 		if (cels_debug) { \
-			errors_abort("self.data", bnodes_check((const bnode *)self->data)); \
+			errors_abort("self.data", bynary_nodes_check((const bynary_node *)self->data)); \
 		} \
 		\
 		printf("<"#name">{.size: %zu, .data: {", self->size); \
-		bnodes_traverse((bnode *)self->data, (callfunc)name##s_print_private); \
+		bynary_nodes_traverse((bynary_node *)self->data, (callfunc)name##s_print_private); \
 		if (self->size > 0) { \
 			putchar('\b'); \
 			putchar('\b'); \
@@ -268,7 +279,7 @@ size_t bnodes_length(bnode *self);
 	\
 	void name##s_debugln(const name *self) { \
 		if (cels_debug) { \
-			errors_abort("self.data", bnodes_check((const bnode *)self->data)); \
+			errors_abort("self.data", bynary_nodes_check((const bynary_node *)self->data)); \
 		} \
 		\
 		name##s_debug(self); \
@@ -282,9 +293,9 @@ size_t bnodes_length(bnode *self);
  * #to-review
  */
 #define sets_generate_definition(type, name) \
-	typedef struct name##_bnode name##_bnode; \
-	typedef bnodes(type, name##_bnode) name##_bnode; \
-	typedef btrees(name##_bnode) name; \
+	typedef struct name##_bynary_node name##_bynary_node; \
+	typedef bynary_nodes(type, name##_bynary_node) name##_bynary_node; \
+	typedef bynary_trees(name##_bynary_node) name; \
 	\
 	name name##s_init(void); \
 	\
@@ -312,7 +323,7 @@ size_t bnodes_length(bnode *self);
     typeof(type1) value; \
 }
 
-#define maps(type, name) bnodes(type, name) 
+#define maps(type, name) bynary_nodes(type, name) 
 
 /*
  * A macro-template code-generator to create 
@@ -323,9 +334,9 @@ size_t bnodes_length(bnode *self);
 #define maps_generate_implementation( \
 	type0, type1, type2, name, check0, check1, print0, print1, hasher0, cleanup0, cleanup1 \
 ) \
-	void name##s_free_private(name##_bnode *self, const allocator *mem) { \
+	void name##s_free_private(name##_bynary_node *self, const allocator *mem) { \
 		if (cels_debug) { \
-			errors_abort("self", bnodes_check((const bnode *)self)); \
+			errors_abort("self", bynary_nodes_check((const bynary_node *)self)); \
 		} \
 		\
 		cleanup0(&self->data.key, mem); \
@@ -334,18 +345,18 @@ size_t bnodes_length(bnode *self);
 		self = null; \
 	} \
 	\
-	void name##s_free_all_private(name##_bnode *self, const allocator *mem, size_t stackframe) { \
+	void name##s_free_all_private(name##_bynary_node *self, const allocator *mem, size_t stackframe) { \
 		if (!self || stackframe > cels_max_recursion) { return; } \
 		\
-		name##_bnode *left = self->left; \
-		name##_bnode *right = self->right; \
+		name##_bynary_node *left = self->left; \
+		name##_bynary_node *right = self->right; \
 		\
 		name##s_free_all_private(left, mem, ++stackframe); \
 		name##s_free_private(self, mem); \
 		name##s_free_all_private(right, mem, ++stackframe); \
 	} \
 	\
-	void *name##s_print_private(const name##_bnode *self) { \
+	void *name##s_print_private(const name##_bynary_node *self) { \
 		print0(&self->data.key); \
 		printf(": "); \
 		print1(&self->data.value); \
@@ -353,7 +364,7 @@ size_t bnodes_length(bnode *self);
 		return null; \
 	} \
 	\
-	void *name##s_println_private(const name##_bnode *self) { \
+	void *name##s_println_private(const name##_bynary_node *self) { \
 		print0(&self->data.key); \
 		printf(": "); \
 		print1(&self->data.value); \
@@ -361,7 +372,7 @@ size_t bnodes_length(bnode *self);
 		return null; \
 	} \
 	\
-	void *name##s_debug_private(const name##_bnode *self) { \
+	void *name##s_debug_private(const name##_bynary_node *self) { \
 		printf("\""); \
 		print0(&self->data.key); \
 		printf(": "); \
@@ -376,11 +387,11 @@ size_t bnodes_length(bnode *self);
 	\
 	type1 *name##s_get(const name *self, type0 item) { \
 		if (cels_debug) { \
-			errors_abort("self.data", bnodes_check((const bnode *)self->data)); \
+			errors_abort("self.data", bynary_nodes_check((const bynary_node *)self->data)); \
 			errors_abort("item", check0(&item)); \
 		} \
 		\
-		type2 *temp = bnodes_get_data((bnode *)self->data, hasher0(&item)); \
+		type2 *temp = bynary_nodes_get_data((bynary_node *)self->data, hasher0(&item)); \
 		if (!temp) { return null; } \
 		\
 		return &temp->value; \
@@ -393,12 +404,12 @@ size_t bnodes_length(bnode *self);
 		} \
 		\
 		type2 item = {.key=key, .value=value}; \
-		name##_bnode *new_bnode = null; \
-		bnodes_make(new_bnode, item, hasher0(&item.key), mem); \
+		name##_bynary_node *new_bynary_node = null; \
+		bynary_nodes_make(new_bynary_node, item, hasher0(&item.key), mem); \
 		\
-		error push_error = bnodes_push((bnode **)&self->data, (bnode *)new_bnode); \
+		error push_error = bynary_nodes_push((bynary_node **)&self->data, (bynary_node *)new_bynary_node); \
 		if (push_error) { \
-			name##s_free_private(new_bnode, mem); \
+			name##s_free_private(new_bynary_node, mem); \
 		} else { \
 			self->size++; \
 		} \
@@ -408,7 +419,7 @@ size_t bnodes_length(bnode *self);
 	\
 	void name##s_free(name *self, const allocator *mem) { \
 		if (cels_debug) { \
-			errors_abort("self.data", bnodes_check((const bnode *)self->data)); \
+			errors_abort("self.data", bynary_nodes_check((const bynary_node *)self->data)); \
 		} \
 		\
 		name##s_free_all_private(self->data, mem, 0); \
@@ -416,27 +427,27 @@ size_t bnodes_length(bnode *self);
 	\
 	size_t name##s_frequency(name *self, type0 item) { \
 		if (cels_debug) { \
-			errors_abort("self.data", bnodes_check((const bnode *)self->data)); \
+			errors_abort("self.data", bynary_nodes_check((const bynary_node *)self->data)); \
 			errors_abort("item", check0(&item)); \
 		} \
 		\
-		return bnodes_get_frequency((bnode *)self->data, hasher0(&item)); \
+		return bynary_nodes_get_frequency((bynary_node *)self->data, hasher0(&item)); \
 	} \
 	\
 	void name##s_traverse(name *self, callfunc callback) { \
 		if (cels_debug) { \
-			errors_abort("self.data", bnodes_check((const bnode *)self->data)); \
+			errors_abort("self.data", bynary_nodes_check((const bynary_node *)self->data)); \
 		} \
 		\
-		bnodes_traverse((bnode *)self->data, callback); \
+		bynary_nodes_traverse((bynary_node *)self->data, callback); \
 	} \
 	\
 	void name##s_print(const name *self) { \
 		if (cels_debug) { \
-			errors_abort("self.data", bnodes_check((const bnode *)self->data)); \
+			errors_abort("self.data", bynary_nodes_check((const bynary_node *)self->data)); \
 		} \
 		\
-		bnodes_traverse((bnode *)self->data, (callfunc)name##s_print_private); \
+		bynary_nodes_traverse((bynary_node *)self->data, (callfunc)name##s_print_private); \
 		if (self->size > 0) { \
 			putchar('\b'); \
 			putchar('\b'); \
@@ -446,19 +457,19 @@ size_t bnodes_length(bnode *self);
 	\
 	void name##s_println(const name *self) { \
 		if (cels_debug) { \
-			errors_abort("self.data", bnodes_check((const bnode *)self->data)); \
+			errors_abort("self.data", bynary_nodes_check((const bynary_node *)self->data)); \
 		} \
 		\
-		bnodes_traverse((bnode *)self->data, (callfunc)name##s_println_private); \
+		bynary_nodes_traverse((bynary_node *)self->data, (callfunc)name##s_println_private); \
 	} \
 	\
 	void name##s_debug(const name *self) { \
 		if (cels_debug) { \
-			errors_abort("self.data", bnodes_check((const bnode *)self->data)); \
+			errors_abort("self.data", bynary_nodes_check((const bynary_node *)self->data)); \
 		} \
 		\
 		printf("<"#name">{.size: %zu, .data: {", self->size); \
-		bnodes_traverse((bnode *)self->data, (callfunc)name##s_debug_private); \
+		bynary_nodes_traverse((bynary_node *)self->data, (callfunc)name##s_debug_private); \
 		if (self->size > 0) { \
 			putchar('\b'); \
 			putchar('\b'); \
@@ -468,7 +479,7 @@ size_t bnodes_length(bnode *self);
 	\
 	void name##s_debugln(const name *self) { \
 		if (cels_debug) { \
-			errors_abort("self.data", bnodes_check((const bnode *)self->data)); \
+			errors_abort("self.data", bynary_nodes_check((const bynary_node *)self->data)); \
 		} \
 		\
 		name##s_debug(self); \
@@ -483,9 +494,9 @@ size_t bnodes_length(bnode *self);
  */
 #define maps_generate_definition(type0, type1, type2, name) \
 	typedef key_pairs(type0, type1) type2; \
-	typedef struct name##_bnode name##_bnode; \
-	typedef bnodes(type2, name##_bnode) name##_bnode; \
-	typedef btrees(name##_bnode) name; \
+	typedef struct name##_bynary_node name##_bynary_node; \
+	typedef bynary_nodes(type2, name##_bynary_node) name##_bynary_node; \
+	typedef bynary_trees(name##_bynary_node) name; \
 	\
 	name name##s_init(void); \
 	\
@@ -532,15 +543,15 @@ sets(node, node_set);
 		type0 *data; \
 	}
 
-/* lists and linked-blocks */
+/* pools and linked-blocks */
 
-#define litems(name, type0) \
+#define block_items(name, type0) \
 	struct name { \
 		int status; \
 		type0 data; \
 	}
 
-#define lblocks(name, type0) \
+#define blocks(name, type0) \
 	struct name { \
 		name *next; \
 		type0 *data; \
@@ -548,30 +559,30 @@ sets(node, node_set);
 		size_t capacity; \
 	}
 
-#define lists(type0) \
+#define pools(type0) \
 	struct { \
 		size_t size; \
 		size_t capacity; \
 		type0 data; \
 	}
 
-#define list_iterators(type0, type1) \
+#define pool_iterators(type0, type1) \
 	struct { \
 		type0 *next; \
 		type1 *data; \
 		size_t index; \
 	}
 
-#define lists_generate_definition(name, type0) \
-	typedef struct name##_lblock name##_lblock; \
-	typedef litems(name##_item, type0) name##_item; \
-	typedef lblocks(name##_lblock, name##_item) name##_lblock; \
+#define pools_generate_definition(name, type0) \
+	typedef struct name##_block name##_block; \
+	typedef block_items(name##_item, type0) name##_item; \
+	typedef blocks(name##_block, name##_item) name##_block; \
 	\
-	typedef lists(name##_lblock *) name; \
-	typedef list_iterators(name##_lblock, type0) name##_iterator; \
+	typedef pools(name##_block *) name; \
+	typedef pool_iterators(name##_block, type0) name##_iterator; \
 	\
 	/*
-	 * Initializes a list where each block has 
+	 * Initializes a pool where each block has 
 	 * capacity 'capacity' before appealing for
 	 * a next block creation of same size.
 	 *
@@ -580,7 +591,7 @@ sets(node, node_set);
 	name name##s_init(size_t capacity, const allocator *mem); \
 	\
 	/*
-	 * Pushes 'item' to 'self' list at 
+	 * Pushes 'item' to 'self' pool at 
 	 * first hole found.
 	 *
 	 * #to-review
@@ -604,8 +615,8 @@ sets(node, node_set);
 	 */ \
 	void name##s_free(name *self, const allocator *mem);
 
-#define lists_generate_implementation(name, type0, cleanup0) \
-	name##_lblock *name##_lblocks_init_private(size_t capacity, const allocator *mem) { \
+#define pools_generate_implementation(name, type0, cleanup0) \
+	name##_block *name##_blocks_init_private(size_t capacity, const allocator *mem) { \
 		name##_item *items = mems_alloc(mem, capacity * sizeof(name##_item)); \
 		if (!items) { return null; } \
 		\
@@ -613,35 +624,35 @@ sets(node, node_set);
 			items[i].status = 0; \
 		} \
 		\
-		name##_lblock node = { \
+		name##_block node = { \
 			.next=null, \
 			.data=items, \
 			.capacity=capacity, \
 			.size=0, \
 		}; \
 		\
-		name##_lblock *node_capsule = mems_alloc(mem, sizeof(name##_lblock)); \
+		name##_block *node_capsule = mems_alloc(mem, sizeof(name##_block)); \
 		*node_capsule = node; \
 		\
 		return node_capsule; \
 	} \
 	\
 	name name##s_init(size_t capacity, const allocator *mem) { \
-		name##_lblock *block = name##_lblocks_init_private(capacity, mem); \
+		name##_block *block = name##_blocks_init_private(capacity, mem); \
 		errors_abort("block", !block); \
 		\
-		name list = { \
+		name pool = { \
 			.data=block, \
 			.capacity=capacity, \
 		}; \
 		\
-		return list; \
+		return pool; \
 	} \
 	\
 	error name##s_push(name *self, type0 item, const allocator *mem) { \
 		if (!self || !self->capacity) { return fail; } \
 		\
-		name##_lblock *node = self->data; \
+		name##_block *node = self->data; \
 		while (node) { \
 			for (size_t i = 0; i < node->capacity; i++) { \
 				if (node->data[i].status == 0) { \
@@ -652,7 +663,7 @@ sets(node, node_set);
 			} \
 			\
 			if (!node->next) { \
-				name##_lblock *nodes = name##_lblocks_init_private(self->data->capacity, mem); \
+				name##_block *nodes = name##_blocks_init_private(self->data->capacity, mem); \
 				if (!nodes) { return fail; } \
 				\
 				node->next = nodes; \
@@ -694,7 +705,7 @@ sets(node, node_set);
 	void name##s_free(name *self, const allocator *mem) { \
 		if (!self) { return; } \
 		\
-		name##_lblock *node = self->data; \
+		name##_block *node = self->data; \
 		while (node) { \
 			for (size_t i = 0; i < node->capacity; i++) { \
 				if (node->data[i].status != 0) { \
@@ -704,10 +715,10 @@ sets(node, node_set);
 			\
 			mems_dealloc(mem, node->data, node->capacity * sizeof(name##_item)); \
 			\
-			name##_lblock *prev = node; \
+			name##_block *prev = node; \
 			node = node->next; \
 			\
-			mems_dealloc(mem, prev, sizeof(name##_lblock)); \
+			mems_dealloc(mem, prev, sizeof(name##_block)); \
 		} \
 		\
 		self->data = null; \
