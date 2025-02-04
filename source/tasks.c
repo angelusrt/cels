@@ -1,6 +1,6 @@
 #include "tasks.h"
 
-lists_generate_implementation(routine, task, defaults_free)
+pools_generate_implementation(routine, task, defaults_free)
 
 bool routines_make(routine *self, supervisor *supervisor) {
 	while (true) {

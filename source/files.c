@@ -119,10 +119,16 @@ bool files_write_async(file *self, file_write *file_write) {
 		errors_abort("file_write", !file_write);
 	#endif
 
-	size_t step = maths_min(
-		(file_write->file.size - 1 - file_write->position), file_write->size);
-	size_t writen = fwrite(
-		file_write->file.data + file_write->position, 1, step, self);
+	ssize_t rest = file_write->file.size - 1 - file_write->internal.position;
+	#if cels_debug
+		errors_abort("rest is negative", rest < 0);
+	#else
+		if (rest < 0) { return false; }
+	#endif
+
+	char *offset = file_write->file.data + file_write->internal.position;
+	size_t step = maths_min(rest, file_write->size);
+	size_t writen = fwrite(offset, 1, step, self);
 
 	if ((long)writen < (long)step) {
 		file_write->error = file_writing_error;
@@ -132,7 +138,7 @@ bool files_write_async(file *self, file_write *file_write) {
 	if (file_write->consume) {
 		char_vecs_shift(&file_write->file, 0, writen, null);
 	} else {
-		file_write->position += writen;
+		file_write->internal.position += writen;
 	}
 
 	if (writen == 0) {

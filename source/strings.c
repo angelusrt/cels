@@ -1247,10 +1247,10 @@ bool string_maps_push_with(string_map *self, const char *key, const char *value,
 	return string_maps_push(self, skey, svalue, mem);
 }
 
-/* lists */
+/* pools */
 
-lists_generate_implementation(
-	string_list, 
+pools_generate_implementation(
+	string_pool, 
 	string, 
 	strings_free)
 

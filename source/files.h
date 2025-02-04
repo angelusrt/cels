@@ -48,14 +48,16 @@ typedef struct file_read {
 	error error;
 } file_read;
 
+typedef struct file_write_internal {
+	size_t position;
+} file_write_internal;
+
 typedef struct file_write {
 	string file;
 	size_t size;
 	error error;
 	bool consume;
-
-	/* internal */
-	size_t position;
+	file_write_internal internal;
 } file_write;
 
 /*

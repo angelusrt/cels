@@ -658,7 +658,7 @@ bool string_maps_push_with(
 
 /* lists */
 
-lists_generate_definition(string_list, string)
+pools_generate_definition(string_pool, string)
 
 //#endif
 
