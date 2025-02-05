@@ -468,63 +468,45 @@ typedef struct jsons_make_private_params {
 	bool *error;
 } jsons_make_private_params;
 
-void *jsons_make_private(string_map *self, jsons_make_private_params *params) {
+void *jsons_make_private(const string_map_bynary_node *self, jsons_make_private_params *params) {
 	#if cels_debug
-		errors_abort("self", bnodes_check((const void *)self));
+		errors_abort("self", bynary_nodes_check((const bynary_node *)self));
 		errors_abort("params", !params);
 		errors_abort("params.json", strings_check_extra(params->json));
 		errors_abort("params.error", !params->error);
 	#endif
 
 	bool push_error = strings_push_with(params->json, "\"", params->mem);
-	if (push_error) {
-		goto cleanup;
-	}
+	if (push_error) { goto cleanup; }
 
-	push_error = strings_push(params->json, self->data->data.key, params->mem);
-	if (push_error) {
-		goto cleanup;
-	}
+	push_error = strings_push(params->json, self->data.key, params->mem);
+	if (push_error) { goto cleanup; }
 
 	push_error = strings_push_with(params->json, "\"", params->mem);
-	if (push_error) {
-		goto cleanup;
-	}
+	if (push_error) { goto cleanup; }
 
 	push_error = strings_push_with(params->json, ":", params->mem);
-	if (push_error) {
-		goto cleanup;
-	}
+	if (push_error) { goto cleanup; }
 
-	char value_start_char = self->data->data.value.data[0];
+	char value_start_char = self->data.value.data[0];
 	bool is_value_text = value_start_char != '[' && value_start_char != '{';
 
 	if (is_value_text) {
 		push_error = strings_push_with(params->json, "\"", params->mem);
-		if (push_error) {
-			goto cleanup;
-		}
+		if (push_error) { goto cleanup; }
 
-		push_error = strings_push(params->json, self->data->data.value, params->mem);
-		if (push_error) {
-			goto cleanup;
-		}
+		push_error = strings_push(params->json, self->data.value, params->mem);
+		if (push_error) { goto cleanup; }
 
 		push_error = strings_push_with(params->json, "\"", params->mem);
-		if (push_error) {
-			goto cleanup;
-		}
+		if (push_error) { goto cleanup; }
 	} else {
-		push_error = strings_push(params->json, self->data->data.value, params->mem);
-		if (push_error) {
-			goto cleanup;
-		}
+		push_error = strings_push(params->json, self->data.value, params->mem);
+		if (push_error) { goto cleanup; }
 	}
 
 	push_error = strings_push_with(params->json, ",", params->mem);
-	if (push_error) {
-		goto cleanup;
-	}
+	if (push_error) { goto cleanup; }
 
 	return null;
 
@@ -535,7 +517,7 @@ void *jsons_make_private(string_map *self, jsons_make_private_params *params) {
 
 estring jsons_make(const string_map *self, const allocator *mem) {
 	#if cels_debug
-		errors_abort("self", bnodes_check((const void *)self));
+		errors_abort("self", bynary_nodes_check((const void *)self));
 	#endif
 
 	string json = strings_make("{", mem);
@@ -544,11 +526,11 @@ estring jsons_make(const string_map *self, const allocator *mem) {
 	jsons_make_private_params params = {
 		.error=&private_error, .json=&json, .mem=mem};
 
-	enfunctor func = {
-		.func=(selffunc)jsons_make_private, 
-		.params=&params};
+	bynary_node_iterator it = {0};
+	while (bynary_nodes_next((bynary_node *)self->data, &it)) {
+		jsons_make_private((string_map_bynary_node *)it.data, &params);
+	}
 
-	bnodes_iterate((bnode *)self, func);
 	if (private_error) { goto cleanup; }
 
 	bool pop_error = strings_pop(&json, mem);

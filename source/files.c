@@ -127,7 +127,7 @@ bool files_write_async(file *self, file_write *file_write) {
 	#endif
 
 	char *offset = file_write->file.data + file_write->internal.position;
-	size_t step = maths_min(rest, file_write->size);
+	size_t step = maths_min(rest, (ssize_t)file_write->size);
 	size_t writen = fwrite(offset, 1, step, self);
 
 	if ((long)writen < (long)step) {

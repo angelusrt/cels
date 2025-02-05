@@ -269,6 +269,7 @@ typedef struct program_entity {
 	size_t range[2];
 } program_entity;
 
+/*
 //TODO: maybe I have to read file to string to tokenize it
 estring_vec utils_get_entities(const string path, const allocator *mem) {
 	#if cels_debug

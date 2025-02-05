@@ -39,9 +39,15 @@ typedef struct template {
 /* template_maps */
 
 maps_generate_definition(string, template_vec, template_vec_key_pair, template_map)
-typedef errors(template_map *) etemplate_map;
+typedef errors(template_map) etemplate_map;
 
 /* templates */
+
+/*
+ * Parses template to templates.
+ */
+cels_warn_unused
+error templates_parse(template_map *templates, const string *template, const allocator *mem);
 
 /*
  * Creates a map of parsed-template 

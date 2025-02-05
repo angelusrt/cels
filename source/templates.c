@@ -7,7 +7,7 @@
 bool templates_check(const template *self) {
 	#if cels_debug
 		errors_return("self", !self)
-		errors_return("self.text", strings_check_extra(&self->text)
+		errors_return("self.text", strings_check_extra(&self->text))
 	#else
 		if (self == NULL) return true;
 		if (strings_check_extra(&self->text)) return true;
@@ -124,9 +124,9 @@ typedef enum template_operator {
 } template_operator;
 
 cels_warn_unused
-template templates_parse_tag(string *tag, const allocator *mem) {
+template templates_parse_tag(own string *tag, const allocator *mem) {
 	#if cels_debug
-		errors_abort("tag", strings_check_extra(tag));
+		errors_abort("tag", strings_check_view(tag));
 	#endif
 
 	const string alt_whitespaces = strings_premake("\t\r\n");
@@ -135,36 +135,43 @@ template templates_parse_tag(string *tag, const allocator *mem) {
 	strings_replace_from(tag, alt_whitespaces, ' ', 0);
 
 	string_vec tokens = strings_split(tag, the_whitespace, 0, mem);
+	strings_free(tag, mem);
 
 	if (tokens.size == 1) {
+		string token = tokens.data[0];
 		mems_dealloc(mem, tokens.data, tokens.capacity);
+
 		return (template) {
-			.text=tokens.data[0],
+			.text=token,
 			.operator=template_assignment_operator
 		};
 	} else if (tokens.size == 2) {
-		if (tokens.data[1].size == 0) { goto error; }
+		if (tokens.data[1].size == 0) { goto cleanup; }
 
 		const string define_keyword = strings_premake("define");
 		bool is_define = strings_equals(&tokens.data[0], &define_keyword);
 		if (is_define) {
+			string token = tokens.data[1];
+			mems_dealloc(mem, tokens.data, tokens.capacity);
+			strings_free(&tokens.data[0], mem);
+
 			return (template){
-				.text=tokens.data[1],
+				.text=token,
 				.operator=template_define_operator,
 			};
 		}
 	}
 
-	error:
+	cleanup:
 	string_vecs_free(&tokens, mem);
 	return (template){0};
 }
 
-cels_warn_unused
-error templates_parse(template_map **templates, const string *template, const allocator *mem) {
+error templates_parse(template_map *templates, const string *template, const allocator *mem) {
 	#if cels_debug
-		errors_abort("templates", bnodes_check((const bnode *)templates));
+		errors_abort("templates", !templates);
 		errors_abort("template", strings_check_extra(template));
+		//errors_abort("templates", bynary_nodes_check((const bynary_node *)templates->data));
 	#endif
 
 	static const string tag_open = strings_premake("<%");
@@ -182,13 +189,9 @@ error templates_parse(template_map **templates, const string *template, const al
 				goto error;
 			}
 
-			string tag_view = {
-				.data=template->data+(i + 2),
-				.size=pos-(i + 2),
-				.capacity=(pos-(i + 2))+1,
-			};
+			string tagging = strings_copy(template, i + 2, pos - 1, mem);
+			struct template tag = templates_parse_tag(&tagging, mem);
 
-			struct template tag = templates_parse_tag(&tag_view, mem);
 			if (tag.operator == 0) {
 				error = template_invalid_tag_error;
 				goto error;
@@ -209,20 +212,22 @@ error templates_parse(template_map **templates, const string *template, const al
 
 			i = pos + 1;
 		} else {
-			ssize_t pos = strings_find_from(template, tag_open, i);
+			ssize_t pos = strings_find(template, tag_open, i);
 			if (pos == -1) {
 				pos = template->size - 2;
 			}
 
-			string section_view = {
+			/*string section_view = {
 				.data=template->data+(i-1),
 				.size=pos-(i-1),
 				.capacity=(pos-(i-1))+2,
-			};
+			};*/
 
-			string section = strings_clone(&section_view, mem);
-			section.size++;
-			section.data[section.capacity - 1] = '\0';
+			/*TODO: make it safe (dangerous - i could be 0)*/
+			string section = strings_copy(template, i - 1, pos, mem);
+			//string section = strings_clone(&section_view, mem);
+			//section.size++;
+			//section.data[section.capacity - 1] = '\0';
 
 			struct template sec = {
 				.text=section,
@@ -274,7 +279,7 @@ etemplate_map templates_make(const string path, const allocator *mem) {
 	}
 
 	error error = 0;
-	template_map *map = null;
+	template_map map = template_maps_init();
 	for (size_t i = 0; i < files.value.size; i++) {
 		string filepath = strings_format(
 			"%s%s", mem, path.data, files.value.data[i].data);
@@ -306,8 +311,8 @@ etemplate_map templates_make(const string path, const allocator *mem) {
 
 	error0:
 	string_vecs_free(&files.value, mem);
-	if (map) {
-		template_maps_free(map, mem);
+	if (map.data) {
+		template_maps_free(&map, mem);
 	}
 
 	return (etemplate_map){.error=error};

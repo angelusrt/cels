@@ -290,26 +290,21 @@ typedef vectors(void *) vector;
 		\
 		for (size_t i = 0; i < self->size; i++) { \
 			if (cels_debug) { \
-				errors_abort("self.data", check0(&self->data[i])); \
+				errors_abort("self.data[i]", check0(&self->data[i])); \
 			} \
 			\
 			if (filter(&self->data[i])) { \
 				error push_error = name##s_force(&other, self->data[i], mem); \
-				if (push_error) { \
-					return fail; \
-				} \
+				if (push_error) { return fail; } \
 			} else { \
 				cleanup0(&self->data[i], mem); \
 			} \
 		} \
 		\
 		error dealloc_error = mems_dealloc(mem, self->data, self->capacity); \
-		if (dealloc_error) { \
-			return fail; \
-		} \
+		if (dealloc_error) { return fail; } \
 		\
 		*self = other; \
-		\
 		return ok; \
 	} \
 	\
