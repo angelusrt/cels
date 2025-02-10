@@ -35,6 +35,7 @@ error errors_assert(const char *message, bool statement){
 
 void errors_abort_helper(const char *function_name, const char *message, bool statement) {
 	if (statement) {
+		errors_backtrace();
 		printf(colors_error("%s.%s"), function_name, message);
 		exit(1);
 	}
@@ -83,6 +84,20 @@ error errors_warn(const char *message, bool statement) {
 	}
 
 	return ok;
+}
+
+void errors_backtrace(void) {
+	void* callstack[128];
+	int i, frames = backtrace(callstack, 128);
+
+	char** symbols = backtrace_symbols(callstack, frames);
+	if (!symbols) { return; }
+
+	for (i = frames - 4; i >= 0; --i) {
+		printf("%s\n", symbols[i]+2);
+	}
+
+	free(symbols);
 }
 
 void errors_print(errors_mode mode, const char *const message, ...) {

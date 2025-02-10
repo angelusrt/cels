@@ -7,6 +7,7 @@
 #include <stdarg.h>
 #include <string.h>
 #include <unistd.h>
+#include <execinfo.h>
 
 #include "colors.h"
 #include "types.h"
@@ -153,6 +154,13 @@ error errors_ensure_helper(
  * #depends:stdio.h #to-review
  */
 error errors_check(const char *message, bool statement);
+
+/*
+ * Enables to see the stack of the program.
+ *
+ * #allocates-implicitly
+ */
+void errors_backtrace(void);
 
 /*
  * An adapter to printf function to ease debug.
