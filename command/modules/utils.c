@@ -1,63 +1,14 @@
 #include "utils.h"
 
-/* solução temporária */
-string_vec string_vecs_filter_unique2(string_vec *self, const allocator *mem) { 
-	if (cels_debug) { 
-		errors_abort("self", vectors_check((void *)self)); 
-	} 
-	
-	string_vec other = string_vecs_init(vector_min, mem); 
-	
-	for (size_t i = 0; i < self->size; i++) { 
-		if (cels_debug) { 
-			errors_abort("self.data[i]", strings_check_extra(&self->data[i])); 
-		} 
-		
-		bool match = false; 
-		for (size_t j = 0; j < other.size; j++) { 
-			if (strings_equals(&self->data[i], &other.data[j])) { 
-				match = true; 
-				break; 
-			} 
-		} 
-		
-		if (!match) { 
-			string clone = strings_clone(&self->data[i], mem);
-			string_vecs_push(&other, clone, mem); 
-		} 
-	} 
-
-	return other;
-}
-	
-
-/* private */
-bool utils_filter_suffix(string *self) {
-	#if cels_debug
-		errors_abort("self", strings_check_extra(self));
-	#endif
-
-	static const string c_extension = strings_premake(".c");
-	return strings_has_suffix(self, c_extension);
-}
-
 estring utils_get_main_file(const allocator *mem) {
-	const string path = strings_premake("./");
+	static const string cfile = strings_premake(".c");
+	dir_iterator it = {0};
+	while (dirs_next("./", &it, mem)) {
+		if (!strings_has_suffix(&it.data, cfile)) {
+			continue;
+		}
 
-	estring_vec files = files_list(path, mem);
-	if (files.error != file_successfull) {
-		return (estring){.error=-1};
-	}
-
-	error filter_error = string_vecs_filter(
-		&files.value, (filterfunc)utils_filter_suffix, mem);
-
-	if (filter_error) {
-		return (estring){.error=-1};
-	}
-
-	for (size_t i = 0; i < files.value.size; i++) {
-		file *file = fopen(files.value.data[i].data, "r");
+		file *file = fopen(it.data.data, "r");
 		if (!file) { continue; }
 
 		const string main_function = strings_premake("main");
@@ -67,13 +18,13 @@ estring utils_get_main_file(const allocator *mem) {
 			continue;
 		}
 
-		string the_file_path = strings_clone(&files.value.data[i], mem);
-		string_vecs_free(&files.value, mem);
+		string the_file_path = strings_clone(&it.data, mem);
+		dir_iterators_free(&it, mem);
+
 		return (estring){.value=the_file_path};
 	}
 
-	string_vecs_free(&files.value, mem);
-	return (estring){.error=1};
+	return (estring){.error=fail};
 }
 
 /* private */
@@ -161,7 +112,6 @@ estring_vec utils_get_packages(const string path, const allocator *mem) {
 	}
 	
 	string_vecs_free(&non_terminals, mem);
-	//string_vecs_filter_unique(&terminals, mem);
 
 	return (estring_vec){.value=terminals};
 }
@@ -172,12 +122,9 @@ estring utils_get_flags(string main_file_name, const allocator *mem) {
 	#endif
 
 	estring_vec packages = utils_get_packages(main_file_name, mem);
-	if (packages.error != 0) {
-		return (estring){.error=1};
-	}
+	if (packages.error != 0) { return (estring){.error=1}; }
 
-	//error filter_error = string_vecs_filter_unique(&packages.value, mem);
-	packages.value = string_vecs_filter_unique2(&packages.value, mem);
+	error filter_error = string_vecs_filter_unique(&packages.value, mem);
 
 	char *home = getenv("HOME");
 	const string homepath = strings_format(
@@ -261,72 +208,6 @@ estring_vec utils_get_includes(const string path, const allocator *mem) {
 	fclose(file);
 	return (estring_vec){.value=file_paths};
 }
-
-typedef struct program_entity {
-	string name;
-	string_vec arguments;
-	string returned;
-	size_t range[2];
-} program_entity;
-
-/*
-//TODO: maybe I have to read file to string to tokenize it
-estring_vec utils_get_entities(const string path, const allocator *mem) {
-	#if cels_debug
-		errors_abort("path", strings_check_extra(&path));
-	#endif
-
-	file *file = fopen(path.data, "r");
-	if (!file) {
-		printf("file not found\n");
-		return (estring_vec){.error=fail};
-	}
-
-	estring file_buffer = files_read(file, mem);
-	fclose(file);
-
-	if (file_buffer.error != file_successfull) {
-		printf("file not read\n");
-		return (estring_vec){.error=fail};
-	}
-	
-	for (size_t i = 0; i < file_buffer.value.size; i++) {
-
-	}
-
-	string line = {0};
-	while (!files_next(file, &line, mem)) {
-		strings_trim(&line);
-		
-		if (line.size < 1) {
-			continue;
-		}
-
-		if (line.data[0] == '#' || line.data[0] == '/' && line.data[0] == '*') {
-			continue;
-		}
-
-		if (strings_find_with(&line, "#include", 0) < 0) {
-			continue;
-		}
-
-		ssize_t position = strings_find_with(&line, "\"", 0);
-		if (position > 0) {
-			ssize_t pos = strings_find_with(&line, "\"", position + 1);
-			if (pos < 0) { continue; }
-
-			string new_path = strings_clone(&line, mem);
-			strings_slice(&new_path, position + 1, pos);
-			string_vecs_push(&file_paths, new_path, mem);
-
-			continue;
-		}
-	}
-
-	fclose(file);
-	return (estring_vec){.value=file_paths};
-}
-*/
 
 void configurations_free(configuration *configuration, const allocator *mem) {
 	strings_free(&configuration->name, mem);

@@ -18,9 +18,6 @@
 #include "packages/cels/maths.c"
 
 int main(int arg, char **argc) {
-	utils_get_includes(strings_do("cels.c"), null);
-	exit(1);
-
 	if (arg < 2) {
 		menus_print_help();
 		return 0;

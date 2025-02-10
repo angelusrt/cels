@@ -73,7 +73,7 @@ void menus_handle_init(void) {
 		goto close;
 	}
 
-	error error = files_make_directory("packages", 0700);
+	error error = dirs_make("packages", 0700);
 	if (error == file_directory_not_created_error) {
 		printf("directory couldn't be created.\n");
 		goto close;
@@ -122,8 +122,7 @@ void menus_handle_build(bool is_build_mode) {
 	const string prod_key = strings_premake("prod");
 
 	string *value = string_maps_get(
-			&json_map.value, 
-			is_build_mode ? build_key : prod_key);
+		&json_map.value, is_build_mode ? build_key : prod_key);
 
 	if (!value) {
 		printf("cels-package is mal-formed.\n");
@@ -162,7 +161,7 @@ void menus_handle_install(void) {
 	const char *home = getenv("HOME");
 	const string homepath = strings_format("%s/.config/cels", &mem, home);
 
-	error make_error = files_make_directory(homepath.data, 0700);
+	error make_error = dirs_make(homepath.data, 0700);
 	if (make_error == file_directory_not_created_error) {
 		printf("Project failed to be created\n");
 		goto cleanup;
