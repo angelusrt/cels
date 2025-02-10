@@ -33,8 +33,8 @@ void requests_free_private(request *self, const allocator *mem) {
 	}
 
 	#if cels_debug
-		strings_erase(&self->packet);
-		strings_erase(&self->host);
+		memset(&self->packet, 0, sizeof(string));
+		memset(&self->host, 0, sizeof(string));
 	#endif
 }
 
@@ -53,12 +53,14 @@ void request_internals_free_private(request_internal *self, const allocator *mem
 
 	#if cels_debug
 		self->socket = 0;
-		strings_erase(&self->response);
-		strings_erase(&self->packet);
+		memset(&self->response, 0, sizeof(char_vec));
+		memset(&self->packet, 0, sizeof(string));
 	#endif
 }
 
-erequest requests_contruct_private(const string *url, const request_option *option, const allocator *mem) {
+erequest requests_contruct_private(
+	const string *url, const request_option *option, const allocator *mem
+) {
 	#if cels_debug
 		errors_abort("url", strings_check_extra(url));
 	#endif
@@ -105,7 +107,9 @@ erequest requests_contruct_private(const string *url, const request_option *opti
 	}
 
 	string host = paths.data[0];
-	static const string host_charset = strings_premake("abcdefghijklmnopqrstuvwxyz.-1234567890");
+	static const string host_charset = 
+		strings_premake("abcdefghijklmnopqrstuvwxyz.-1234567890");
+
 	bool is_host_valid = strings_check_charset(&host, host_charset);
 	if (!is_host_valid) { 
 		err = request_illegal_host_error;
@@ -118,15 +122,11 @@ erequest requests_contruct_private(const string *url, const request_option *opti
 
 	//
 
-	request.max_retry = 
-		option->max_retry == 0 ? 
-		5 : 
-		option->max_retry;
+	request.max_retry = option->max_retry == 0 ? 5 : option->max_retry;
 
 	request.initial_buffer_size = 
 		option->initial_buffer_size == 0 ? 
-		string_small_size : 
-		option->initial_buffer_size;
+		string_small_size : option->initial_buffer_size;
 
 	request.host = host;
 	request.packet = strings_format(
@@ -276,7 +276,9 @@ erequest_internal requests_init_private(const string *url, const request_option 
 }
 
 #if cels_openssl
-estring requests_connect_securely_private(int socket, const string packet, const allocator *mem) {
+estring requests_connect_securely_private(
+	int socket, const string packet, const allocator *mem
+) {
 	#if cels_debug
 		errors_abort("packet", strings_check_extra(&packet));
 	#endif
@@ -549,7 +551,9 @@ bool requests_connect_securely_async_private(request_async *request, const alloc
 }
 #endif
 
-estring requests_connect_insecurely_private(int socket, const string packet, const allocator *mem) {
+estring requests_connect_insecurely_private(
+	int socket, const string packet, const allocator *mem
+) {
 	#if cels_debug
 		errors_abort("packet", strings_check_extra(&packet));
 	#endif

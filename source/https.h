@@ -102,7 +102,7 @@ bool routers_seems(const router *r0, const router *r1);
 
 /* router_vecs */
 
-vectors_generate_definition(router, router_vec)
+vectors_define(router_vec, router)
 
 bool router_vecs_make_push(
 	router_vec *self, 
@@ -114,7 +114,7 @@ bool router_vecs_make_push(
 /* router_nodes and router_node_vecs */
 
 typedef struct router_node router_node;
-vectors_generate_definition(router_node, router_node_vec)
+vectors_define(router_node_vec, router_node)
 nodes(router_node, router_node_vec, router_private);
 
 /* router_nodes */

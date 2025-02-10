@@ -242,7 +242,7 @@ estring_map jsons_unmake_object_private(const string *json, const allocator *mem
 				is_value_valid = true;
 			} else {
 				error = json_misplaced_colon_error;
-				goto error;
+				goto cleanup0;
 			}
 
 			continue;
@@ -251,7 +251,7 @@ estring_map jsons_unmake_object_private(const string *json, const allocator *mem
 				is_key_valid = true;
 			} else {
 				error = json_misplaced_comma_error;
-				goto error;
+				goto cleanup0;
 			}
 
 			continue;
@@ -260,23 +260,23 @@ estring_map jsons_unmake_object_private(const string *json, const allocator *mem
 				key = jsons_parse_text_private(json, &position, mem);
 				if (key.size == 0) {
 					error = json_key_size_error;
-					goto error;
+					goto cleanup0;
 				}
 			} else if (is_key_valid && key.size != 0 && !is_value_valid) {
 				error = json_missing_colon_error;
-				goto error;
+				goto cleanup0;
 			} else if (is_key_valid && key.size != 0 && is_value_valid && value.size == 0) {
 				value = jsons_parse_text_private(json, &position, mem);
 				if (value.size == 0) {
 					error = json_value_size_error;
-					goto error;
+					goto cleanup0;
 				}
 			} else if (is_key_valid && key.size != 0 && is_value_valid && value.size != 0) {
 				error = json_missing_comma_error;
-				goto error;
+				goto cleanup0;
 			} else {
 				error = json_impossible_state_error;
-				goto error;
+				goto cleanup0;
 			}
 
 			break;
@@ -286,26 +286,26 @@ estring_map jsons_unmake_object_private(const string *json, const allocator *mem
 
 			if (!is_key_valid || key.size == 0 || !is_value_valid || value.size != 0) {
 				error = json_missing_colon_error;
-				goto error;
+				goto cleanup0;
 			}
 
 			value = jsons_parse_struct_private(json, &position, is_object, mem);
 			if (value.size == 0) {
 				error = json_value_size_error;
-				goto error;
+				goto cleanup0;
 			}
 
 			break;
 		default:
 			if (!is_key_valid || key.size == 0 || !is_value_valid || value.size != 0) {
 				error = json_missing_colon_error;
-				goto error;
+				goto cleanup0;
 			}
 
 			value = jsons_parse_naked_private(json, &position, mem);
 			if (value.size == 0) {
 				error = json_invalid_naked_value_error;
-				goto error;
+				goto cleanup0;
 			}
 
 			break;
@@ -315,11 +315,11 @@ estring_map jsons_unmake_object_private(const string *json, const allocator *mem
 			bool push_error = string_maps_push(&map, key, value, mem);
 			if (push_error) {
 				error = json_invalid_state_error;
-				goto error;
+				goto cleanup0;
 			}
 
-			strings_erase(&key);
-			strings_erase(&value);
+			memset(&key, 0, sizeof(string));
+			memset(&value, 0, sizeof(string));
 			is_key_valid = false;
 			is_value_valid = false;
 		}
@@ -327,16 +327,16 @@ estring_map jsons_unmake_object_private(const string *json, const allocator *mem
 
 	return (estring_map) {.value=map};
 
-	error:
+	cleanup0:
 	if (map.data) {
 		string_maps_free(&map, mem);
 	}
 
-	if (key.size != 0) {
+	if (key.data) {
 		strings_free(&key, mem);
 	}
 
-	if (value.size != 0) {
+	if (value.data) {
 		strings_free(&value, mem);
 	}
 
@@ -364,7 +364,7 @@ estring_map jsons_unmake_list_private(const string *json, const allocator *mem) 
 				is_value_valid = true;
 			} else {
 				error = json_misplaced_comma_error;
-				goto error;
+				goto cleanup0;
 			}
 
 			continue;
@@ -373,14 +373,14 @@ estring_map jsons_unmake_list_private(const string *json, const allocator *mem) 
 				value = jsons_parse_text_private(json, &position, mem);
 				if (value.size == 0) {
 					error = json_value_size_error;
-					goto error;
+					goto cleanup0;
 				}
 			} else if (!is_value_valid || value.size != 0) {
 				error = json_missing_comma_error;
-				goto error;
+				goto cleanup0;
 			} else {
 				error = json_impossible_state_error;
-				goto error;
+				goto cleanup0;
 			}
 
 			break;
@@ -390,26 +390,26 @@ estring_map jsons_unmake_list_private(const string *json, const allocator *mem) 
 
 			if (!is_value_valid || value.size != 0) {
 				error = json_missing_comma_error;
-				goto error;
+				goto cleanup0;
 			}
 
 			value = jsons_parse_struct_private(json, &position, is_object, mem);
 			if (value.size == 0) {
 				error = json_value_size_error;
-				goto error;
+				goto cleanup0;
 			}
 
 			break;
 		default:
 			if (!is_value_valid || value.size != 0) {
 				error = json_missing_comma_error;
-				goto error;
+				goto cleanup0;
 			}
 
 			value = jsons_parse_naked_private(json, &position, mem);
 			if (value.size == 0) {
 				error = json_invalid_naked_value_error;
-				goto error;
+				goto cleanup0;
 			}
 
 			break;
@@ -420,10 +420,10 @@ estring_map jsons_unmake_list_private(const string *json, const allocator *mem) 
 			bool push_error = string_maps_push(&map, key, value, mem);
 			if (push_error) {
 				error = json_invalid_state_error;
-				goto error;
+				goto cleanup0;
 			}
 
-			strings_empty(&value);
+			memset(&value, 0, sizeof(string));
 			is_value_valid = false;
 			count++;
 		}
@@ -431,7 +431,7 @@ estring_map jsons_unmake_list_private(const string *json, const allocator *mem) 
 
 	return (estring_map) {.value=map};
 
-	error:
+	cleanup0:
 	if (map.data) {
 		string_maps_free(&map, mem);
 	}
@@ -462,86 +462,87 @@ estring_map jsons_unmake(const string *json, const allocator *mem) {
 	return (estring_map){.error=json_invalid_error};
 }
 
-typedef struct jsons_make_private_params {
-	string *json;
-	const allocator *mem;
-	bool *error;
-} jsons_make_private_params;
-
-void *jsons_make_private(const string_map_bynary_node *self, jsons_make_private_params *params) {
-	#if cels_debug
-		errors_abort("self", bynary_nodes_check((const bynary_node *)self));
-		errors_abort("params", !params);
-		errors_abort("params.json", strings_check_extra(params->json));
-		errors_abort("params.error", !params->error);
-	#endif
-
-	bool push_error = strings_push_with(params->json, "\"", params->mem);
-	if (push_error) { goto cleanup; }
-
-	push_error = strings_push(params->json, self->data.key, params->mem);
-	if (push_error) { goto cleanup; }
-
-	push_error = strings_push_with(params->json, "\"", params->mem);
-	if (push_error) { goto cleanup; }
-
-	push_error = strings_push_with(params->json, ":", params->mem);
-	if (push_error) { goto cleanup; }
-
-	char value_start_char = self->data.value.data[0];
-	bool is_value_text = value_start_char != '[' && value_start_char != '{';
-
-	if (is_value_text) {
-		push_error = strings_push_with(params->json, "\"", params->mem);
-		if (push_error) { goto cleanup; }
-
-		push_error = strings_push(params->json, self->data.value, params->mem);
-		if (push_error) { goto cleanup; }
-
-		push_error = strings_push_with(params->json, "\"", params->mem);
-		if (push_error) { goto cleanup; }
-	} else {
-		push_error = strings_push(params->json, self->data.value, params->mem);
-		if (push_error) { goto cleanup; }
-	}
-
-	push_error = strings_push_with(params->json, ",", params->mem);
-	if (push_error) { goto cleanup; }
-
-	return null;
-
-	cleanup:
-	*params->error = true;
-	return null;
-}
-
 estring jsons_make(const string_map *self, const allocator *mem) {
 	#if cels_debug
-		errors_abort("self", bynary_nodes_check((const void *)self));
+		errors_abort("self", bynary_nodes_check((const bynary_node *)self));
 	#endif
 
 	string json = strings_make("{", mem);
+	error error = ok;
 
-	bool private_error = false;
-	jsons_make_private_params params = {
-		.error=&private_error, .json=&json, .mem=mem};
+	string_map_iterator it = {0};
+	while (bynary_trees_next((bynary_tree *)self, (bynary_tree_iterator *)&it)) {
+		bool push_error = strings_push_with(&json, "\"", mem);
+		if (push_error) {
+			error = fail;
+			break;
+		}
 
-	bynary_node_iterator it = {0};
-	while (bynary_nodes_next((bynary_node *)self->data, &it)) {
-		jsons_make_private((string_map_bynary_node *)it.data, &params);
+		push_error = strings_push(&json, it.data->data.key, mem);
+		if (push_error) {
+			error = fail;
+			break;
+		}
+
+		push_error = strings_push_with(&json, "\"", mem);
+		if (push_error) {
+			error = fail;
+			break;
+		}
+
+		push_error = strings_push_with(&json, ":", mem);
+		if (push_error) {
+			error = fail;
+			break;
+		}
+
+		char value_start_char = it.data->data.value.data[0];
+		bool is_value_text = value_start_char != '[' && value_start_char != '{';
+
+		if (is_value_text) {
+			push_error = strings_push_with(&json, "\"", mem);
+			if (push_error) {
+				error = fail;
+				break;
+			}
+
+			push_error = strings_push(&json, it.data->data.value, mem);
+			if (push_error) {
+				error = fail;
+				break;
+			}
+
+			push_error = strings_push_with(&json, "\"", mem);
+			if (push_error) {
+				error = fail;
+				break;
+			}
+		} else {
+			push_error = strings_push(&json, it.data->data.value, mem);
+			if (push_error) {
+				error = fail;
+				break;
+			}
+		}
+
+		push_error = strings_push_with(&json, ",", mem);
+		if (push_error) {
+				error = fail;
+				break;
+		}
 	}
 
-	if (private_error) { goto cleanup; }
+	if (error) { goto cleanup0; }
 
 	bool pop_error = strings_pop(&json, mem);
-	if (pop_error) { goto cleanup; }
+	if (pop_error) { goto cleanup0; }
 
 	bool push_error = strings_push_with(&json, "}", mem);
-	if (push_error) { goto cleanup; }
+	if (push_error) { goto cleanup0; }
 
 	return (estring){.value=json};
 
-	cleanup:
+	cleanup0:
 	strings_free(&json, mem);
 	return (estring){.error=json_invalid_error};
 }

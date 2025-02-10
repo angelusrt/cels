@@ -17,8 +17,7 @@ void ios_raw(void) {
 
 string ios_ask(const char *question, const allocator *mem) {
 	#if cels_debug
-		errors_abort("question", vectors_check((void *)&options));
-		errors_abort("#question", strlen(question) == 0);
+		errors_abort("question", strs_check(question));
 	#endif
 
 	printf(colors_success("%s"), question);
@@ -54,9 +53,8 @@ void ios_select_private(const string_vec options, size_t cursor) {
 
 size_t ios_select(const char *question, const string_vec options) {
 	#if cels_debug
-		errors_abort("question", vectors_check((void *)&options));
-		errors_abort("#question", strlen(question) == 0);
-		errors_abort("#options", options.size == 0);
+		errors_abort("#question", strs_check(question));
+		errors_abort("options", vectors_check((const vector *)&options));
 	#endif
 
 	printf(colors_success("%s"), question);

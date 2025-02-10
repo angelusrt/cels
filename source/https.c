@@ -71,9 +71,9 @@ bool routers_seems(const router *self, const router *other) {
 
 /* router_vecs */
 
-vectors_generate_implementation(
-	router, 
+vectors_generate(
 	router_vec, 
+	router, 
 	routers_check, 
 	routers_clone,
 	routers_print,
@@ -170,9 +170,9 @@ bool router_nodes_seems(const router_node *self, const router_node *other) {
 
 /* router_node_vecs */
 
-vectors_generate_implementation(
-	router_node, 
+vectors_generate(
 	router_node_vec,
+	router_node, 
 	router_nodes_check,
 	defaults_clone, 
 	router_nodes_print,
@@ -231,12 +231,12 @@ void https_initialize_private(void) {
 cels_warn_unused
 bool https_head_check(const string_map *head) {
 	#if cels_debug
-		errors_abort("head", bnodes_check((bnode *)head));
+		errors_abort("head", bynary_nodes_check((bynary_node *)head));
 	#endif
 
 	//TODO: improve validation
 
-	size_t length = bnodes_length((bnode *)head);
+	size_t length = bynary_nodes_length((bynary_node *)head);
 	errors_abort("head.size != 3", length != header_size);
 
 	bool is_method_valid = false;
@@ -435,8 +435,7 @@ void *https_handle_client(void *args) {
 	int client_descriptor = arg.client;
 	const allocator *mem = arg.mem;
 
-	#define https_request_size 1024
-	string request = strings_init(https_request_size, mem);
+	string request = strings_init(string_small_size, mem);
     ssize_t request_bytes = recv(
 		client_descriptor, 
 		request.data, 
@@ -444,8 +443,8 @@ void *https_handle_client(void *args) {
 		0);
 
 	#if cels_debug
-		errors_warn("https_handle_client.recv error'ed", request_bytes < 0);
 		if (request_bytes < 0) {
+			errors_inform("recv error'ed", request_bytes < 0);
 			fprintf(
 				stderr, 
 				"recv: %s (%d), client_descriptor: %d\n", 
@@ -464,18 +463,12 @@ void *https_handle_client(void *args) {
 			goto cleanup0; 
 		}
 
-		if (request_attributes) {
-			size_t size = bnodes_length((bnode *)request_attributes);
-			if (size == 0) { 
-				goto cleanup1; 
-			}
+		if (request_attributes->size == 0) { 
+			router_private *callback = https_find_route(routes, request_attributes, mem);
+			errors_abort("callback.func", !callback->func);
+			callback->func(request_attributes, client_descriptor, callback->params);
 		}
 
-		router_private *callback = https_find_route(routes, request_attributes, mem);
-		errors_abort("callback.func", !callback->func);
-		callback->func(request_attributes, client_descriptor, callback->params);
-
-		cleanup1:
 		string_maps_free(request_attributes, mem);
     }
 
@@ -487,9 +480,7 @@ void *https_handle_client(void *args) {
 
 router_private https_find_root_private(router_vec *callbacks) {
 	#if cels_debug
-		errors_abort(
-			"callbacks", 
-			vectors_check((vector *)callbacks));
+		errors_abort("callbacks", vectors_check((const vector *)callbacks));
 	#endif
 
 	for (size_t i = 0; i < callbacks->size; i++) {
