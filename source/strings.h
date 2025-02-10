@@ -40,7 +40,8 @@
  * - deprecate shift
  */
 
-vectors_generate_definition(char, char_vec)
+/* string */
+vectors_define(char_vec, char)
 typedef char_vec string;
 
 typedef errors(string) estring;
@@ -55,7 +56,7 @@ typedef enum string_size {
 	string_max_size = SIZE_MAX,
 } string_size;
 
-vectors_generate_definition(string, string_vec)
+vectors_define(string_vec, string)
 typedef errors(string_vec) estring_vec;
 
 /* char_vecs */
@@ -69,6 +70,14 @@ typedef errors(string_vec) estring_vec;
  */
 cels_warn_unused
 bool chars_is_whitespace(char letter);
+
+/*
+ * Verifies if character is "A-Z | a-z | 0-9 | _".
+ *
+ * #to-review
+ */
+cels_warn_unused
+bool chars_is_alphanumeric(char letter);
 
 /*
  * Prints non-printable-characters only, 
@@ -274,20 +283,6 @@ error strings_push_with(string *self, char *item, const allocator *mem);
  * #tested #to-edit
  */
 void strings_free(string *self, const allocator *mem);
-
-/*
- * Sets all fields of string to 0.
- *
- * #to-review
- */
-void strings_erase(string *self);
-
-/*
- * Sets all memory of 'self' to 0.
- *
- * #to-review
- */
-void strings_empty(string *self);
 
 /*
  * Processes escape characters.
@@ -625,21 +620,19 @@ string_vec string_vecs_make_helper(char *args[], size_t argn, const allocator *m
 
 /* string_mats */
 
-vectors_generate_definition(string_vec, string_mat)
+vectors_define(string_mat, string_vec)
 
 /* extras */
-
-//#ifdef cels_nodes_h
 
 #include "nodes.h"
 
 /* sets */
 
-sets_generate_definition(string, string_set)
+sets_define(string_set, string)
 
 /* maps */
 
-maps_generate_definition(string, string, string_key_pair, string_map)
+maps_define(string_map, string, string)
 typedef errors(string_map) estring_map;
 
 /*
@@ -655,11 +648,8 @@ bool string_maps_push_with(
 	const char *value, 
 	const allocator *mem);
 
-
 /* lists */
 
-pools_generate_definition(string_pool, string)
-
-//#endif
+pools_define(string_pool, string)
 
 #endif

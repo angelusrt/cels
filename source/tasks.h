@@ -29,7 +29,7 @@ typedef struct task {
 	task_state status;
 } task;
 
-pools_generate_definition(routine, task)
+pools_define(routine, task)
 
 typedef task_state (*supervisorfunc)(routine *routine, task *task, void *params);
 

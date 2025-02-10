@@ -38,9 +38,9 @@ priv void sizes_print(size_t *number) {
 	printf("%zu\n", *number);
 }
 
-vectors_generate_implementation(
-	size_t, 
+vectors_generate(
 	size_vec, 
+	size_t, 
 	defaults_check,
 	defaults_clone,
 	sizes_print,
@@ -50,11 +50,9 @@ vectors_generate_implementation(
 	defaults_free
 )
 
-vectors_generate_arithmetic_implementation(
-	size_vec,
-	size_t)
+vectors_generate_operation(size_vec, size_t)
 
-priv void doubles_print(double *number) {
+void doubles_print_private(double *number) {
 	#if cels_debug
 		errors_abort("number", !number);
 	#endif
@@ -62,19 +60,16 @@ priv void doubles_print(double *number) {
 	printf("%lf", *number);
 }
 
-vectors_generate_implementation(
-	double, 
+vectors_generate(
 	double_vec, 
+	double, 
 	defaults_check,
 	defaults_clone,
-	doubles_print,
-	doubles_print,
+	doubles_print_private,
+	doubles_print_private,
 	defaults_compare, 
 	defaults_compare, 
 	defaults_free
 )
 
-vectors_generate_arithmetic_implementation(
-	double_vec,
-	double)
-
+vectors_generate_operation(double_vec, double)

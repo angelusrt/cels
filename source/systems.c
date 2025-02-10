@@ -18,12 +18,12 @@ error systems_load(const string path, const allocator *mem) {
 
 		if (pos < 1) { 
 			error = system_env_file_mal_formed_error; 
-			goto cleanup;
+			goto cleanup0;
 		}
 
 		if (line_view.size - pos < 1) { 
 			error = system_env_file_mal_formed_error; 
-			goto cleanup;
+			goto cleanup0;
 		}
 
 		line_view.data[pos] = '\0';
@@ -45,7 +45,7 @@ error systems_load(const string path, const allocator *mem) {
 		setenv(key_start, value_start, 0);
 	}
 
-	cleanup:
+	cleanup0:
 	fclose(env);
 	strings_free(&line_view, mem);
 	return error;

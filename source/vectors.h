@@ -52,9 +52,8 @@ typedef vectors(void *) vector;
  *
  * #to-review
  */
-#define vectors_generate_implementation( \
-	type, name, check0, clone0, print0, debug0, compare0, compare1, cleanup0 \
-) \
+#define vectors_generate( \
+	name, type, check0, clone0, print0, debug0, compare0, compare1, cleanup0) \
 	name name##s_init(size_t capacity, const allocator *mem) { \
 		name self = { \
 			.data=(type *)mems_alloc(mem, sizeof(type) * capacity), \
@@ -259,10 +258,7 @@ typedef vectors(void *) vector;
 				cleanup0(&self->data[i], mem); \
 			} \
 			\
-			mems_dealloc(mem, self->data, self->capacity * sizeof(*self->data)); \
-			self->data = null; \
-			self->size = 0; \
-			self->capacity = 0; \
+			mems_dealloc(mem, self->data, self->capacity * sizeof(type)); \
 		} \
 	} \
 	\
@@ -340,6 +336,15 @@ typedef vectors(void *) vector;
 		if (dealloc_error) { return fail; } \
 		\
 		*self = other; \
+		\
+		if (cels_debug) { \
+			errors_abort("self", vectors_check((const vector *)self)); \
+			for (size_t i = 0; i < self->size; i++) { \
+				if (cels_debug) { \
+					errors_abort("self.data[i]", check0(&self->data[i])); \
+				} \
+			} \
+		} \
  		\
 		return ok; \
 	} \
@@ -553,7 +558,7 @@ typedef vectors(void *) vector;
  *
  * #to-review
  */
-#define vectors_generate_definition(type, name) \
+#define vectors_define(name, type) \
 	typedef vectors(type *) name; \
 	\
 	/*
@@ -758,7 +763,7 @@ typedef vectors(void *) vector;
  * Helps the generation of an operation over 
  * a vector data-structure. 
  */
-#define vectors_generate_operation_implementation(name, operation, operator) \
+#define vectors_generate_arithmetic_operation(name, operation, operator) \
 	error name##s_##operation(const name *self, const name *other, name *result) { \
 		if (cels_debug) { \
 			errors_abort("self", vectors_check((void *)self)); \
@@ -791,14 +796,14 @@ typedef vectors(void *) vector;
  * Generates arithmetic code 
  * for number-like types.
  */
-#define vectors_generate_arithmetic_implementation(name, type) \
-	vectors_generate_operation_implementation(name, add, +) \
+#define vectors_generate_operation(name, type) \
+	vectors_generate_arithmetic_operation(name, add, +) \
 	\
-	vectors_generate_operation_implementation(name, multiply, *) \
+	vectors_generate_arithmetic_operation(name, multiply, *) \
 	\
-	vectors_generate_operation_implementation(name, divide, /) \
+	vectors_generate_arithmetic_operation(name, divide, /) \
 	\
-	vectors_generate_operation_implementation(name, subtract, -) \
+	vectors_generate_arithmetic_operation(name, subtract, -) \
 	\
 	error name##s_power(const name *self, const name *other, name *result) { \
 		if (cels_debug) { \
@@ -895,7 +900,7 @@ typedef vectors(void *) vector;
  * Generates arithmetic definitions 
  * for number-like types.
  */
-#define vectors_generate_arithmetic_definition(name, type) \
+#define vectors_define_operation(name, type) \
 	/*
 	 * Adds element of 'self' with its 
 	 * pair of 'other' and puts it 
@@ -982,10 +987,10 @@ void vectors_debug(const vector *self);
 
 /* definitions */
 
-vectors_generate_definition(size_t, size_vec)
-vectors_generate_arithmetic_definition(size_vec, size_t)
+vectors_define(size_vec, size_t)
+vectors_define_operation(size_vec, size_t)
 
-vectors_generate_definition(double, double_vec)
-vectors_generate_arithmetic_definition(double_vec, double)
+vectors_define(double_vec, double)
+vectors_define_operation(double_vec, double)
 
 #endif

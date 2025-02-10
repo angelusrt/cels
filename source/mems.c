@@ -573,17 +573,24 @@ allocator allocs_init(void) {
 /* mems */
 
 void *mems_alloc(const allocator *mem, size_t len) {
+	void *data = null;
 	if (!mem) { 
-		return malloc(len); 
-	} 
-
-	if (mem->type == allocators_individual_type) {
-		return mem->alloc(null, len);
+		data = malloc(len);
+	} else if (mem->type == allocators_individual_type) {
+		data = mem->alloc(null, len);
 	} else if (mem->type == allocators_group_type) {
-		return mem->alloc(mem->storage, len);
+		data = mem->alloc(mem->storage, len);
 	}
 
-	return NULL;
+	if (data) {
+		return data;
+	}
+
+	#if cels_debug
+		errors_abort("data", true);
+	#endif
+
+	return null;
 }
 
 void *mems_realloc(
@@ -592,20 +599,35 @@ void *mems_realloc(
 	size_t old_size, 
 	size_t new_size
 ) {
+	void *new_data = null;
 	if (!mem) { 
-		return realloc(data, new_size); 
-	} 
-
-	if (mem->type == allocators_individual_type) {
-		return mem->realloc(null, data, 0, new_size);
+		new_data = realloc(data, new_size); 
+	} else if (mem->type == allocators_individual_type) {
+		new_data =  mem->realloc(null, data, 0, new_size);
 	} else if (mem->type == allocators_group_type) {
-		return mem->realloc(mem->storage, data, old_size, new_size);
+		new_data =  mem->realloc(mem->storage, data, old_size, new_size);
 	}
+
+	if (new_data) {
+		return new_data;
+	}
+
+	#if cels_debug
+		errors_abort("new_data", true);
+	#endif
 
 	return NULL;
 }
 
 error mems_dealloc(const allocator *mem, void *data, size_t block_size) {
+	#if cels_debug
+		errors_abort("data", !data);
+	#endif
+
+	if (!data) {
+		return fail;
+	}
+
 	#if cels_debug
 		memset(data, 0, block_size);
 	#endif
@@ -613,9 +635,7 @@ error mems_dealloc(const allocator *mem, void *data, size_t block_size) {
 	if (!mem) { 
 		free(data); 
 		return ok;
-	} 
-
-	if (mem->type == allocators_individual_type) {
+	} else if (mem->type == allocators_individual_type) {
 		mem->free(data);
 		return ok;
 	} else if (mem->type == allocators_group_type) {
@@ -627,10 +647,12 @@ error mems_dealloc(const allocator *mem, void *data, size_t block_size) {
 
 void mems_free(const allocator *mem, void *data) {
 	if (!mem) { 
-		free(data); 
-	} 
+		if (!data) { return; }
 
-	if (mem->type == allocators_individual_type) {
+		free(data); 
+	} else if (mem->type == allocators_individual_type) {
+		if (!data) { return; }
+
 		mem->free(data);
 	} else if (mem->type == allocators_group_type) {
 		mem->free(mem->storage);
