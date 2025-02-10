@@ -43,7 +43,7 @@ estring files_read(file *self, const allocator *mem) {
 	}
 
 	if (ferror(self)) {
-		error = file_other_error;
+		error = file_default_error;
 		goto cleanup1;
 	}
 
@@ -86,7 +86,7 @@ bool files_read_async(file *self, file_read *read, const allocator *mem) {
 	}
 
 	if (ferror(self)) {
-		read->error = file_other_error;
+		read->error = file_default_error;
 		goto cleanup1;
 	}
 
@@ -184,6 +184,7 @@ estring_vec files_list(const string path, const allocator *mem) {
 		}
 	}
 
+	closedir(directory);
 	return (estring_vec){.value=files};
 }
 
@@ -228,6 +229,7 @@ estring_vec files_list_all(const string path, const allocator *mem) {
 				error push_error = string_vecs_press(&shallow_files, file, mem);
 				if (push_error) {
 					err = file_allocation_error;
+					closedir(directory);
 					goto cleanup1;
 				}
 			} else if (entity->d_type == DT_DIR) {
@@ -240,12 +242,15 @@ estring_vec files_list_all(const string path, const allocator *mem) {
 				error unite_error = string_vecs_unite(&shallow_files, &files.value, mem);
 				if (unite_error) {
 					err = file_allocation_error;
+					closedir(directory);
 					goto cleanup1;
 				}
 			} else {
 				continue;
 			}
 		}
+
+		closedir(directory);
 	}
 
 	string_vecs_free(&files.value, mem);
@@ -373,7 +378,7 @@ bool files_next(file *self, string *line_view, const allocator *mem) {
 	line_view->size = bytes_read;
 	line_view->data[line_view->size - 1] = '\0';
 
-	if (ferror(self)) { return file_other_error; }
+	if (ferror(self)) { return file_default_error; }
 
 	return false;
 }
@@ -438,7 +443,11 @@ estring files_path(const string *filepath, const allocator *mem) {
 	}
 
 	string working_directory = strings_preinit(PATH_MAX);
-	getcwd(working_directory.data, working_directory.capacity);
+	char *is_successfull = getcwd(working_directory.data, working_directory.capacity);
+	if (!is_successfull) {
+		return (estring){.error=file_current_directory_not_read_error};
+	}
+
 	working_directory.size = strlen(working_directory.data) + 1;
 	working_directory.data[working_directory.size - 1] = '\0';
 
@@ -451,14 +460,14 @@ estring files_path(const string *filepath, const allocator *mem) {
 	return path_normalized;
 }
 
-error files_make_directory(const char *path, notused __mode_t mode) {
+error dirs_make(const char *path, notused __mode_t mode) {
 	#if cels_debug
 		errors_abort("path", strs_check(path));
 	#endif
 
 	error error = ok;
 
-	#ifdef cels_windows
+	#ifdef _WIN32
 		struct stat st = {0};
 		if (_stat(path, &st) != -1) {
 			return file_directory_already_exists_error;
@@ -475,4 +484,99 @@ error files_make_directory(const char *path, notused __mode_t mode) {
 	#endif
 
 	return error == fail ? file_directory_not_created_error : ok;
+}
+
+bool dirs_next(const char *path, dir_iterator *iterator, notused const allocator *mem) {
+	#if cels_debug
+		errors_abort("path", strs_check(path));
+	#endif
+
+	#if _WIN32 
+		WIN32_FIND_DATA descriptor;
+
+		if (!iterator->internal.directory) {
+			char path_normalized[MAX_PATH] = {0};
+			strcat(path_normalized, path);
+			strcat(path_normalized, "\\*.*");
+
+			HANDLE handle = FindFirstFile(path_normalized, &descriptor);
+			if (handle == INVALID_HANDLE_VALUE) {
+				iterator->error = file_directory_not_opened_error;
+				return false;
+			}
+
+			iterator->internal.directory = mems_alloc(mem, sizeof(dir));
+			if (!iterator->internal.directory) {
+				FindClose(handle);      
+				iterator->error = file_allocation_error;
+				return false;
+			} 
+
+			iterator->internal.directory = handle;
+
+			if (descriptor.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
+				iterator->type = DT_DIR;
+			} else {
+				iterator->type = DT_REG;
+			}
+
+			iterator->data = descriptor.cFileName;
+			return true;
+		}
+		
+		dir *directory = iterator->internal.directory;
+		while (FindNextFile(directory->handle, &descriptor)) {
+			if (descriptor.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
+				iterator->type = DT_DIR;
+			} else {
+				iterator->type = DT_REG;
+			}
+
+			iterator->data = descriptor.cFileName;
+			return true;
+		}
+
+		FindClose(iterator->internal.directory);	
+		mems_dealloc(mem, iterator->internal.directory, sizeof(dir));
+	#else
+		if (!iterator->internal.directory) {
+			iterator->internal.directory = opendir(path);
+			if (!iterator->internal.directory) {
+				iterator->error = file_directory_not_opened_error;
+				return false;
+			}
+		}
+
+		struct dirent **ent = &iterator->internal.entity; 
+		dir *directory = iterator->internal.directory;
+
+		while ((*ent = readdir(directory))) {
+			if ((*ent)->d_name[0] == '.') {
+				if ((*ent)->d_name[1] == '\0') {
+					continue;
+				} else if ((*ent)->d_name[1] == '.') {
+					if ((*ent)->d_name[2] == '\0') {
+						continue;
+					}
+				}
+			}
+
+			iterator->type = (*ent)->d_type;
+			iterator->data = strings_encapsulate((*ent)->d_name);
+			return true;
+		}
+
+		closedir(directory);
+	#endif
+
+	return false;
+}
+
+void dir_iterators_free(dir_iterator *iterator, notused const allocator *mem) {
+	#if _WIN32
+		FindClose(iterator->internal.directory);
+		mems_dealloc(mem, iterator->internal.directory, sizeof(dir));
+	#else
+		closedir(iterator->internal.directory);
+	#endif
 }

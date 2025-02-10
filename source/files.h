@@ -12,8 +12,9 @@
 #include "vectors.h"
 #include "mems.h"
 
-#if cels_windows
+#if _WIN32
 #include <direct.h>
+#include <windows.h>
 #else
 #include <sys/stat.h>
 #endif
@@ -29,17 +30,18 @@ typedef DIR dir;
 
 typedef enum file_error {
 	file_successfull,
+	file_default_error,
 	file_telling_position_error,
 	file_seeking_position_error,
 	file_writing_error,
 	file_reading_error,
 	file_did_not_end_error,
-	file_other_error,
 	file_directory_already_exists_error,
 	file_directory_not_created_error,
 	file_directory_not_opened_error,
 	file_allocation_error,
 	file_mal_formed_error,
+	file_current_directory_not_read_error,
 } file_error;
 
 typedef struct file_read {
@@ -59,6 +61,20 @@ typedef struct file_write {
 	bool consume;
 	file_write_internal internal;
 } file_write;
+
+typedef struct dir_iterator_internal {
+	dir *directory;
+	#ifdef __linux__
+	struct dirent *entity;
+	#endif
+} dir_iterator_internal;
+
+typedef struct dir_iterator {
+	string data; /* view-only */
+	int type;
+	error error;
+	dir_iterator_internal internal;
+} dir_iterator;
 
 /*
  * Read files content to string 
@@ -164,10 +180,10 @@ estring files_normalize(const string *filepath, const allocator *mem);
 
 /*
  * Normalizes path and concatenates to 
- * working-directory path to make it absolute.
- *
+ * working-directory path to make it absolute.  
+ * 
  * If filepath is mal-formed or an allocation 
- * error happens, file_error is returned.
+ * error happens, file_error is returned.  
  *
  * #to-review
  */
@@ -181,6 +197,21 @@ estring files_path(const string *filepath, const allocator *mem);
  *
  * #to-review
  */
-error files_make_directory(const char *path, notused __mode_t mode);
+error dirs_make(const char *path, notused __mode_t mode);
+
+/*
+ * Iterates through directory entities.
+ *
+ * #allocates #implicitly-allocates #to-review 
+ */
+bool dirs_next(const char *path, dir_iterator *iterator, const allocator *mem);
+
+/*
+ * Frees and closes the internal state of 'dirs_next' 
+ * if it was short-circuit'ed.
+ *
+ * #to-review
+ */
+void dir_iterators_free(dir_iterator *iterator, const allocator *mem);
 
 #endif
