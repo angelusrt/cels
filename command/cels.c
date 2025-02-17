@@ -2,7 +2,6 @@
 #include "modules/menus.c"
 #include "modules/utils.c"
 
-#include "modules/utils.h"
 #include "packages/cels/strings.h"
 #include "packages/cels/strings.c"
 
@@ -23,7 +22,7 @@ int main(int arg, char **argc) {
 		return 0;
 	} 
 
-	const allocator mem = arenas_init(2048);
+	const allocator mem = arenas_init((2 << 7));
 
 	size_t init_hash = strings_prehash("init");
 	size_t build_hash = strings_prehash("build");

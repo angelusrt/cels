@@ -1,6 +1,6 @@
 #include "menus.h"
 
-const string_vec options = vectors_premake(
+static const string_vec options = vectors_premake(
 	string, 
 	strings_premake("yes"),
 	strings_premake("no"));
@@ -14,14 +14,14 @@ void menus_print_help(void) {
 		"\tdebug - builds the project in debug mode\n");
 }
 
-void menus_handle_init(void) {
+error menus_handle_init(void) {
 	const allocator mem = arenas_init(2048);
 
 	file *json_check = fopen(".cels-package.json", "r");
 	if (json_check) {
 		printf("a package is already initialized.\n");
 		fclose(json_check);
-		return;
+		goto cleanup0;
 	}
 
 	char *home = getenv("HOME");
@@ -33,20 +33,24 @@ void menus_handle_init(void) {
 		printf("cels not installed.\n\n");
 
 		size_t option = ios_select("install?", options);
-		if (option > 0) { goto cleanup; }
+		if (option > 0) { 
+			goto cleanup0; 
+		}
 
-		menus_handle_install();
-	}
-
-	if (install_exists) {
+		error err = menus_handle_install();
+		if (err != ok) {
+			printf("init failed");
+			goto cleanup0;
+		}
+	} else {
 		fclose(install_exists);
 	}
 
 	string flags = {0};
 	estring filepath = utils_get_main_file(&mem);
-	if (filepath.error == file_successfull) {
+	if (filepath.error == ok) {
 		estring eflags = utils_get_flags(filepath.value, &mem);
-		if (eflags.error == 0) {
+		if (eflags.error == ok) {
 			flags = eflags.value;
 		}
 	}
@@ -58,37 +62,46 @@ void menus_handle_init(void) {
 	string configuration_json = utils_create_configuration(
 		&configuration, &mem);
 
-	if (filepath.error != file_successfull) {
-		file *file = fopen(filepath.value.data, "a");
-
-		if (file) {
-			fclose(file);
-		}
+	file *json = fopen(".cels-package.json", "w+");
+	if (!json) {
+		printf("file '.cels-package.json' wasn't created.\n");
+		goto cleanup0;
 	}
 
-	file *json = fopen(".cels-package.json", "w+");
 	error write_error = files_write(json, configuration_json);
 	if (write_error) {
 		printf("an error happened while writing to file.\n");
-		goto close;
+		goto cleanup1;
 	}
 
-	error error = dirs_make("packages", 0700);
-	if (error == file_directory_not_created_error) {
-		printf("directory couldn't be created.\n");
-		goto close;
+	error make_error = dirs_make("packages", 0700);
+	if (make_error == file_directory_not_created_error) {
+		printf("directory 'packages' couldn't be created.\n");
+		goto cleanup1;
+	}
+
+	make_error = dirs_make("modules", 0700);
+	if (make_error == file_directory_not_created_error) {
+		printf("directory 'modules' couldn't be created.\n");
+		goto cleanup1;
 	}
 
 	printf("your package was successfully initialized.\n");
 
-	close:
+
+	fclose(json);
+	mems_free(&mem, null);
+	return ok;
+
+	cleanup1:
 	fclose(json);
 
-	cleanup:
+	cleanup0:
 	mems_free(&mem, null);
+	return fail;
 }
 
-void menus_handle_build(bool is_build_mode) {
+error menus_handle_build(bool is_build_mode) {
 	const allocator mem = arenas_init(2048);
 
 	file *json_file = fopen(".cels-package.json", "r");
@@ -96,9 +109,15 @@ void menus_handle_build(bool is_build_mode) {
 		printf("a package must be initialized.\n\n");
 
 		size_t option = ios_select("initialize?", options);
-		if (option > 0) { goto cleanup; }
+		if (option > 0) { 
+			goto cleanup0; 
+		}
 
-		menus_handle_init();
+		error err = menus_handle_init();
+		if (err != ok) {
+			printf("build failed");
+			goto cleanup0;
+		}
  	}
 
 	estring json = files_read(json_file, &mem);
@@ -106,7 +125,7 @@ void menus_handle_build(bool is_build_mode) {
 
 	if (json.error != file_successfull) {
 		printf("an error occurred.\n\n");
-		goto cleanup;
+		goto cleanup0;
 	}
 
 	//strings_trim(&json.value);
@@ -115,7 +134,7 @@ void menus_handle_build(bool is_build_mode) {
 	if (json_map.error != json_successfull) {
 		printf("an error parsing occurred.\n");
 		printf("%d\n", json_map.error);
-		goto cleanup;
+		goto cleanup0;
 	}
 
 	const string build_key = strings_premake("build");
@@ -126,22 +145,26 @@ void menus_handle_build(bool is_build_mode) {
 
 	if (!value) {
 		printf("cels-package is mal-formed.\n");
-		goto cleanup;
+		goto cleanup0;
 	}
 
 	int system_status = system(value->data);
 	if (system_status != 0) {
 		printf("an error while compiling ocurred.\n");
-		goto cleanup;
+		goto cleanup0;
 	}
 
 	printf("Project successfully compiled.\n");
 
-	cleanup:
-	mem.free(mem.storage);
+	mems_free(&mem, null);
+	return ok;
+
+	cleanup0:
+	mems_free(&mem, null);
+	return fail;
 }
 
-void menus_handle_install(void) {
+error menus_handle_install(void) {
 	const allocator mem = arenas_init(1024);
 
 	file *bynary_file = fopen("cels.o", "r");
@@ -149,9 +172,15 @@ void menus_handle_install(void) {
 		printf("No compiled bynary was found.\n\n");
 
 		size_t option = ios_select("compile?", options);
-		if (option > 0) { goto cleanup; }
+		if (option > 0) { 
+			goto cleanup0; 
+		}
 
-		menus_handle_build(true);
+		error err = menus_handle_build(true);
+		if (err != ok) {
+			printf("install failed");
+			goto cleanup0;
+		}
 	}
 
 	if (bynary_file) {
@@ -164,35 +193,34 @@ void menus_handle_install(void) {
 	error make_error = dirs_make(homepath.data, 0700);
 	if (make_error == file_directory_not_created_error) {
 		printf("Project failed to be created\n");
-		goto cleanup;
+		goto cleanup0;
 	}
 
 	const string dict = strings_format("%s/.config/cels/cels-dictionary.txt", &mem, home);
 	error rename_error = rename("cels-dictionary.txt", dict.data);
 	if (rename_error) {
 		printf("Dictionary failed to install\n");
-		goto cleanup;
+		goto cleanup0;
 	}
 
 	const string comp = strings_format("%s/.local/bin/cels", &mem, home);
 	rename_error = rename("cels.o", comp.data);
 	if (rename_error) {
 		printf("Executable failed to install\n");
-		goto cleanup;
+		goto cleanup0;
 	}
 
 	printf("Project installed successfully\n");
 
-	cleanup:
-	mem.free(mem.storage);
+	mems_free(&mem, null);
+	return ok;
+
+	cleanup0:
+	mems_free(&mem, null);
+	return fail;
 }
 
-const string package_folder = strings_premake("packages");
-bool utils_filter_packages_private(string *self) {
-	return !strings_equals(self, &package_folder);
-}
-
-void menus_handle_generate() {
+error menus_handle_generate(void) {
 	const allocator mem = arenas_init(2048);
 
 	file *json_file = fopen(".cels-package.json", "r");
@@ -200,9 +228,15 @@ void menus_handle_generate() {
 		printf("a package must be initialized.\n\n");
 
 		size_t option = ios_select("initialize?", options);
-		if (option > 0) { goto cleanup; }
+		if (option > 0) { 
+			goto cleanup0; 
+		}
 
-		menus_handle_init();
+		error err = menus_handle_init();
+		if (err != ok) {
+			printf("generation failed");
+			goto cleanup0;
+		}
  	}
 
 	estring json = files_read(json_file, &mem);
@@ -210,7 +244,7 @@ void menus_handle_generate() {
 
 	if (json.error != file_successfull) {
 		printf("an error occurred.\n\n");
-		goto cleanup;
+		goto cleanup0;
 	}
 
 	//strings_trim(&json.value);
@@ -219,31 +253,13 @@ void menus_handle_generate() {
 	if (json_map.error != json_successfull) {
 		printf("an error parsing occurred.\n");
 		printf("%d\n", json_map.error);
-		goto cleanup;
+		goto cleanup0;
 	}
 
-	/*
-	const string entry_key = strings_premake("entry");
-	string *entry = string_maps_get(&json_map.value, entry_key);
-
-	if (!entry) {
-		printf("cels-package is mal-formed.\n");
-		goto cleanup;
-	}
-
-	string this_folder = strings_premake("./");
-	estring_vec files = files_list(this_folder, &mem);
-	if (files.error != file_successfull) {
-		printf("no files found.\n");
-		goto cleanup;
-	}
-
-	string_vecs_filter(
-		&files.value, 
-		(filterfunc)utils_filter_packages_private, 
-		&mem);
-	*/
-
-	cleanup:
 	mems_free(&mem, null);
+	return ok;
+
+	cleanup0:
+	mems_free(&mem, null);
+	return fail;
 }

@@ -22,27 +22,27 @@ void menus_print_help(void);
  *
  * #to-review
  */
-void menus_handle_init(void);
+error menus_handle_init(void);
 
 /*
  * Builds project
  *
  * #to-review
  */
-void menus_handle_build(bool is_build_mode);
+error menus_handle_build(bool is_build_mode);
 
 /*
  * Installs project
  *
  * #to-review
  */
-void menus_handle_install(void);
+error menus_handle_install(void);
 
 /*
  * Generates code.
  *
  * #to-review
  */
-void menus_handle_generate();
+error menus_handle_generate();
 
 #endif
