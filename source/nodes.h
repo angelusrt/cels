@@ -63,6 +63,7 @@ typedef enum bynary_tree_iterator_state {
 typedef struct bynary_tree_iterator_internal {
 	bynary_node *left;
 	bynary_node *right;
+	bynary_node *prev;
 	bynary_tree_iterator_state state;
 } bynary_tree_iterator_internal;
 
@@ -467,7 +468,13 @@ bool multiary_trees_next_breadth_wise(multiary_tree *self, multiary_tree_iterato
 		while (bynary_trees_next((bynary_tree *)self, (bynary_tree_iterator *)&it)) { \
 			cleaner0(&it.data->data.key, mem); \
 			cleaner1(&it.data->data.value, mem); \
-			mems_dealloc(mem, it.data, sizeof(name##_bynary_node)); \
+			\
+			if (it.internal.prev) { \
+				mems_dealloc(mem, it.internal.prev, sizeof(name##_bynary_node)); \
+			} \
+			if (it.data == self->data) { \
+				mems_dealloc(mem, it.data, sizeof(name##_bynary_node)); \
+			} \
 		} \
 	} \
 	\

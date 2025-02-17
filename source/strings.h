@@ -642,7 +642,7 @@ typedef errors(string_map) estring_map;
  * 
  * #to-review
  */
-bool string_maps_push_with(
+error string_maps_push_with(
 	string_map *self, 
 	const char *key, 
 	const char *value, 

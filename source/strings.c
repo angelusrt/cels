@@ -313,7 +313,7 @@ error strings_push(string *self, string item, const allocator *mem) {
 		if (upscale_error) { return upscale_error; }
 	}
 
-	memcpy(self->data - self->size, item.data, self->size);
+	memcpy(self->data + self->size, item.data, item.size);
 	self->size = final_size;
 
 	return ok;
@@ -325,7 +325,7 @@ error strings_push_with(string *self, char *item, const allocator *mem) {
 }
 
 void strings_free(own string *self, const allocator *mem) {
-	if (!self->data) {
+	if (!self && !self->data) {
 		mems_dealloc(mem, self->data, self->capacity * sizeof(string));
 	}
 }
@@ -874,7 +874,7 @@ string strings_format(const char *const format, const allocator *mem, ...) {
 
 size_t strings_hasherize(const string *self) {
 	#if cels_debug
-		errors_abort("self", strings_check_extra(self));
+		errors_abort("self", strings_check_view(self));
 	#endif
 
 	#define strings_hash 3
@@ -1250,7 +1250,7 @@ maps_generate(
 	strings_free,
 	strings_free)
 
-bool string_maps_push_with(
+error string_maps_push_with(
 	string_map *self, const char *key, const char *value, const allocator *mem
 ) {
 	#if cels_debug

@@ -167,6 +167,10 @@ void bynary_nodes_normalize_private(bynary_node *self, bynary_node *new_node) {
 }
 
 bynary_node *bynary_nodes_find_left_most_private(bynary_node *self) {
+	if (!self || !self->left) {
+		return null;
+	}
+
 	bynary_node *left_most = self->left;
 	while (true) {
 		if (left_most->left) {
@@ -223,6 +227,8 @@ bool bynary_trees_next(bynary_tree *self, bynary_tree_iterator *iterator) {
 	#endif
 
 	if (!self || !self->data) { return false; }
+
+	iterator->internal.prev = iterator->data;
 
 	if (iterator->internal.state == bynary_tree_initial_iterator_state) {
 		if (self->data->left) {
