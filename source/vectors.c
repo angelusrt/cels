@@ -28,6 +28,189 @@ void vectors_debug(const vector *self) {
 		self->size, self->capacity, self->data);
 }
 
+error vectors_init(void *self, size_t capacity, size_t type_size, const allocator *mem) { 
+	vector *this = self;
+
+	#if cels_debug
+		errors_abort("self", vectors_check(this)); 
+	#endif
+
+	this->size = 0;
+	this->capacity = capacity;
+	this->data = mems_alloc(mem, type_size * capacity);
+
+	#if cels_debug
+		errors_abort("self.data", !this->data); 
+	#else
+		if (!this->data) { return fail; }
+	#endif
+	
+	return ok; 
+} 
+
+error vectors_upscale(void *self, size_t type_size, const allocator *mem) { 
+	vector *this = self;
+
+	#if cels_debug
+		errors_abort("self", vectors_check(this)); 
+	#endif
+	
+	size_t new_capacity = this->capacity << 1; 
+	
+	#if cels_debug
+		errors_abort( 
+			"new_capacity (overflow)", 
+			new_capacity < this->capacity); 
+
+		errors_abort( 
+			"new_capacity (overflow)", 
+			this->capacity * type_size > new_capacity * type_size); 
+	#endif 
+	
+	void *new_data = mems_realloc( 
+		mem, 
+		this->data, 
+		this->capacity * type_size, 
+		new_capacity * type_size); 
+	
+	#if cels_debug
+		errors_inform("new_data", !new_data); 
+	#endif
+	
+	if (!new_data) { 
+		this->size--; 
+		return fail; 
+	} 
+	
+	this->capacity = new_capacity; 
+	this->data = new_data; 
+	
+	return ok; 
+} 
+
+error vectors_downscale(void *self, size_t type_size, const allocator *mem) { 
+	vector *this = self;
+
+	#if cels_debug
+		errors_abort("self", vectors_check(this)); 
+	#endif
+	
+	if (this->size < this->capacity >> 1) { 
+		size_t new_capacity = this->capacity >> 1; 
+		void *new_data = mems_realloc( 
+			mem, 
+			this->data, 
+			this->capacity * type_size, 
+			new_capacity * type_size); 
+		
+		#if cels_debug
+			errors_inform("new_data", !new_data); 
+		#endif
+		
+		if (!new_data) { 
+			this->size++; 
+			return fail; 
+		} 
+		
+		this->capacity = new_capacity; 
+		this->data = new_data; 
+	} 
+	
+	return ok; 
+} 
+
+error vectors_pop(void *self, size_t type_size, freefunc cleaner, const allocator *mem) { 
+	vector *this = self;
+
+	#if cels_debug
+		errors_abort("self", vectors_check(this)); 
+	#endif
+	
+	bool is_oversized = false; 
+	if (this->size < this->capacity >> 1) { 
+		is_oversized = true; 
+	} 
+	
+	void *item = (char *)this->data + ((this->size - 1) * type_size);
+	if (cleaner) {
+		cleaner(item, mem); 
+	}
+
+	#if cels_debug
+		memset(item, 0, type_size);
+	#endif
+
+	this->size--; 
+	error downscale_error = ok; 
+	
+	if (!is_oversized && this->size < this->capacity >> 1) { 
+		downscale_error = vectors_downscale(this, type_size, mem); 
+	} 
+	
+	return downscale_error; 
+} 
+
+error vectors_push(void *self, void *item, size_t type_size, const allocator *mem) { 
+	vector *this = self;
+
+	#if cels_debug
+		errors_abort("self", vectors_check(this)); 
+		errors_abort("item", !item); 
+	#endif
+	
+	this->size++; 
+
+	void *item_location = (char *)this->data + ((this->size - 1) * type_size);
+	memcpy(item_location, item, type_size);
+
+	error upscale_error = ok; 
+	if (this->size >= this->capacity) { 
+		upscale_error = vectors_upscale(this, type_size, mem); 
+	} 
+	
+	return upscale_error; 
+} 
+
+void vectors_free(void *self, size_t type_size, freefunc cleaner, const allocator *mem) { 
+	vector *this = self;
+
+	#if cels_debug
+		errors_abort("self", vectors_check(this)); 
+	#endif
+	
+	if (!this->data) { 
+		if (cleaner) {
+			for (size_t i = 0; i < this->size; i++) { 
+				void *item = (char *)this->data + ((this->size + i) * type_size);
+				cleaner(item, mem); 
+			} 
+		}
+
+		mems_dealloc(mem, this->data, this->capacity * type_size); 
+	} 
+} 
+
+error vectors_fit(void *self, size_t type_size, const allocator *mem) { 
+	vector *this = self;
+
+	#if cels_debug
+		errors_abort("self", vectors_check(this)); 
+	#endif
+	
+	while (true) { 
+		if (this->size < this->capacity >> 1 && this->capacity > vector_min) { 
+			error downscale_error = vectors_downscale(this, type_size, mem); 
+			if (downscale_error) { 
+				return downscale_error; 
+			} 
+		} else { 
+			break; 
+		} 
+	} 
+	
+	return ok; 
+}
+
 /* implementations */
 
 priv void sizes_print(size_t *number) {

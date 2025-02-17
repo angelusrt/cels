@@ -249,9 +249,9 @@ typedef vectors(void *) vector;
 	} \
 	\
 	void name##s_free(name *self, const allocator *mem) { \
-		/*if (cels_debug) { \
+		if (cels_debug) { \
 			errors_abort("self", vectors_check((const vector *)self)); \
-		}*/ \
+		} \
 		\
 		if (!self->data) { \
 			for (size_t i = 0; i < self->size; i++) { \
@@ -984,6 +984,55 @@ bool vectors_check(const vector *self);
  * #to-review
  */
 void vectors_debug(const vector *self);
+
+/*
+ * Initializes a vector.
+ *
+ * #to-review
+ */
+error vectors_init(void *self, size_t capacity, size_t type_size, const allocator *mem);
+
+/*
+ * Upscales a vector.
+ *
+ * #to-review
+ */
+error vectors_upscale(void *self, size_t type_size, const allocator *mem);
+
+/*
+ * Downscale a vector.
+ *
+ * #to-review
+ */
+error vectors_downscale(void *self, size_t type_size, const allocator *mem);
+
+/*
+ * Pops an item from a vector.
+ *
+ * #to-review
+ */
+error vectors_pop(void *self, size_t type_size, freefunc cleaner, const allocator *mem);
+
+/*
+ * Pushes an item from a vector.
+ *
+ * #to-review
+ */
+error vectors_push(void *self, void *item, size_t type_size, const allocator *mem);
+
+/*
+ * Frees a vector.
+ *
+ * #to-review
+ */
+void vectors_free(void *self, size_t type_size, freefunc cleaner, const allocator *mem);
+
+/*
+ * Downscales a vector to fit in less space.
+ *
+ * #to-review
+ */
+error vectors_fit(void *self, size_t type_size, const allocator *mem);
 
 /* definitions */
 
