@@ -198,12 +198,6 @@ bool bynary_nodes_check(const bynary_node *self) {
 	return false;
 }
 
-void bynary_nodes_initialize(bynary_node *self, size_t hash) {
-	self->hash = hash;
-	self->color = bynary_node_black_color;
-	self->frequency = 1;
-}
-
 /* bynary_trees */
 
 void bynary_trees_next_right_procedure_private(bynary_node *self, bynary_tree_iterator *iterator) {
@@ -221,28 +215,30 @@ void bynary_trees_next_right_procedure_private(bynary_node *self, bynary_tree_it
 	}
 }
 
-bool bynary_trees_next(bynary_tree *self, bynary_tree_iterator *iterator) {
+bool bynary_trees_next(const void *self, bynary_tree_iterator *iterator) {
+	const bynary_tree *s = self;
+
 	#if cels_debug
-		errors_abort("self.data", bynary_nodes_check(self->data));
+		errors_abort("self.data", bynary_nodes_check(s->data));
 	#endif
 
-	if (!self || !self->data) { return false; }
+	if (!s || !s->data) { return false; }
 
 	iterator->internal.prev = iterator->data;
 
 	if (iterator->internal.state == bynary_tree_initial_iterator_state) {
-		if (self->data->left) {
-			bynary_node *left_most = bynary_nodes_find_left_most_private(self->data);
+		if (s->data->left) {
+			bynary_node *left_most = bynary_nodes_find_left_most_private(s->data);
 			iterator->data = left_most;
 			iterator->internal.left = left_most;
 			iterator->internal.right = left_most->parent->right;
 			iterator->internal.state = bynary_tree_left_most_iterator_state;
 			return true;
-		} else if (self->data->right) {
-			bynary_trees_next_right_procedure_private(self->data->right, iterator);
+		} else if (s->data->right) {
+			bynary_trees_next_right_procedure_private(s->data->right, iterator);
 			return true;
 		} else {
-			iterator->data = self->data;
+			iterator->data = s->data;
 			iterator->internal.state = bynary_tree_finished_iterator_state;
 			return true;
 		}
@@ -291,13 +287,15 @@ bool bynary_trees_next(bynary_tree *self, bynary_tree_iterator *iterator) {
 	return false;
 }
 
-bynary_node *bynary_trees_get(bynary_tree *self, size_t hash) {
+void *bynary_trees_get(const void *self, size_t hash) {
+	const bynary_tree *s = self;
+
 	#if cels_debug
-		errors_abort("self", !self);
-		errors_abort("self.data", bynary_nodes_check(self->data));
+		errors_abort("self", !s);
+		errors_abort("self.data", bynary_nodes_check(s->data));
 	#endif
 
-	bynary_node *node = self->data;
+	bynary_node *node = s->data;
 	while (node) {
 		if (hash < node->hash) {
 			if (node->left && node->frequency > 0) {
@@ -321,18 +319,29 @@ bynary_node *bynary_trees_get(bynary_tree *self, size_t hash) {
 	return null;
 }
 
-error bynary_trees_push(bynary_tree *self, bynary_node *node) {
+error bynary_trees_push(
+	void *self, void *item, size_t hash, size_t type_size, size_t node_size, const allocator *mem) {
+	bynary_tree *s = self;
+
+	bynary_node *node = mems_alloc(mem, node_size);
+	if (!node) { return fail; }
+
+	node->hash = hash;
+	node->color = bynary_node_black_color;
+	node->frequency = 1;
+	memcpy(&node->data, item, type_size);
+
 	#if cels_debug
 		errors_abort("self", !self);
 		errors_abort("node", bynary_nodes_check(node));
 	#endif
 
-    if (!self->data) { 
-		self->data = node; 
+    if (!s->data) { 
+		s->data = node; 
 		return ok;
 	}
 
-	bynary_node *next = self->data;
+	bynary_node *next = s->data;
 	while (next) {
 		if (node->hash < next->hash) {
 			if (next->left && next->frequency > 0) {
@@ -354,11 +363,12 @@ error bynary_trees_push(bynary_tree *self, bynary_node *node) {
 			break;
 		} else {
 			next->frequency++;
+			mems_dealloc(mem, node, node_size);
 			return fail;
 		}
 	}
 
-	bynary_nodes_normalize_private(self->data, node);
+	bynary_nodes_normalize_private(s->data, node);
 
 	return ok;
 }
@@ -383,6 +393,12 @@ error multiary_trees_push(multiary_tree *self, multiary_node *node, multiary_nod
 		return ok;
 	} 
 
+	#if cels_debug
+		errors_abort("node", !node);
+	#endif
+
+	if (!node) { return fail; } 
+
 	multiary_node *last_of_chain = node;
 	while (true) {
 		if (last_of_chain->left) {
@@ -393,6 +409,7 @@ error multiary_trees_push(multiary_tree *self, multiary_node *node, multiary_nod
 		break;
 	}
 
+	item->parent = last_of_chain->parent;
 	last_of_chain->left = item;
 	self->size++;
 	return ok;
@@ -415,7 +432,7 @@ error multiary_trees_attach(multiary_tree *self, multiary_node *node, multiary_n
 	if (node->down) { return fail; }
 
 	node->down = item;
-	node->parent = node->down;
+	item->parent = node;
 	self->size++;
 	return ok;
 }
@@ -566,4 +583,44 @@ bool multiary_trees_next_breadth_wise(
 	cleanup:
 	mems_dealloc(mem, iterator->internal.branches, iterator->internal.capacity);
 	return false;
+}
+
+/* sets */
+
+bool sets_next(const void *self, void *iterator) {
+	return bynary_trees_next(self, iterator);
+}
+
+void *sets_get(const void *self, size_t hash) {
+	bynary_node *node = bynary_trees_get(self, hash);
+	if (!node) {
+		return null;
+	}
+
+	return &node->data;
+}
+
+error sets_push(
+	void *self, void *item, size_t hash, set_size size, const allocator *mem) {
+	return bynary_trees_push(self, item, hash, size.type_size, size.node_size, mem);
+}
+
+/* maps */
+
+bool maps_next(const void *self, void *iterator) {
+	return bynary_trees_next(self, iterator);
+}
+
+void *maps_get(const void *self, size_t hash) {
+	bynary_node *node = bynary_trees_get(self, hash);
+	if (!node) {
+		return null;
+	}
+
+	return &node->data;
+}
+
+error maps_push(
+	void *self, void *item, size_t hash, map_size size, const allocator *mem) {
+	return bynary_trees_push(self, item, hash, size.pair_size, size.node_size, mem);
 }
