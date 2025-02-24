@@ -11,6 +11,7 @@
 
 #include "errors.h"
 #include "vectors.h"
+#include "maths.h"
 
 /*
  * The module 'strings' is about manipulating the 
@@ -96,6 +97,17 @@ void chars_print_special(char letter);
 bool strs_check(const char *self);
 
 /* strings */
+
+/* 
+ * Creates a static variable from string literal 
+ * with size and capacity already specified.
+ *
+ * Should'nt be modified (view only)!
+ *
+ * #view-only #tested
+ */
+#define s(lit) \
+	{.size=sizeof(lit), .capacity=sizeof(lit), .data=lit}
 
 /* 
  * Creates an automatic variable that may be 

@@ -1,5 +1,4 @@
 #include "strings.h"
-#include "maths.h"
 
 /* char_vecs */
 
@@ -1251,8 +1250,7 @@ maps_generate(
 	strings_free)
 
 error string_maps_push_with(
-	string_map *self, const char *key, const char *value, const allocator *mem
-) {
+	string_map *self, const char *key, const char *value, const allocator *mem) {
 	#if cels_debug
 		errors_abort("key", strs_check(key));
 		errors_abort("value", strs_check(value));
