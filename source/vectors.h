@@ -986,7 +986,10 @@ bool vectors_check(const vector *self);
 void vectors_debug(const vector *self);
 
 /*
- * Initializes a vector.
+ * Initializes a vector with capacity.
+ *
+ * An uninitialized vector-like 'self' must be provided, 
+ * as well as it's underlying type as 'type-size'.
  *
  * #to-review
  */
@@ -995,12 +998,18 @@ error vectors_init(void *self, size_t capacity, size_t type_size, const allocato
 /*
  * Upscales a vector.
  *
+ * A vector-like 'self' must be provided, 
+ * as well as it's underlying type as 'type-size'.
+ *
  * #to-review
  */
 error vectors_upscale(void *self, size_t type_size, const allocator *mem);
 
 /*
  * Downscale a vector.
+ *
+ * A vector-like 'self' must be provided, 
+ * as well as it's underlying type as 'type-size'.
  *
  * #to-review
  */
@@ -1009,12 +1018,24 @@ error vectors_downscale(void *self, size_t type_size, const allocator *mem);
 /*
  * Pops an item from a vector.
  *
+ * A vector-like 'self' must be provided, 
+ * as well as it's underlying type as 'type-size'.
+ *
+ * An optional cleaner may be provided to free any 
+ * underlying allocations. 
+ *
  * #to-review
  */
 error vectors_pop(void *self, size_t type_size, freefunc cleaner, const allocator *mem);
 
 /*
  * Pushes an item from a vector.
+ *
+ * A vector-like 'self' must be provided, 
+ * as well as it's underlying type as 'type-size'.
+ *
+ * An 'item' of such underlying type must also 
+ * be provided. 
  *
  * #to-review
  */
@@ -1023,12 +1044,21 @@ error vectors_push(void *self, void *item, size_t type_size, const allocator *me
 /*
  * Frees a vector.
  *
+ * A vector-like 'self' must be provided, 
+ * as well as it's underlying type as 'type-size'.
+ *
+ * An optional cleaner may be provided to clean 
+ * any underlying allocations.
+ *
  * #to-review
  */
 void vectors_free(void *self, size_t type_size, freefunc cleaner, const allocator *mem);
 
 /*
- * Downscales a vector to fit in less space.
+ * Downscales a vector to fit in optimum space.
+ *
+ * A vector-like 'self' must be provided, 
+ * as well as it's underlying type as 'type-size'.
  *
  * #to-review
  */

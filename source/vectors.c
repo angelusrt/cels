@@ -29,48 +29,48 @@ void vectors_debug(const vector *self) {
 }
 
 error vectors_init(void *self, size_t capacity, size_t type_size, const allocator *mem) { 
-	vector *this = self;
+	vector *s = self;
 
 	#if cels_debug
-		errors_abort("self", vectors_check(this)); 
+		errors_abort("self", vectors_check(s)); 
 	#endif
 
-	this->size = 0;
-	this->capacity = capacity;
-	this->data = mems_alloc(mem, type_size * capacity);
+	s->size = 0;
+	s->capacity = capacity;
+	s->data = mems_alloc(mem, type_size * capacity);
 
 	#if cels_debug
-		errors_abort("self.data", !this->data); 
+		errors_abort("self.data", !s->data); 
 	#else
-		if (!this->data) { return fail; }
+		if (!s->data) { return fail; }
 	#endif
 	
 	return ok; 
 } 
 
 error vectors_upscale(void *self, size_t type_size, const allocator *mem) { 
-	vector *this = self;
+	vector *s = self;
 
 	#if cels_debug
-		errors_abort("self", vectors_check(this)); 
+		errors_abort("self", vectors_check(s)); 
 	#endif
 	
-	size_t new_capacity = this->capacity << 1; 
+	size_t new_capacity = s->capacity << 1; 
 	
 	#if cels_debug
 		errors_abort( 
 			"new_capacity (overflow)", 
-			new_capacity < this->capacity); 
+			new_capacity < s->capacity); 
 
 		errors_abort( 
 			"new_capacity (overflow)", 
-			this->capacity * type_size > new_capacity * type_size); 
+			s->capacity * type_size > new_capacity * type_size); 
 	#endif 
 	
 	void *new_data = mems_realloc( 
 		mem, 
-		this->data, 
-		this->capacity * type_size, 
+		s->data, 
+		s->capacity * type_size, 
 		new_capacity * type_size); 
 	
 	#if cels_debug
@@ -78,29 +78,29 @@ error vectors_upscale(void *self, size_t type_size, const allocator *mem) {
 	#endif
 	
 	if (!new_data) { 
-		this->size--; 
+		s->size--; 
 		return fail; 
 	} 
 	
-	this->capacity = new_capacity; 
-	this->data = new_data; 
+	s->capacity = new_capacity; 
+	s->data = new_data; 
 	
 	return ok; 
 } 
 
 error vectors_downscale(void *self, size_t type_size, const allocator *mem) { 
-	vector *this = self;
+	vector *s = self;
 
 	#if cels_debug
-		errors_abort("self", vectors_check(this)); 
+		errors_abort("self", vectors_check(s)); 
 	#endif
 	
-	if (this->size < this->capacity >> 1) { 
-		size_t new_capacity = this->capacity >> 1; 
+	if (s->size < s->capacity >> 1) { 
+		size_t new_capacity = s->capacity >> 1; 
 		void *new_data = mems_realloc( 
 			mem, 
-			this->data, 
-			this->capacity * type_size, 
+			s->data, 
+			s->capacity * type_size, 
 			new_capacity * type_size); 
 		
 		#if cels_debug
@@ -108,30 +108,30 @@ error vectors_downscale(void *self, size_t type_size, const allocator *mem) {
 		#endif
 		
 		if (!new_data) { 
-			this->size++; 
+			s->size++; 
 			return fail; 
 		} 
 		
-		this->capacity = new_capacity; 
-		this->data = new_data; 
+		s->capacity = new_capacity; 
+		s->data = new_data; 
 	} 
 	
 	return ok; 
 } 
 
 error vectors_pop(void *self, size_t type_size, freefunc cleaner, const allocator *mem) { 
-	vector *this = self;
+	vector *s = self;
 
 	#if cels_debug
-		errors_abort("self", vectors_check(this)); 
+		errors_abort("self", vectors_check(s)); 
 	#endif
 	
 	bool is_oversized = false; 
-	if (this->size < this->capacity >> 1) { 
+	if (s->size < s->capacity >> 1) { 
 		is_oversized = true; 
 	} 
 	
-	void *item = (char *)this->data + ((this->size - 1) * type_size);
+	void *item = (char *)s->data + ((s->size - 1) * type_size);
 	if (cleaner) {
 		cleaner(item, mem); 
 	}
@@ -140,66 +140,66 @@ error vectors_pop(void *self, size_t type_size, freefunc cleaner, const allocato
 		memset(item, 0, type_size);
 	#endif
 
-	this->size--; 
+	s->size--; 
 	error downscale_error = ok; 
 	
-	if (!is_oversized && this->size < this->capacity >> 1) { 
-		downscale_error = vectors_downscale(this, type_size, mem); 
+	if (!is_oversized && s->size < s->capacity >> 1) { 
+		downscale_error = vectors_downscale(s, type_size, mem); 
 	} 
 	
 	return downscale_error; 
 } 
 
 error vectors_push(void *self, void *item, size_t type_size, const allocator *mem) { 
-	vector *this = self;
+	vector *s = self;
 
 	#if cels_debug
-		errors_abort("self", vectors_check(this)); 
+		errors_abort("self", vectors_check(s)); 
 		errors_abort("item", !item); 
 	#endif
 	
-	this->size++; 
+	s->size++; 
 
-	void *item_location = (char *)this->data + ((this->size - 1) * type_size);
+	void *item_location = (char *)s->data + ((s->size - 1) * type_size);
 	memcpy(item_location, item, type_size);
 
 	error upscale_error = ok; 
-	if (this->size >= this->capacity) { 
-		upscale_error = vectors_upscale(this, type_size, mem); 
+	if (s->size >= s->capacity) { 
+		upscale_error = vectors_upscale(s, type_size, mem); 
 	} 
 	
 	return upscale_error; 
 } 
 
 void vectors_free(void *self, size_t type_size, freefunc cleaner, const allocator *mem) { 
-	vector *this = self;
+	vector *s = self;
 
 	#if cels_debug
-		errors_abort("self", vectors_check(this)); 
+		errors_abort("self", vectors_check(s)); 
 	#endif
 	
-	if (!this->data) { 
+	if (!s->data) { 
 		if (cleaner) {
-			for (size_t i = 0; i < this->size; i++) { 
-				void *item = (char *)this->data + ((this->size + i) * type_size);
+			for (size_t i = 0; i < s->size; i++) { 
+				void *item = (char *)s->data + ((s->size + i) * type_size);
 				cleaner(item, mem); 
 			} 
 		}
 
-		mems_dealloc(mem, this->data, this->capacity * type_size); 
+		mems_dealloc(mem, s->data, s->capacity * type_size); 
 	} 
 } 
 
 error vectors_fit(void *self, size_t type_size, const allocator *mem) { 
-	vector *this = self;
+	vector *s = self;
 
 	#if cels_debug
-		errors_abort("self", vectors_check(this)); 
+		errors_abort("self", vectors_check(s)); 
 	#endif
 	
 	while (true) { 
-		if (this->size < this->capacity >> 1 && this->capacity > vector_min) { 
-			error downscale_error = vectors_downscale(this, type_size, mem); 
+		if (s->size < s->capacity >> 1 && s->capacity > vector_min) { 
+			error downscale_error = vectors_downscale(s, type_size, mem); 
 			if (downscale_error) { 
 				return downscale_error; 
 			} 
