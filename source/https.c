@@ -236,8 +236,7 @@ bool https_head_check(const string_map *head) {
 
 	//TODO: improve validation
 
-	size_t length = bynary_nodes_length((bynary_node *)head);
-	errors_abort("head.size != 3", length != header_size);
+	errors_abort("head.size != 3", head->size != header_size);
 
 	bool is_method_valid = false;
 	string *method_value = string_maps_get(head, headers[0]);

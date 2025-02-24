@@ -4,7 +4,7 @@ if [[ $1 = "" || $1 = "normal" ]]; then
 	echo compilando em modo normal
 	gcc -Wall -Wextra -Wpedantic \
 		-fdce -fdata-sections -ffunction-sections -Wl,--gc-sections \
-		tests.c -o tests.o -lm 
+		tests.c -o tests.o -lm -Dcels_debug=false
 elif [[ $1 = "debug" ]]; then
 	echo compilando em modo debug
 	gcc -Wall -Wextra -Wpedantic \

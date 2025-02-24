@@ -8,6 +8,7 @@
 #include "../source/errors.c"
 #include "../source/vectors.c"
 #include "../source/strings.c"
+#include "../source/maths.c"
 
 int main() {
 	strings_test();

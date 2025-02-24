@@ -1,5 +1,4 @@
 #include "requests.h"
-#include "strings.h"
 
 /* private */
 

@@ -1,5 +1,4 @@
 #include "jsons.h"
-#include "strings.h"
 
 #define case_whitespace \
 	case ' ': \

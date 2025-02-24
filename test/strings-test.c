@@ -368,7 +368,7 @@ void strings_slice_test(error_report *report) {
 	matches = strings_seems(&text0, &predict1);
 	errors_expect("slice('exemplo', 0, 3) == 'exe'", matches, report);
 
-	strings_shift(&text0, 1);
+	strings_shift(&text0, 1, 1);
 	matches = strings_seems(&text0, &predict2);
 	errors_expect("shift('exe', 1) == 'ee'", matches, report);
 
@@ -431,9 +431,10 @@ void string_maps_get_and_push_test(error_report *report) {
 	}
 
 	errors_expect("get(json, 'name') == 'angelus'", is_valid, report);
-	
 	string_maps_push_with(&json, "name", "angelus", null);
-	size_t name_freq = string_maps_frequency(&json, key);
+
+	string_map_node *node = bynary_trees_get(&json, strings_hasherize(&key));
+	size_t name_freq = node ? node->frequency : 0;
 	is_valid = name_freq == 2; 
 	errors_expect("push(json, 'name', 'angelus').frequency == 2", is_valid, report);
 	
