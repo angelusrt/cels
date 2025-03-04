@@ -22,6 +22,15 @@
 #include "vectors.h"
 #include "mems.h"
 
+
+/*
+ * Requests is a module which enables 
+ * you to make an http or https request.
+ */
+
+
+/* requests */
+
 typedef enum request_error {
 	request_successfull,
 	request_default_error,
@@ -102,7 +111,7 @@ typedef errors(response) eresponse;
 typedef struct request_internal {
 	request_state state;
 	string packet;
-	char_vec response;
+	byte_vec response;
 	string port;
 	int socket;
 
@@ -179,7 +188,8 @@ void request_errors_println(request_error self);
  * #to-review
  */
 cels_warn_unused
-eresponse requests_make(const string *url, const request_option *opts, const allocator *mem);
+eresponse requests_make(
+	const string *url, const request_option *opts, const allocator *mem);
 
 /*
  * Requests a site asynchronously and 
@@ -189,6 +199,7 @@ eresponse requests_make(const string *url, const request_option *opts, const all
  * #to-review
  */
 cels_warn_unused
-bool requests_make_async(const string *url, request_async *request, const allocator *mem);
+bool requests_make_async(
+	const string *url, request_async *request, const allocator *mem);
 
 #endif

@@ -1,4 +1,8 @@
 #include "systems.h"
+#include "strings.h"
+
+
+/* systems */
 
 error systems_load(const string path, const allocator *mem) {
 	#if cels_debug
@@ -10,10 +14,17 @@ error systems_load(const string path, const allocator *mem) {
 
 	error error = system_successfull;
 	string separator = strings_premake("=");
-	string line_view = {0};
+	byte_vec line = {0};
 
-	while (!files_next(env, &line_view, mem)) {
-		size_t pos = strings_find(&line_view, separator, 0);
+	while (!files_next(env, &line, mem)) {
+		bool is_string = byte_vecs_is_string(&line);
+		if (!is_string) {
+			error = system_env_file_mal_formed_error; 
+			goto cleanup0;
+		}
+
+		string *l = (string *)&line;
+		size_t pos = strings_find(l, separator, 0);
 		if (pos == -1) { continue; }
 
 		if (pos < 1) { 
@@ -21,25 +32,25 @@ error systems_load(const string path, const allocator *mem) {
 			goto cleanup0;
 		}
 
-		if (line_view.size - pos < 1) { 
+		if (l->size - pos < 1) { 
 			error = system_env_file_mal_formed_error; 
 			goto cleanup0;
 		}
 
-		line_view.data[pos] = '\0';
-		line_view.data[line_view.size - 1] = '\0';
+		l->data[pos] = '\0';
+		l->data[l->size - 1] = '\0';
 
-		char *key_start = line_view.data;
-		char *value_start = line_view.data + pos;
+		char *key_start = l->data;
+		char *value_start = l->data + pos;
 		bool is_between_quotes = 
-			line_view.data[pos + 1] == '"' && 
-			line_view.data[line_view.size - 2] == '"';
+			l->data[pos + 1] == '"' && 
+			l->data[l->size - 2] == '"';
 
 		if (is_between_quotes) {
 			value_start++;
 			*value_start = '\0';
 			value_start++;
-			line_view.data[line_view.size - 2] = '\0';
+			l->data[l->size - 2] = '\0';
 		}
 
 		setenv(key_start, value_start, 0);
@@ -47,6 +58,6 @@ error systems_load(const string path, const allocator *mem) {
 
 	cleanup0:
 	fclose(env);
-	strings_free(&line_view, mem);
+	vectors_free(&line, null, mem);
 	return error;
 }

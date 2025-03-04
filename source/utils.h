@@ -8,10 +8,14 @@
 #include <stddef.h>
 #include "errors.h"
 
+
 /*
  * The module 'utils' is a collection 
  * of useful functions.
  */
+
+
+/* utils */
 
 typedef clock_t (*measurefunc) (size_t);
 
@@ -21,8 +25,7 @@ typedef clock_t (*measurefunc) (size_t);
  *
  * #to-review
  */
-#define utils_measure(callback) \
-	utils_measure_helper(#callback, callback)
+#define utils_measure(callback) utils_measure_helper(#callback, callback)
 
 /*
  * A function that measure the 
@@ -35,9 +38,7 @@ typedef clock_t (*measurefunc) (size_t);
  *
  * #to-review
  */
-void utils_measure_helper(
-	const char *function_name, 
-	measurefunc callback);
+void utils_measure_helper(const char *function_name, measurefunc callback);
 
 /*
  * A convenience over 'next' which 
@@ -50,6 +51,9 @@ void utils_measure_helper(
 	iterator var = {0}; \
 	while (next(start, end, step, &var)) body \
 }
+
+
+/* next */
 
 typedef struct iterator {
 	ssize_t data;

@@ -1,5 +1,6 @@
 #include "requests.h"
 
+
 /* private */
 
 typedef struct request {
@@ -37,13 +38,15 @@ void requests_free_private(request *self, const allocator *mem) {
 	#endif
 }
 
-void request_internals_free_private(request_internal *self, const allocator *mem) {
+void request_internals_free_private(
+	request_internal *self, const allocator *mem) {
+
 	#if cels_debug
 		errors_abort("self", !self);
 	#endif
 
 	if (self->response.data) {
-		strings_free(&self->response, mem);
+		vectors_free(&self->response, null, mem);
 	}
 
 	if (self->packet.data) {
@@ -52,25 +55,23 @@ void request_internals_free_private(request_internal *self, const allocator *mem
 
 	#if cels_debug
 		self->socket = 0;
-		memset(&self->response, 0, sizeof(char_vec));
+		memset(&self->response, 0, sizeof(byte_vec));
 		memset(&self->packet, 0, sizeof(string));
 	#endif
 }
 
 erequest requests_contruct_private(
-	const string *url, const request_option *option, const allocator *mem
-) {
+	const string *url, const request_option *option, const allocator *mem) {
+
 	#if cels_debug
 		errors_abort("url", strings_check_extra(url));
 	#endif
 
 	error err = ok;
-
 	request request = {0};
 	request_option empty = {0};
 	if (!option) { option = &empty; }
 
-	//
 
 	if (option->head.data) {
 		static const string host = strings_premake("Host"); 
@@ -97,7 +98,6 @@ erequest requests_contruct_private(
 		version = strings_do((void *)request_versions[option->method]);
 	}
 
-	//
 
 	string_vec paths = strings_split_with(url, "/", 1, mem);
 	if (paths.size == 0) { 
@@ -119,7 +119,6 @@ erequest requests_contruct_private(
 	string head = !option->head.data ? strings_do("") : option->head;
 	string body = !option->body.data ? strings_do("") : option->body;
 
-	//
 
 	request.max_retry = option->max_retry == 0 ? 5 : option->max_retry;
 
@@ -158,18 +157,21 @@ erequest requests_contruct_private(
 	request.timeout = (struct timeval) {.tv_sec=timeout, .tv_usec=0};
 	#undef request_timeout
 
+
 	mems_dealloc(mem, paths.data, paths.capacity);
 	return (erequest){.value=request};
 
 	cleanup1:
-	string_vecs_free(&paths, mem);
+	vectors_free(&paths, (freefunc)strings_free, mem);
 
 	cleanup0:
 	return (erequest){.error=err};
 }
 
 cels_warn_unused
-erequest_internal requests_init_private(const string *url, const request_option *option, const allocator *mem) {
+erequest_internal requests_init_private(
+	const string *url, const request_option *option, const allocator *mem) {
+
 	error err = ok;
 
 	erequest request = requests_contruct_private(url, option, mem);
@@ -191,7 +193,6 @@ erequest_internal requests_init_private(const string *url, const request_option 
 		goto cleanup1;
 	}
 
-	//
 
 	#if cels_debug
 		void *address = null;
@@ -206,11 +207,12 @@ erequest_internal requests_init_private(const string *url, const request_option 
 		char ip[INET6_ADDRSTRLEN];
 		inet_ntop(server->ai_family, address, ip, sizeof(ip)); 
 
-		string address_formated = strings_format("https_request.address = %s", mem, ip);
+		string address_formated = strings_format(
+			"https_request.address = %s", mem, ip);
+
 		errors_print(errors_success_mode, address_formated.data, null);
 	#endif
 
-	//
 
 	int socket_descriptor = socket(
 		server->ai_family, 
@@ -222,7 +224,6 @@ erequest_internal requests_init_private(const string *url, const request_option 
 		goto cleanup1;
 	}
 
-	//
 
 	int set_status = setsockopt(
 		socket_descriptor, 
@@ -236,7 +237,6 @@ erequest_internal requests_init_private(const string *url, const request_option 
 		goto cleanup2;
 	}
 
-	//
 
 	int conn_status = connect(
 		socket_descriptor, 
@@ -250,7 +250,6 @@ erequest_internal requests_init_private(const string *url, const request_option 
 		goto cleanup2;
 	}
 
-	//
 
 	request_internal internal = {
 		.socket = socket_descriptor,
@@ -261,6 +260,7 @@ erequest_internal requests_init_private(const string *url, const request_option 
 		.initial_buffer_size = request.value.initial_buffer_size,
 		.is_secure = request.value.is_secure,
 	};
+
 
 	return (erequest_internal){.value=internal};
 
@@ -275,9 +275,9 @@ erequest_internal requests_init_private(const string *url, const request_option 
 }
 
 #if cels_openssl
-estring requests_connect_securely_private(
-	int socket, const string packet, const allocator *mem
-) {
+ebyte_vec requests_connect_securely_private(
+	int socket, const string packet, const allocator *mem) {
+
 	#if cels_debug
 		errors_abort("packet", strings_check_extra(&packet));
 	#endif
@@ -344,7 +344,9 @@ estring requests_connect_securely_private(
 		goto cleanup2;
 	}
 
-	string response = strings_init(string_small_size, mem);
+	byte_vec response = {0}; 
+	vectors_init(&response, sizeof(char), string_small_size, mem);
+
     while(response.size < response.capacity) {
         long bytes = SSL_read(
 			ssl,
@@ -361,7 +363,7 @@ estring requests_connect_securely_private(
 		if (bytes == 0) {
             break;
 		} else if (response.size >= response.capacity) {
-			bool upscale_status = char_vecs_upscale(&response, mem);
+			bool upscale_status = vectors_upscale(&response, mem);
 
 			if (upscale_status) {
 				err = request_upscaling_error;
@@ -370,7 +372,7 @@ estring requests_connect_securely_private(
 		}
     }
 
-	bool push_error = char_vecs_push(&response, '\0', mem);
+	bool push_error = vectors_push(&response, &(char){'\0'}, mem);
 	if (push_error) {
 		err = request_upscaling_error;
 		goto cleanup3;
@@ -379,10 +381,11 @@ estring requests_connect_securely_private(
 	SSL_free(ssl);
 	SSL_CTX_free(ssl_context);
 
-    return (estring){.value=response};
+
+    return (ebyte_vec){.value=response};
 
 	cleanup3:
-	strings_free(&response, mem);
+	vectors_free(&response, null, mem);
 
 	cleanup2:
 	SSL_free(ssl);
@@ -391,10 +394,12 @@ estring requests_connect_securely_private(
 	SSL_CTX_free(ssl_context);
 
 	cleanup0:
-    return (estring){.error=err};
+    return (ebyte_vec){.error=err};
 }
 
-bool requests_connect_securely_async_private(request_async *request, const allocator *mem) {
+bool requests_connect_securely_async_private(
+	request_async *request, const allocator *mem) {
+
 	#if cels_debug
 		errors_abort("packet", strings_check_extra(&request->internal.packet));
 	#endif
@@ -473,7 +478,14 @@ bool requests_connect_securely_async_private(request_async *request, const alloc
 		request->internal.state = request_receive_state;
 		request->internal.ssl = ssl;
 		request->internal.context = ssl_context;
-		request->internal.response = strings_init(request->internal.initial_buffer_size, mem);
+
+		vectors_init(
+			&request->internal.response, 
+			sizeof(char), 
+			request->internal.initial_buffer_size, 
+			mem);
+
+
 		return true;
 
 		send_cleanup2:
@@ -487,10 +499,12 @@ bool requests_connect_securely_async_private(request_async *request, const alloc
 	}
 
 	receive: {
-		char_vec *response = &request->internal.response;
+		byte_vec *response = &request->internal.response;
 
 		#if cels_debug
-			errors_abort("request.internal.response", vectors_check((const vector *)response));
+			errors_abort(
+				"request.internal.response", 
+				vectors_check((const vector *)response));
 		#endif
 
 		if (response->size > 0) {
@@ -505,7 +519,11 @@ bool requests_connect_securely_async_private(request_async *request, const alloc
 			response->data + response->size, 
 			size);
 
-		if (bytes < 0 && request->internal.max_retry >= request->internal.retried) {
+		bool has_errored = 
+			bytes < 0 && 
+			request->internal.max_retry >= request->internal.retried;
+
+		if (has_errored) {
 			request->response.error = request_receiving_error;
 			goto receive_cleanup0;
 		} else if (bytes < 0) {
@@ -519,7 +537,7 @@ bool requests_connect_securely_async_private(request_async *request, const alloc
 
 		if (bytes > 0) {
 			if (response->size >= response->capacity) {
-				bool upscale_status = char_vecs_upscale(response, mem);
+				bool upscale_status = vectors_upscale(response, mem);
 
 				if (upscale_status) {
 					request->response.error = request_upscaling_error;
@@ -528,18 +546,21 @@ bool requests_connect_securely_async_private(request_async *request, const alloc
 			}
 
 			#if cels_debug
-				errors_abort("request.internal.response", vectors_check((const vector *)response));
+				errors_abort(
+					"request.internal.response", 
+					vectors_check((const vector *)response));
 			#endif
 
 			return true;
 		}
+
 
 		SSL_free(request->internal.ssl);
 		SSL_CTX_free(request->internal.context);
 		return false;
 
 		receive_cleanup1:
-		strings_free(&request->internal.response, mem);
+		vectors_free(&request->internal.response, null, mem);
 
 		receive_cleanup0:
 		SSL_free(request->internal.ssl);
@@ -550,20 +571,21 @@ bool requests_connect_securely_async_private(request_async *request, const alloc
 }
 #endif
 
-estring requests_connect_insecurely_private(
-	int socket, const string packet, const allocator *mem
-) {
+ebyte_vec requests_connect_insecurely_private(
+	int socket, const string packet, const allocator *mem) {
+
 	#if cels_debug
 		errors_abort("packet", strings_check_extra(&packet));
 	#endif
 
 	int send_status = send(socket, packet.data, packet.size, 0);
 	if (send_status < 0) {
-		return (estring){.error=request_sending_error};
+		return (ebyte_vec){.error=request_sending_error};
 	}
 
 	error err = ok;
-	string response = strings_init(string_small_size, mem);
+	byte_vec response = {0};
+	vectors_init(&response, sizeof(char), string_small_size, mem);
 
     while(response.size < response.capacity) {
         long bytes = recv(
@@ -582,7 +604,7 @@ estring requests_connect_insecurely_private(
         if (bytes == 0) {
             break;
 		} else if (response.size >= response.capacity) {
-			error upscale_error = char_vecs_upscale(&response, mem);
+			error upscale_error = vectors_upscale(&response, mem);
 			if (upscale_error) {
 				err = request_upscaling_error;
 				goto cleanup;
@@ -590,20 +612,23 @@ estring requests_connect_insecurely_private(
 		}
     }
 
-	bool push_error = char_vecs_push(&response, '\0', mem);
+	bool push_error = vectors_push(&response, &(char){'\0'}, mem);
 	if (push_error) {
 		err = request_upscaling_error;
 		goto cleanup;
 	}
 
-    return (estring){.value=response};
+
+    return (ebyte_vec){.value=response};
 
 	cleanup:
-	strings_free(&response, mem);
-	return (estring){.error=err};
+	vectors_free(&response, null, mem);
+	return (ebyte_vec){.error=err};
 }
 
-bool requests_connect_insecurely_async_private(request_async *request, const allocator *mem) {
+bool requests_connect_insecurely_async_private(
+	request_async *request, const allocator *mem) {
+
 	#if cels_debug
 		errors_abort("packet", strings_check_extra(&request->internal.packet));
 	#endif
@@ -627,16 +652,23 @@ bool requests_connect_insecurely_async_private(request_async *request, const all
 			return false;
 		}
 
-		request->internal.response = strings_init(request->internal.initial_buffer_size, mem);
+		vectors_init(
+			&request->internal.response, 
+			sizeof(char), 
+			request->internal.initial_buffer_size, 
+			mem);
+
 		request->internal.state = request_receive_state;
 		return true;
 	}
 
 	receive: {
-		char_vec *response = &request->internal.response; 
+		byte_vec *response = &request->internal.response; 
 
 		#if cels_debug
-			errors_abort("request.internal.response", vectors_check((const vector *)response));
+			errors_abort(
+				"request.internal.response", 
+				vectors_check((const vector *)response));
 		#endif
 
 		if (response->size > 0) {
@@ -651,7 +683,11 @@ bool requests_connect_insecurely_async_private(request_async *request, const all
 			response->data + response->size, 
 			size, 0);
 
-		if (bytes < 0 && request->internal.retried >= request->internal.max_retry) {
+		bool has_errored = 
+			bytes < 0 && 
+			request->internal.retried >= request->internal.max_retry;
+
+		if (has_errored) {
 			request->response.error = request_receiving_error;
 			goto receive_cleanup0;
 		} else if (bytes < 0) {
@@ -665,7 +701,7 @@ bool requests_connect_insecurely_async_private(request_async *request, const all
 
 		if (bytes > 0) {
 			if (response->size >= response->capacity) {
-				error upscale_error = char_vecs_upscale(response, mem);
+				error upscale_error = vectors_upscale(response, mem);
 
 				if (upscale_error) {
 					request->response.error = request_upscaling_error;
@@ -674,19 +710,23 @@ bool requests_connect_insecurely_async_private(request_async *request, const all
 			}
 
 			#if cels_debug
-				errors_abort("request.internal.response", vectors_check((const vector *)response));
+				errors_abort(
+					"request.internal.response", 
+					vectors_check((const vector *)response));
 			#endif
 
 			return true;
 		}
 
+
 		return false;
 
 		receive_cleanup0:
-		strings_free(&request->internal.response, mem);
+		vectors_free(&request->internal.response, null, mem);
 		return false;
 	}
 }
+
 
 /* public */
 
@@ -703,7 +743,9 @@ void request_errors_println(request_error self) {
 	printf("%s\n", request_error_messages[self]);
 }
 
-eresponse requests_make(const string *url, const request_option *option, const allocator *mem) {
+eresponse requests_make(
+	const string *url, const request_option *option, const allocator *mem) {
+
 	#if cels_debug
 		errors_abort("url", strings_check_extra(url));
 	#endif
@@ -715,7 +757,7 @@ eresponse requests_make(const string *url, const request_option *option, const a
 		goto cleanup0;
 	}
 
-	estring response_raw = {0};
+	ebyte_vec response_raw = {0};
 	if (!internal.value.is_secure) {
 		response_raw = requests_connect_insecurely_private(
 			internal.value.socket, internal.value.packet, mem);
@@ -737,10 +779,13 @@ eresponse requests_make(const string *url, const request_option *option, const a
 		goto cleanup1;
 	}
 
-	//
 	
 	response response = {0};
-	string_vec packets = strings_split_with(&response_raw.value, "\r\n\r\n", 1, mem);
+	string *response_raw_str = (string *)&response_raw.value;
+	//TODO: create byte_vecs_split_with
+
+	string_vec packets = strings_split_with(
+		response_raw_str, "\r\n\r\n", 1, mem);
 	errors_abort("#packets", packets.size == 0);
 
 	if (packets.size == 1) {
@@ -751,8 +796,9 @@ eresponse requests_make(const string *url, const request_option *option, const a
 		response.body = packets.data[1];
 	}
 
+
 	mems_dealloc(mem, packets.data, sizeof(string) * packets.capacity);
-	strings_free(&response_raw.value, mem);
+	vectors_free(&response_raw.value, null, mem);
 	request_internals_free_private(&internal.value, mem);
 	close(internal.value.socket);
 
@@ -766,7 +812,9 @@ eresponse requests_make(const string *url, const request_option *option, const a
 	return (eresponse){.error=err};
 }
 
-bool requests_make_async(const string *url, request_async *request, const allocator *mem) {
+bool requests_make_async(
+	const string *url, request_async *request, const allocator *mem) {
+
 	#if cels_debug
 		errors_abort("url", strings_check_extra(url));
 	#endif
@@ -779,7 +827,9 @@ bool requests_make_async(const string *url, request_async *request, const alloca
 	}
 
 	init: {
-		erequest_internal internal = requests_init_private(url, &request->option, mem);
+		erequest_internal internal = requests_init_private(
+			url, &request->option, mem);
+
 		if (internal.error != request_successfull) {
 			request->internal = internal.value;
 			request->response.error = internal.error;
@@ -793,11 +843,13 @@ bool requests_make_async(const string *url, request_async *request, const alloca
 	connect: {
 		bool shall_continue = false;
 		if (!request->internal.is_secure) {
-			shall_continue = requests_connect_insecurely_async_private(request, mem);
+			shall_continue = requests_connect_insecurely_async_private(
+				request, mem);
 		} 
 		#if cels_openssl
 		else {
-			shall_continue = requests_connect_securely_async_private(request, mem);
+			shall_continue = requests_connect_securely_async_private(
+				request, mem);
 		}
 		#else
 		else {
@@ -812,13 +864,18 @@ bool requests_make_async(const string *url, request_async *request, const alloca
 			goto connect_cleanup0;
 		}
 
-		//
 		
-		bool is_raw = (request->option.flags & request_async_raw_mode_flag) == 1;
+		bool is_raw = 
+			(request->option.flags & request_async_raw_mode_flag) == 1;
+
 		if (!is_raw) {
 			response response = {0};
+			string *response_raw = (string *)&request->internal.response;
+			//TODO: create byte_vecs_split_with
+
 			string_vec packets = strings_split_with(
-				&request->internal.response, "\r\n\r\n", 1, mem);
+				response_raw, "\r\n\r\n", 1, mem);
+
 			errors_abort("#packets", packets.size == 0);
 
 			if (packets.size == 1) {
@@ -832,6 +889,7 @@ bool requests_make_async(const string *url, request_async *request, const alloca
 			request->response.value = response;
 			mems_dealloc(mem, packets.data, sizeof(string) * packets.capacity);
 		}
+
 
 		close(request->internal.socket);
 		request_internals_free_private(&request->internal, mem);

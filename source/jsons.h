@@ -8,11 +8,15 @@
 
 #include "strings.h"
 
+
 /*
  * The 'jsons' module parses and 
  * manipulate json strings turning 
  * them into string_map data_structure.
  */
+
+
+/* jsons */
 
 typedef enum json_error {
 	json_successfull,

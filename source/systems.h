@@ -5,11 +5,15 @@
 #include "utils.h"
 #include <stdlib.h>
 
+
 /*
  * The module 'systems' deals with 
  * platform information, system 
  * environment and dealing with os.
  */
+
+
+/* systems */
 
 typedef enum system_error {
 	system_successfull,

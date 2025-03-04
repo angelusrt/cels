@@ -19,14 +19,17 @@
 #include <sys/stat.h>
 #endif
 
+
 /*
  * The module 'files' deals with 
  * manipulations over the file-system,
  * like file and folder manipulations.
  */
 
+
+/* files */
+
 typedef FILE file;
-typedef DIR dir;
 
 typedef enum file_error {
 	file_successfull,
@@ -45,7 +48,7 @@ typedef enum file_error {
 } file_error;
 
 typedef struct file_read {
-	string file;
+	byte_vec file;
 	size_t size;
 	error error;
 } file_read;
@@ -55,26 +58,12 @@ typedef struct file_write_internal {
 } file_write_internal;
 
 typedef struct file_write {
-	string file;
+	byte_vec file;
 	size_t size;
 	error error;
 	bool consume;
 	file_write_internal internal;
 } file_write;
-
-typedef struct dir_iterator_internal {
-	dir *directory;
-	#ifdef __linux__
-	struct dirent *entity;
-	#endif
-} dir_iterator_internal;
-
-typedef struct dir_iterator {
-	string data; /* view-only */
-	int type;
-	error error;
-	dir_iterator_internal internal;
-} dir_iterator;
 
 /*
  * Read files content to string 
@@ -84,7 +73,7 @@ typedef struct dir_iterator {
  * #to-review
  */
 cels_warn_unused
-estring files_read(file *self, const allocator *mem);
+ebyte_vec files_read(file *self, const allocator *mem);
 
 /*
  * Read files without blocking.
@@ -100,7 +89,7 @@ bool files_read_async(file *self, file_read *read, const allocator *mem);
  *
  * #to-review
  */
-error files_write(file *self, const string text);
+error files_write(file *self, const byte_vec text);
 
 /*
  * Write text to file non-blocking.
@@ -108,18 +97,6 @@ error files_write(file *self, const string text);
  * #to-review
  */
 bool files_write_async(file *self, file_write *file_write);
-
-/*
- * Lists all files and folders of 
- * a directory shallowly. 
- *
- * If any error happens a file_error 
- * is returned.
- *
- * #posix-only #to-review
- */
-cels_warn_unused
-estring_vec files_list(const string path, const allocator *mem);
 
 /*
  * Finds first substring within file 
@@ -136,7 +113,7 @@ estring_vec files_list(const string path, const allocator *mem);
  * #to-review
  */
 cels_warn_unused
-ssize_t files_find(file *self, const string substring, ssize_t pos);
+ssize_t files_find(file *self, const byte_vec substring, ssize_t pos);
 
 /*
  * Finds first of any character in seps within 
@@ -152,7 +129,7 @@ ssize_t files_find(file *self, const string substring, ssize_t pos);
  * #to-review
  */
 cels_warn_unused
-ssize_t files_find_from(file *self, string seps, ssize_t pos);
+ssize_t files_find_from(file *self, byte_vec seps, ssize_t pos);
 
 /*
  * Gets next line and puts it in buffer 'line'.
@@ -163,10 +140,13 @@ ssize_t files_find_from(file *self, string seps, ssize_t pos);
  *
  * It returns false when it ends.
  *
+ * byte_vec may be converted to string, if the 
+ * file isn't bynary.
+ *
  * #to-review
  */
 cels_warn_unused
-bool files_next(file *self, string *line, const allocator *mem);
+bool files_next(file *self, byte_vec *line, const allocator *mem);
 
 /*
  * Normalizes filepath, eliminating ".." and ".".
@@ -190,6 +170,25 @@ estring files_normalize(const string *filepath, const allocator *mem);
 cels_warn_unused
 estring files_path(const string *filepath, const allocator *mem);
 
+
+/* dirs */
+
+typedef DIR dir;
+
+typedef struct dir_iterator_internal {
+	dir *directory;
+	#ifdef __linux__
+	struct dirent *entity;
+	#endif
+} dir_iterator_internal;
+
+typedef struct dir_iterator {
+	string data; /* view-only */
+	int type;
+	error error;
+	dir_iterator_internal internal;
+} dir_iterator;
+
 /*
  * Creates directory.
  *
@@ -198,6 +197,26 @@ estring files_path(const string *filepath, const allocator *mem);
  * #to-review
  */
 error dirs_make(const char *path, notused __mode_t mode);
+
+/*
+ * Lists all files and folders of 
+ * a directory shallowly. 
+ *
+ * If any error happens a file_error 
+ * is returned.
+ *
+ * #posix-only #to-review
+ */
+cels_warn_unused
+estring_vec dirs_list(const string path, const allocator *mem);
+
+/*
+ * Lists files and directories deeply.
+ *
+ * #posix-only #to-review
+ */
+cels_warn_unused
+estring_vec dirs_list_all(const string path, const allocator *mem);
 
 /*
  * Iterates through directory entities.

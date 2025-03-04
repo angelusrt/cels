@@ -12,6 +12,7 @@
 #include "colors.h"
 #include "types.h"
 
+
 /*
  * The module 'errors' implement 
  * ways to check unexpected 
@@ -20,12 +21,18 @@
  * error as values.
  */
 
+
+/* error_reports */
+
 typedef struct error_report {
 	size_t successfull;
 	size_t total;
 } error_report;
 
 typedef void (*reportfunc)(error_report *);
+
+
+/* errors */
 
 typedef enum errors_mode {
 	errors_error_mode,
@@ -86,10 +93,7 @@ error errors_assert(const char *message, bool statement);
  *
  * #to-review
  */
-void errors_expect(
-	const char *message, 
-	bool statement, 
-	error_report *report);
+void errors_expect(const char *message, bool statement, error_report *report);
 
 /*
  * Panics if statement is true and 
@@ -100,10 +104,7 @@ void errors_expect(
  *
  * #may-panic #depends:stdio.h #to-review
  */
-void errors_abort_helper(
-	const char *function_name, 
-	const char *message, 
-	bool statement);
+void errors_abort_helper(const char *function_name, const char *message, bool statement);
 
 /*
  * Panics if statement is true and 
@@ -120,10 +121,7 @@ void errors_panic(const char *message, bool statement);
  *
  * #depends:stdio.h #to-review
  */
-error errors_inform_helper(
-	const char* function_name, 
-	const char *message, 
-	bool statement);
+error errors_inform_helper(const char* function_name, const char *message, bool statement);
 
 /*
  * Warns to the terminal if statement holds.
@@ -142,10 +140,7 @@ error errors_warn(const char *message, bool statement);
  *
  * #depends:stdio.h #to-review
  */
-error errors_ensure_helper(
-	const char *function_name, 
-	const char *message, 
-	bool statement);
+error errors_ensure_helper(const char *function_name, const char *message, bool statement);
 
 /*
  * Checks statement, printing message if 

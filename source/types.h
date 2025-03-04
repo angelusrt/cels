@@ -3,10 +3,14 @@
 
 #include <stddef.h>
 
+
 /*
  * The 'types' module defines a 
  * lot of types and directives.
  */
+
+
+/* types */
 
 #ifdef __GNUC__
 #define cels_warn_unused __attribute__((warn_unused_result))
@@ -26,6 +30,9 @@
 
 #define cels_vargs(...) , ##__VA_ARGS__
 
+
+/* functions */
+
 typedef void *(*callfunc) (void *);
 typedef void *(*selffunc)(void *, void *);
 typedef bool (*compfunc)(void *, void *);
@@ -33,6 +40,7 @@ typedef void (*shoutfunc) (void *, void *);
 typedef size_t (*hashfunc)(void *);
 typedef void (*cleanfunc)(void *);
 typedef void (*printfunc)(void *);
+typedef void (*dofunc)(void *);
 typedef bool (*filterfunc)(void *);
 
 typedef struct functor {
@@ -45,6 +53,9 @@ typedef struct enfunctor {
 	void *params;
 } enfunctor;
 
+
+/* defaults */
+
 #define defaults_compare(a, b) (*a == *b)
 
 #define defaults_check(a) (false)
@@ -56,6 +67,9 @@ typedef struct enfunctor {
 #define defaults_clone(a, mem) *a
 
 #define defaults_free(a, mem)
+
+
+/* others */
 
 #define own
 

@@ -27,6 +27,7 @@
 #include "nodes.h"
 #include "utils.h"
 
+
 /*
  * The module 'https' provides conveniences 
  * to comunicate via http - be it a web-server 
@@ -35,6 +36,7 @@
  * If you use it, you need to compile with 
  * "-lm -lpthread -lssl -lcrypto"
  */
+
 
 /* routers */
 
@@ -63,59 +65,25 @@ typedef struct router_private {
  */
 bool routers_check(const router *self);
 
-/*
- * Prints debug-friendly message of router structure.
- *
- * #to-review
- */
-void routers_debug(const router *self);
-
-/*
- * Clones 'self'.
- *
- * #to-review
- */
-router routers_clone(router *self, const allocator *mem);
-
-/*
- * Prints router.
- *
- * #to-review
- */
-void routers_print(const router *self);
-
-/*
- * Compares routers location, if they are 
- * equal, it returns true.
- *
- * #case-sensitive #to-review
- */
-bool routers_equals(const router *r0, const router *r1);
-
-/*
- * Compares routers location, if they seem, 
- * it returns true.
- *
- * #case-insensitive #to-review
- */
-bool routers_seems(const router *r0, const router *r1);
 
 /* router_vecs */
 
-vectors_define(router_vec, router)
+typedef vectors(router) router_vec;
 
-bool router_vecs_make_push(
+error router_vecs_push_with(
 	router_vec *self, 
 	char *location, 
 	httpfunc callback, 
 	void *params, 
 	const allocator *mem);
 
+
 /* router_nodes and router_node_vecs */
 
 typedef struct router_node router_node;
-vectors_define(router_node_vec, router_node)
+typedef vectors(router_node) router_node_vec;
 nodes(router_node, router_node_vec, router_private);
+
 
 /* router_nodes */
 
@@ -143,30 +111,6 @@ void router_nodes_debug(const router_node *self);
  */
 void router_nodes_full_debug(const router_node *self);
 
-/*
- * Prints router_node to the terminal.
- *
- * #depends:stdio.h #to-review
- */
-void router_nodes_print(const router_node *self);
-
-/*
- * Compares router_node returning true if 
- * router_node.data.location are equal.
- *
- * #case-sensitive #to-review
- */
-cels_warn_unused
-bool router_nodes_equals(const router_node *r0, const router_node *r1);
-
-/*
- * Compares router_node returning true if 
- * router_node.data.location seem alike.
- *
- * #case-insensitive #to-review
- */
-cels_warn_unused
-bool router_nodes_seems(const router_node *r0, const router_node *r1);
 
 /* https */
 

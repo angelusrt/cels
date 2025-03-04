@@ -1,5 +1,6 @@
 #include "mems.h"
 
+
 /* allocators */
 
 bool allocators_check(const allocator *self) {
@@ -17,6 +18,7 @@ bool allocators_check(const allocator *self) {
 
     return false;
 }
+
 
 /* arenas */
 
@@ -124,7 +126,11 @@ error arenas_deallocate(arena *self, void *block, size_t block_size) {
 	bool found_block = false;
 	arena *blockin = self;
 	while ((blockin)) {
-		if (block >= self->data && block < (void *)((char *)self->data + self->size)) {
+		bool is_within = 
+			block >= self->data && 
+			block < (void *)((char *)self->data + self->size);
+
+		if (is_within) {
 			found_block = true;
 			break;
 		} 
@@ -136,28 +142,36 @@ error arenas_deallocate(arena *self, void *block, size_t block_size) {
 		return fail;
 	}
 
-	bool is_last = (char *)block + block_size == (char *)blockin->data + blockin->size;
+	bool is_last = 
+		((char *)block + block_size) == 
+		(char *)blockin->data + blockin->size;
+
+	fat_pointer *hole = &blockin->hole;
 
 	if (is_last && blockin->size >= block_size) {
 		blockin->size -= block_size;
 		return ok;
 	} else if (!is_last) {
-		bool equals_right = (void *)((char *)blockin->hole.position + blockin->hole.size) == block;
-		bool equals_left = (void *)((char *)block + block_size) == blockin->hole.position;
+		void *right_border = (void *)((char *)hole->position + hole->size);
+		bool equals_right = right_border == block;
 
-		bool may_expand_hole_left = blockin->hole.position && equals_left;
-		bool may_expand_hole_right = blockin->hole.position && equals_right;
+		void *left_border = hole->position;
+		bool equals_left = (void *)((char *)block + block_size) == left_border;
+
+		bool may_expand_hole_left = hole->position && equals_left;
+		bool may_expand_hole_right = hole->position && equals_right;
+
 		if (may_expand_hole_left) {
-			blockin->hole.position = block;
-			blockin->hole.size += block_size;
+			hole->position = block;
+			hole->size += block_size;
 		} else if (may_expand_hole_right) {
-			blockin->hole.size += block_size;
+			hole->size += block_size;
 		}
 
-		bool may_create_hole = !blockin->hole.position || blockin->hole.size < block_size;
+		bool may_create_hole = !hole->position || hole->size < block_size;
 		if (may_create_hole) {
-			blockin->hole.position = block;
-			blockin->hole.size = block_size;
+			hole->position = block;
+			hole->size = block_size;
 		}
 
 		if (may_expand_hole_right || may_expand_hole_left || may_create_hole) {
@@ -172,8 +186,8 @@ error arenas_deallocate(arena *self, void *block, size_t block_size) {
 }
 
 void *arenas_reallocate(
-	arena *self, void *block, size_t prev_block_size, size_t new_block_size
-) {
+	arena *self, void *block, size_t prev_block_size, size_t new_block_size) {
+
 	#if cels_debug
 		errors_abort("self", arenas_check(self));
 		errors_abort("block", !block);
@@ -186,7 +200,8 @@ void *arenas_reallocate(
 			errors_abort("blockin", arenas_check(blockin));
 		#endif
 
-		bool is_within = block >= blockin->data && 
+		bool is_within = 
+			block >= blockin->data && 
 			(void *)((char *)block + prev_block_size) <= 
 			(void *)((char *)blockin->data + blockin->capacity);
 
@@ -210,7 +225,10 @@ void *arenas_reallocate(
 	size_t rest = blockin->capacity - blockin->size;
 
 	bool is_alone = block == blockin->data && prev_block_size == blockin->size;
-	bool is_last = (char *)block + prev_block_size == (char *)blockin->data + blockin->size;
+	bool is_last = 
+		(char *)block + prev_block_size == 
+		(char *)blockin->data + blockin->size;
+
 	bool may_fit_rest = (long)rest >= rest_block_size;
 
 	if (is_last && may_fit_rest) {
@@ -251,7 +269,8 @@ void *arenas_reallocate(
 			errors_abort("lastblock", arenas_check(lastblock));
 		#endif
 
-		bool may_fit_all = (lastblock->capacity - lastblock->size) >= new_block_size;
+		size_t rest = lastblock->capacity - lastblock->size;
+		bool may_fit_all = rest >= new_block_size;
 
 		if (may_fit_all) {
 			create_new = false;
@@ -356,6 +375,7 @@ allocator arenas_init(size_t capacity) {
 	};
 }
 
+
 /* stack_arenas */
 
 typedef struct stack_arena {
@@ -414,38 +434,51 @@ void *stack_arenas_allocate(stack_arena *self, size_t size) {
 	return null;
 }
 
-error stack_arenas_deallocate(stack_arena *self, void *block, size_t block_size) {
+error stack_arenas_deallocate(
+	stack_arena *self, void *block, size_t block_size) {
+
 	if (!block) { 
 		return fail; 
 	}
 
-	bool is_out = block < self->data || block >= (void *)((char *)self->data + self->size);
+	bool is_out = 
+		block < self->data || block >= 
+		(void *)((char *)self->data + self->size);
+
 	if (is_out) { 
 		return fail; 
 	} 
 
-	bool is_last = (char *)block + block_size == (char *)self->data + self->size;
+	bool is_last = 
+		(char *)block + block_size == 
+		(char *)self->data + self->size;
+
+	fat_pointer *hole = &self->hole;
 
 	if (is_last && self->size >= block_size) {
 		self->size -= block_size;
 		return ok;
 	} else if (!is_last) {
-		bool equals_right = (void *)((char *)self->hole.position + self->hole.size) == block;
-		bool equals_left = (void *)((char *)block + block_size) == self->hole.position;
+		bool equals_right = 
+			(void *)((char *)hole->position + hole->size) == block;
 
-		bool may_expand_hole_left = self->hole.position && equals_left;
-		bool may_expand_hole_right = self->hole.position && equals_right;
+		bool equals_left = 
+			(void *)((char *)block + block_size) == hole->position;
+
+		bool may_expand_hole_left = hole->position && equals_left;
+		bool may_expand_hole_right = hole->position && equals_right;
+
 		if (may_expand_hole_left) {
-			self->hole.position = block;
-			self->hole.size += block_size;
+			hole->position = block;
+			hole->size += block_size;
 		} else if (may_expand_hole_right) {
-			self->hole.size += block_size;
+			hole->size += block_size;
 		}
 
-		bool may_create_hole = !self->hole.position || block_size > self->hole.size;
+		bool may_create_hole = !hole->position || block_size > hole->size;
 		if (may_create_hole) {
-			self->hole.position = block;
-			self->hole.size = block_size;
+			hole->position = block;
+			hole->size = block_size;
 		}
 
 		if (may_expand_hole_right || may_expand_hole_left || may_create_hole) {
@@ -459,12 +492,17 @@ error stack_arenas_deallocate(stack_arena *self, void *block, size_t block_size)
 	return fail;
 }
 
-void *stack_arenas_reallocate(stack_arena *self, void *block, size_t prev_size, size_t new_size) {
+void *stack_arenas_reallocate(
+	stack_arena *self, void *block, size_t prev_size, size_t new_size) {
+
 	if (!block) {
 		return stack_arenas_allocate(self, new_size);
 	}
 
-	bool is_out = self->data >= block || block >= (void *)((char *)self->data + self->size);
+	bool is_out = 
+		self->data >= block || 
+		block >= (void *)((char *)self->data + self->size);
+
 	if (is_out) { 
 		return null; 
 	}
@@ -545,13 +583,15 @@ allocator stack_arenas_init_helper(size_t capacity, char *buffer) {
 	};
 }
 
+
 /* allocs */
 
 void *allocs_allocate(notused void *storage, size_t size) {
 	return malloc(size);
 }
 
-void *allocs_reallocate(notused void *storage, void *data, notused size_t prev, size_t size) {
+void *allocs_reallocate(
+	notused void *storage, void *data, notused size_t prev, size_t size) {
 	return realloc(data, size);
 }
 
@@ -569,6 +609,7 @@ allocator allocs_init(void) {
 
 	return alloc;
 }
+
 
 /* mems */
 
@@ -594,11 +635,8 @@ void *mems_alloc(const allocator *mem, size_t len) {
 }
 
 void *mems_realloc(
-	const allocator *mem, 
-	void *data, 
-	size_t old_size, 
-	size_t new_size
-) {
+	const allocator *mem, void *data, size_t old_size, size_t new_size) {
+
 	void *new_data = null;
 	if (!mem) { 
 		new_data = realloc(data, new_size); 
@@ -658,4 +696,3 @@ void mems_free(const allocator *mem, void *data) {
 		mem->free(mem->storage);
 	}
 }
-

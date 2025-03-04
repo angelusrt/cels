@@ -1,20 +1,7 @@
 #include "utils.h"
 
-/* #to-deprecate
-bool functors_check(const functor *self) {
-	#if cels_debug
-		errors_return("self", !self)
-		errors_return("self.func", !self->func)
-		errors_return("self.params", !self->params)
-	#else
-		if (!self) return true;
-		if (!self->func) return true;
-		if (!self->params) return true;
-	#endif
 
-	return false;
-}
-*/
+/* utils */
 
 void utils_measure_helper(const char *function_name, measurefunc callback) {
 	#define bucket_size 5
@@ -40,6 +27,9 @@ void utils_measure_helper(const char *function_name, measurefunc callback) {
 
 	#undef bucket_size
 }
+
+
+/* next */
 
 bool next(ssize_t start, ssize_t end, size_t step, iterator *iterator) {
 	if (!iterator || !step) return false;

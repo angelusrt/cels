@@ -4,11 +4,15 @@
 #include "strings.h"
 #include <sys/cdefs.h>
 
+
 /*
  * The module 'csvs' deals with 
  * processing .csv files either 
  * buffered or at-once.
  */
+
+
+/* csvs */
 
 /*
  * Creates a matrix containing rows 
@@ -39,8 +43,8 @@ string_mat csvs_unmake(
  * #allocates #to-review
  */
 bool csvs_split(
-	string_vec *column_views, 
-	const string row_view, 
+	string_view_vec *columns, 
+	const string row, 
 	const string column_sep, 
 	const allocator *mem);
 
@@ -59,8 +63,8 @@ bool csvs_split(
  */
 bool csvs_next(
 	const string *csv, 
-	string_vec *column_views, 
-	string *row_view, 
+	string_view_vec *columns, 
+	string_view *row, 
 	const string column_sep, 
 	const allocator *mem);
 

@@ -6,11 +6,13 @@
 #include "errors.h"
 #include "maths.h"
 
+
 /*
  * The module 'mems' implements 
  * memory-allocators like group and 
  * individual allocators.
  */
+
 
 /* definitions */
 
@@ -19,6 +21,7 @@ typedef error (*deallocfunc)(void *storage, void *data, size_t size);
 typedef void *(*reallocfunc)(void *storage, void *data, size_t prev, size_t size);
 typedef void (*debugfunc)(void *storage);
 typedef void (*cleanfunc)(void *data);
+
 
 /* allocators */
 
@@ -48,6 +51,7 @@ typedef void (*freefunc)(void *storage, const allocator *mem);
 cels_warn_unused
 bool allocators_check(const allocator *self);
 
+
 /* arenas */
 
 /* 
@@ -61,6 +65,7 @@ bool allocators_check(const allocator *self);
  */
 cels_warn_unused
 allocator arenas_init(size_t capacity);
+
 
 /* stack_arenas */
 
@@ -83,6 +88,7 @@ allocator arenas_init(size_t capacity);
 cels_warn_unused
 allocator stack_arenas_init_helper(size_t capacity, char *buffer);
 
+
 /* allocs */
 
 /*
@@ -94,6 +100,7 @@ allocator stack_arenas_init_helper(size_t capacity, char *buffer);
  */
 cels_warn_unused
 allocator allocs_init(void);
+
 
 /* mems */
 
@@ -125,11 +132,7 @@ void *mems_alloc(const allocator *mem, size_t len);
  * #to-review
  */
 cels_warn_unused
-void *mems_realloc(
-	const allocator *mem, 
-	void *data, 
-	size_t old_size, 
-	size_t new_size);
+void *mems_realloc(const allocator *mem, void *data, size_t old_size, size_t new_size);
 
 /*
  * An adapter that manages (generically)

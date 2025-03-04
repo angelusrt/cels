@@ -1,5 +1,8 @@
 #include "maths.h"
 
+
+/* maths */
+
 size_t maths_nearest_two_power(size_t x) {
 	size_t nearest = 1;
 	while (nearest < x) {

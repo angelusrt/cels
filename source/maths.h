@@ -4,11 +4,15 @@
 #include <stddef.h>
 #include <math.h>
 
+
 /*
  * The 'maths' module provides 
  * functions for popular mathematical 
  * problems.
  */
+
+
+/* maths */
 
 /*
  * Math's min utility.

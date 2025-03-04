@@ -1,7 +1,9 @@
 #include "files.h"
-#include "strings.h"
 
-estring files_read(file *self, const allocator *mem) {
+
+/* files */
+
+ebyte_vec files_read(file *self, const allocator *mem) {
 	#if cels_debug
 		errors_abort("self", !self);
 	#endif
@@ -32,9 +34,11 @@ estring files_read(file *self, const allocator *mem) {
 	}
 
 	size_t new_capacity = (last_position + 1) - current_position;
-	string buffer = strings_init(new_capacity, mem);
 
-	long bytes_read = fread(buffer.data, 1, buffer.capacity - 1, self);
+	byte_vec buffer = {0};
+	vectors_init(&buffer, sizeof(byte), new_capacity, mem);
+
+	long bytes_read = fread(buffer.data, 1, buffer.capacity, self);
 	buffer.size = bytes_read + 1;
 
 	if (feof(self)) {
@@ -48,16 +52,16 @@ estring files_read(file *self, const allocator *mem) {
 	}
 
 	#if cels_debug
-		errors_abort("buffer", strings_check_extra(&buffer));
+		errors_abort("buffer", vectors_check((const vector *)&buffer));
 	#endif
 
-	return (estring){.value=buffer};
+	return (ebyte_vec){.value=buffer};
 
 	cleanup1:
-	strings_free(&buffer, mem);
+	vectors_free(&buffer, null, mem);
 
 	cleanup0:
-	return (estring){.error=error};
+	return (ebyte_vec){.error=error};
 }
 
 bool files_read_async(file *self, file_read *read, const allocator *mem) {
@@ -73,13 +77,16 @@ bool files_read_async(file *self, file_read *read, const allocator *mem) {
 		goto cleanup0;
 	}
 
-	if (read->file.data) {
-		read->file = strings_init(string_small_size, mem);
+	byte_vec *f = &read->file;
+	if (f->data) {
+		vectors_init(f, sizeof(byte), string_small_size, mem);
 	}
 
-	size_t step = maths_min((read->file.capacity - read->file.size), read->size);
-	long bytes_read = fread(read->file.data + read->file.size, 1, step, self);
-	read->file.size += bytes_read + 1;
+	size_t rest = (f->capacity - f->size);
+	size_t step = maths_min(rest, read->size);
+
+	long bytes_read = fread(f->data + f->size, 1, step, self);
+	f->size += bytes_read + 1;
 
 	if (bytes_read == 0) {
 		return false;
@@ -93,20 +100,20 @@ bool files_read_async(file *self, file_read *read, const allocator *mem) {
 	return true;
 
 	cleanup1:
-	strings_free(&read->file, mem);
+	vectors_free(&read->file, null, mem);
 
 	cleanup0:
 	return false;
 }
 
-error files_write(file *self, const string text) {
+error files_write(file *self, const byte_vec text) {
 	#if cels_debug
 		errors_abort("self", !self);
-		errors_abort("text", strings_check_extra(&text));
+		errors_abort("text", vectors_check((const vector *)&text));
 	#endif
 
-	long write_error = fwrite(text.data, 1, text.size - 1, self);
-	if (write_error < (long)text.size - 1) {
+	long write_error = fwrite(text.data, 1, text.size, self);
+	if (write_error < (long)text.size) {
 		return file_writing_error;
 	}
 
@@ -119,14 +126,15 @@ bool files_write_async(file *self, file_write *file_write) {
 		errors_abort("file_write", !file_write);
 	#endif
 
-	ssize_t rest = file_write->file.size - 1 - file_write->internal.position;
+	byte_vec *f = &file_write->file;
+	ssize_t rest = f->size - 1 - file_write->internal.position;
 	#if cels_debug
 		errors_abort("rest is negative", rest < 0);
 	#else
 		if (rest < 0) { return false; }
 	#endif
 
-	char *offset = file_write->file.data + file_write->internal.position;
+	byte *offset = f->data + file_write->internal.position;
 	size_t step = maths_min(rest, (ssize_t)file_write->size);
 	size_t writen = fwrite(offset, 1, step, self);
 
@@ -136,7 +144,7 @@ bool files_write_async(file *self, file_write *file_write) {
 	}
 
 	if (file_write->consume) {
-		char_vecs_shift(&file_write->file, 0, writen, null);
+		vectors_shift(f, 0, writen, null, null);
 	} else {
 		file_write->internal.position += writen;
 	}
@@ -148,126 +156,10 @@ bool files_write_async(file *self, file_write *file_write) {
 	return true;
 }
 
-estring_vec files_list(const string path, const allocator *mem) {
-	#if cels_debug
-		errors_abort("path", strings_check_extra(&path));
-	#endif
-
-	dir *directory = opendir(path.data);
-	if (!directory) {
-		return (estring_vec){.error=file_directory_not_opened_error};
-	}
-
-	string_vec files = string_vecs_init(vector_min, mem);
-	struct dirent *entity;
-
-	while ((entity = readdir(directory))) {
-		if (entity->d_name[0] == '.') {
-			if (entity->d_name[1] == '\0') {
-				continue;
-			} else if (entity->d_name[1] == '.') {
-				if (entity->d_name[2] == '\0') {
-					continue;
-				}
-			}
-		}
-
-		if (entity->d_type != DT_REG || entity->d_type != DT_DIR) {
-			continue;
-		}
-
-		string file = strings_make(entity->d_name, mem);
-
-		bool push_error = string_vecs_force(&files, file, mem);
-		if (push_error) {
-			return (estring_vec){.error=file_allocation_error};
-		}
-	}
-
-	closedir(directory);
-	return (estring_vec){.value=files};
-}
-
-estring_vec files_list_all(const string path, const allocator *mem) {
-	error err = ok;
-	string_vec shallow_files = string_vecs_init(vector_min, mem);
-
-	estring_vec files = files_list(path, mem); 
-	if (files.error != file_successfull) {
-		err = files.error;
-		goto cleanup0;
-	}
-
-	for (size_t i = 0; i < files.value.size; i++) {
-		dir *directory = opendir(files.value.data[i].data);
-		if (!directory) { 
-			string file = strings_clone(&files.value.data[i], mem);
-			error push_error = string_vecs_press(&shallow_files, file, mem);
-			if (push_error) {
-				err = file_allocation_error;
-				goto cleanup1;
-			}
-
-			continue; 
-		}
-
-		struct dirent *entity;
-		while ((entity = readdir(directory))) {
-			if (entity->d_name[0] == '.') {
-				if (entity->d_name[1] == '\0') {
-					continue;
-				} else if (entity->d_name[1] == '.') {
-					if (entity->d_name[2] == '\0') {
-						continue;
-					}
-				}
-			}
-
-			if (entity->d_type == DT_REG) {
-				string file = strings_make(entity->d_name, mem);
-
-				error push_error = string_vecs_press(&shallow_files, file, mem);
-				if (push_error) {
-					err = file_allocation_error;
-					closedir(directory);
-					goto cleanup1;
-				}
-			} else if (entity->d_type == DT_DIR) {
-				string file_capsule = strings_encapsulate(entity->d_name);
-				estring_vec files = files_list_all(file_capsule, mem);
-				if (files.error != file_successfull) {
-					continue;
-				}
-
-				error unite_error = string_vecs_unite(&shallow_files, &files.value, mem);
-				if (unite_error) {
-					err = file_allocation_error;
-					closedir(directory);
-					goto cleanup1;
-				}
-			} else {
-				continue;
-			}
-		}
-
-		closedir(directory);
-	}
-
-	string_vecs_free(&files.value, mem);
-	return (estring_vec){.value=shallow_files};
-
-	cleanup1:
-	string_vecs_free(&files.value, mem);
-
-	cleanup0:
-	string_vecs_free(&shallow_files, mem);
-	return (estring_vec){.error=err};
-}
-
-ssize_t files_find(file *self, const string substring, ssize_t pos) {
+ssize_t files_find(file *self, const byte_vec substring, ssize_t pos) {
 	#if cels_debug
 		errors_abort("self", !self);
-		errors_abort("substring", strings_check_extra(&substring));
+		errors_abort("substring", vectors_check((const vector *)&substring));
 	#endif
 
 	if (pos >= 0) {
@@ -293,16 +185,16 @@ ssize_t files_find(file *self, const string substring, ssize_t pos) {
 		}
 
 		j++;
-		if (i == substring.size - 1) { return j - i; }
+		if (i == substring.size) { return j - i; }
 	} while(letter != EOF);
 
 	return -1;
 }
 
-ssize_t files_find_from(file *self, const string seps, ssize_t pos) {
+ssize_t files_find_from(file *self, const byte_vec seps, ssize_t pos) {
 	#if cels_debug
 		errors_abort("self", !self);
-		errors_abort("seps", strings_check_extra(&seps));
+		errors_abort("seps", vectors_check((const vector *)&seps));
 	#endif
 
 	if (pos >= 0) {
@@ -318,7 +210,7 @@ ssize_t files_find_from(file *self, const string seps, ssize_t pos) {
 	do {
 		current_character = fgetc(self);
 
-		for (size_t i = 0; i < seps.size - 1; i++) {
+		for (size_t i = 0; i < seps.size; i++) {
 			if (current_character == seps.data[i]) {
 				return pos;
 			}
@@ -330,7 +222,7 @@ ssize_t files_find_from(file *self, const string seps, ssize_t pos) {
 	return -1;
 }
 
-bool files_next(file *self, string *line_view, const allocator *mem) {
+bool files_next(file *self, byte_vec *line, const allocator *mem) {
 	#if cels_debug
 		errors_abort("self", !self);
 	#endif
@@ -340,9 +232,10 @@ bool files_next(file *self, string *line_view, const allocator *mem) {
 		return file_telling_position_error;
 	}
 
-	if (!line_view->data) {
-		string buffer = strings_init(string_small_size, mem);
-		*line_view = buffer;
+	if (!line->data) {
+		byte_vec buffer = {0};
+		vectors_init(&buffer, sizeof(byte), string_small_size, mem);
+		*line = buffer;
 
 		if (current_position != 0) {
 			long pos = fseek(self, 0, SEEK_SET);
@@ -351,32 +244,35 @@ bool files_next(file *self, string *line_view, const allocator *mem) {
 	}
 
 	#if cels_debug
-		errors_abort("line_view", strings_check_view(line_view));
+		errors_abort("line", vectors_check((const vector *)line));
 	#endif
 
-	const string line_separator = {
-		.size=3,
-		.capacity=3,
-		.data=(char[3]){'\n', EOF, '\0'}
+	const byte_vec line_separator = {
+		.size=2,
+		.capacity=2,
+		.data=(byte[2]){'\n', EOF},
+		.type_size=sizeof(byte)
 	};
 
-	ssize_t next_position = files_find_from(self, line_separator, current_position + 1);
+	ssize_t next_position = files_find_from(
+		self, line_separator, current_position + 1);
+
 	if (next_position == -1) { return true; }
 
 	size_t capacity = next_position + 1 - current_position;
-	while (capacity > line_view->capacity) {
-		error upscale_error = char_vecs_upscale(line_view, mem);
+	while (capacity > line->capacity) {
+		error upscale_error = vectors_upscale(line, mem);
 		if (upscale_error) { return file_allocation_error; }
 	}
 
 	long seek_error = fseek(self, current_position, SEEK_SET);
 	if (seek_error == -1) { return file_seeking_position_error; }
 
-	size_t bytes_read = fread(line_view->data, 1, capacity, self);
+	size_t bytes_read = fread(line->data, 1, capacity, self);
 	if (bytes_read == 0) { return file_reading_error; }
 
-	line_view->size = bytes_read;
-	line_view->data[line_view->size - 1] = '\0';
+	line->size = bytes_read;
+	line->data[line->size - 1] = '\0';
 
 	if (ferror(self)) { return file_default_error; }
 
@@ -400,10 +296,10 @@ estring files_normalize(const string *filepath, const allocator *mem) {
 		if (strings_seems(&file_nodes.data[i], &two_dots)) {
 			if (i == 0) { goto cleanup; }
 
-			string_vecs_shift(&file_nodes, i - 1, 2, mem);
+			vectors_shift(&file_nodes, i - 1, 2, (freefunc)strings_free, mem);
 			i--;
 		} else if (strings_seems(&file_nodes.data[i], &one_dots)) {
-			string_vecs_shift(&file_nodes, i, 1, mem);
+			vectors_shift(&file_nodes, i, 1, (freefunc)strings_free, mem);
 		} else {
 			i++;
 		}
@@ -421,12 +317,12 @@ estring files_normalize(const string *filepath, const allocator *mem) {
 		if (push_error) { goto cleanup; }
 	}
 
-	string_vecs_free(&file_nodes, mem);
+	vectors_free(&file_nodes, (freefunc)strings_free, mem);
 	return (estring){.value=path_normalized};
 
 	cleanup:
 	strings_free(&path_normalized, mem);
-	string_vecs_free(&file_nodes, mem);
+	vectors_free(&file_nodes, (freefunc)strings_free, mem);
 	return (estring){.error=file_mal_formed_error};
 }
 
@@ -443,7 +339,9 @@ estring files_path(const string *filepath, const allocator *mem) {
 	}
 
 	string working_directory = strings_preinit(PATH_MAX);
-	char *is_successfull = getcwd(working_directory.data, working_directory.capacity);
+	char *is_successfull = getcwd(
+		working_directory.data, working_directory.capacity);
+
 	if (!is_successfull) {
 		return (estring){.error=file_current_directory_not_read_error};
 	}
@@ -459,6 +357,9 @@ estring files_path(const string *filepath, const allocator *mem) {
 
 	return path_normalized;
 }
+
+
+/* dirs */
 
 error dirs_make(const char *path, notused __mode_t mode) {
 	#if cels_debug
@@ -486,7 +387,136 @@ error dirs_make(const char *path, notused __mode_t mode) {
 	return error == fail ? file_directory_not_created_error : ok;
 }
 
-bool dirs_next(const char *path, dir_iterator *iterator, notused const allocator *mem) {
+estring_vec dirs_list(const string path, const allocator *mem) {
+	#if cels_debug
+		errors_abort("path", strings_check_extra(&path));
+	#endif
+
+	dir *directory = opendir(path.data);
+	if (!directory) {
+		return (estring_vec){.error=file_directory_not_opened_error};
+	}
+
+	string_vec files = {0};
+	vectors_init(&files, sizeof(string), vector_min, mem);
+
+	struct dirent *entity;
+
+	while ((entity = readdir(directory))) {
+		if (entity->d_name[0] == '.') {
+			if (entity->d_name[1] == '\0') {
+				continue;
+			} else if (entity->d_name[1] == '.') {
+				if (entity->d_name[2] == '\0') {
+					continue;
+				}
+			}
+		}
+
+		if (entity->d_type != DT_REG || entity->d_type != DT_DIR) {
+			continue;
+		}
+
+		string file = strings_make(entity->d_name, mem);
+
+		bool push_error = vectors_push(&files, &file, mem);
+		if (push_error) {
+			vectors_free(&files, (freefunc)strings_free, mem);
+			strings_free(&file, mem);
+
+			return (estring_vec){.error=file_allocation_error};
+		}
+	}
+
+	closedir(directory);
+	return (estring_vec){.value=files};
+}
+
+estring_vec dirs_list_all(const string path, const allocator *mem) {
+	error err = ok;
+
+	string_vec shallow_files = {0};
+	vectors_init(&shallow_files, sizeof(string), vector_min, mem);
+
+	estring_vec files = dirs_list(path, mem); 
+	if (files.error != file_successfull) {
+		err = files.error;
+		goto cleanup0;
+	}
+
+	for (size_t i = 0; i < files.value.size; i++) {
+		dir *directory = opendir(files.value.data[i].data);
+		if (!directory) { 
+			string file = strings_clone(&files.value.data[i], mem);
+			error push_error = vectors_push(&shallow_files, &file, mem);
+			if (push_error) {
+				strings_free(&file, mem);
+				err = file_allocation_error;
+				goto cleanup1;
+			}
+
+			continue; 
+		}
+
+		struct dirent *entity;
+		while ((entity = readdir(directory))) {
+			if (entity->d_name[0] == '.') {
+				if (entity->d_name[1] == '\0') {
+					continue;
+				} else if (entity->d_name[1] == '.') {
+					if (entity->d_name[2] == '\0') {
+						continue;
+					}
+				}
+			}
+
+			if (entity->d_type == DT_REG) {
+				string file = strings_make(entity->d_name, mem);
+
+				error push_error = vectors_push(&shallow_files, &file, mem);
+				if (push_error) {
+					strings_free(&file, mem);
+					err = file_allocation_error;
+					closedir(directory);
+					goto cleanup1;
+				}
+			} else if (entity->d_type == DT_DIR) {
+				string file_capsule = strings_encapsulate(entity->d_name);
+				estring_vec files = dirs_list_all(file_capsule, mem);
+				if (files.error != file_successfull) {
+					continue;
+				}
+
+				error unite_error = vectors_unite(
+					&shallow_files, &files.value, mem);
+
+				if (unite_error) {
+					err = file_allocation_error;
+					closedir(directory);
+					goto cleanup1;
+				}
+			} else {
+				continue;
+			}
+		}
+
+		closedir(directory);
+	}
+
+	vectors_free(&files.value, (freefunc)strings_free, mem);
+	return (estring_vec){.value=shallow_files};
+
+	cleanup1:
+	vectors_free(&files.value, (freefunc)strings_free, mem);
+
+	cleanup0:
+	vectors_free(&shallow_files, (freefunc)strings_free, mem);
+	return (estring_vec){.error=err};
+}
+
+bool dirs_next(
+	const char *path, dir_iterator *iterator, notused const allocator *mem) {
+
 	#if cels_debug
 		errors_abort("path", strs_check(path));
 	#endif

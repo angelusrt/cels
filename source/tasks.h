@@ -3,11 +3,15 @@
 
 #include "nodes.h"
 
+
 /*
  * The module 'tasks' deals with 
  * concurrency, threads, asynchronous 
  * programming and synchronization.
  */
+
+
+/* tasks */
 
 typedef enum task_state {
 	task_finished_state = -1,
@@ -29,9 +33,10 @@ typedef struct task {
 	task_state status;
 } task;
 
-pools_define(routine, task)
+pools(routine, task)
 
-typedef task_state (*supervisorfunc)(routine *routine, task *task, void *params);
+typedef task_state (*supervisorfunc)
+	(routine *routine, task *task, void *params);
 
 typedef struct supervisor_functor {
 	supervisorfunc func;
@@ -42,6 +47,14 @@ typedef struct supervisor {
 	supervisor_functor callback;
 	task_state status;
 } supervisor;
+
+
+/* routines */
+
+/*
+ * Initializes a routine object.
+ */
+routine routines_init(size_t capacity, const allocator *mem);
 
 /*
  * Executes tasks in a concurrent manner.
@@ -57,10 +70,13 @@ bool routines_make(routine *self, supervisor *supervisor);
  * #to-review
  */
 error routines_push_with(
-	routine *self, 
-	taskfunc callback, 
-	void *args, 
-	const allocator *mem
-);
+	routine *self, taskfunc callback, void *args, const allocator *mem);
+
+/*
+ * Frees routine.
+ *
+ * #to-review
+ */
+void routines_free(routine *self, const allocator *mem);
 
 #endif

@@ -4,11 +4,15 @@
 #include <termios.h>
 #include "strings.h"
 
+
 /*
  * The module 'ios' deals with input/output
  * functionality like terminal mode, 
  * getting user input and printing to the screen.
  */
+
+
+/* ios*/
 
 /*
  * Turns terminal into canonical mode.
@@ -40,6 +44,5 @@ string ios_ask(const char *question, const allocator *mem);
  * #to-review
  */
 size_t ios_select(const char *question, const string_vec options);
-
 
 #endif

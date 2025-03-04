@@ -1,5 +1,8 @@
 #include "jsons.h"
 
+
+/* private */
+
 #define case_whitespace \
 	case ' ': \
 	case '\r': \
@@ -19,7 +22,9 @@
 	case '8': \
 	case '9' 
 
-string jsons_parse_text_private(const string *json, size_t *position, const allocator *mem) {
+string jsons_parse_text_private(
+	const string *json, size_t *position, const allocator *mem) {
+
 	#if cels_debug
 		errors_abort("json", strings_check_extra(json));
 		errors_abort("position", !position);
@@ -60,8 +65,11 @@ string jsons_parse_text_private(const string *json, size_t *position, const allo
 }
 
 string jsons_parse_struct_private(
-	const string *json, size_t *position, bool is_object, const allocator *mem
-) {
+	const string *json, 
+	size_t *position, 
+	bool is_object, 
+	const allocator *mem) {
+
 	#if cels_debug
 		errors_abort("json", strings_check_extra(json));
 		errors_abort("position", !position);
@@ -124,7 +132,9 @@ string jsons_parse_struct_private(
 	return (string){0};
 }
 
-string jsons_parse_naked_private(const string *json, size_t *position, const allocator *mem) {
+string jsons_parse_naked_private(
+	const string *json, size_t *position, const allocator *mem) {
+
 	#if cels_debug
 		errors_abort("json", strings_check_extra(json));
 		errors_abort("position", !position);
@@ -219,13 +229,16 @@ string jsons_parse_naked_private(const string *json, size_t *position, const all
 	return (string){0};
 }
 
-estring_map jsons_unmake_object_private(const string *json, const allocator *mem) {
+estring_map jsons_unmake_object_private(
+	const string *json, const allocator *mem) {
+
 	#if cels_debug
 		errors_abort("json", strings_check_extra(json));
 	#endif
 
 	int error = 0;
-	string_map map = string_maps_init();
+	string_map map = {0};
+	maps_init(map);
 
 	bool is_key_valid = true;
 	string key = {0};
@@ -254,23 +267,26 @@ estring_map jsons_unmake_object_private(const string *json, const allocator *mem
 			}
 
 			continue;
-		case '"':
-			if (is_key_valid && key.size == 0 && !is_value_valid) {
+		case '"': ;
+			bool is_key_zero = is_key_valid && key.size == 0;
+			bool is_key_nonzero = is_key_valid && key.size != 0;
+
+			if (is_key_zero && !is_value_valid) {
 				key = jsons_parse_text_private(json, &position, mem);
 				if (key.size == 0) {
 					error = json_key_size_error;
 					goto cleanup0;
 				}
-			} else if (is_key_valid && key.size != 0 && !is_value_valid) {
+			} else if (is_key_nonzero && !is_value_valid) {
 				error = json_missing_colon_error;
 				goto cleanup0;
-			} else if (is_key_valid && key.size != 0 && is_value_valid && value.size == 0) {
+			} else if (is_key_nonzero && is_value_valid && value.size == 0) {
 				value = jsons_parse_text_private(json, &position, mem);
 				if (value.size == 0) {
 					error = json_value_size_error;
 					goto cleanup0;
 				}
-			} else if (is_key_valid && key.size != 0 && is_value_valid && value.size != 0) {
+			} else if (is_key_nonzero && is_value_valid && value.size != 0) {
 				error = json_missing_comma_error;
 				goto cleanup0;
 			} else {
@@ -282,8 +298,11 @@ estring_map jsons_unmake_object_private(const string *json, const allocator *mem
 		case '{':
 		case '[': ; //empty statement
 			bool is_object = json->data[position] == '{';
+			bool is_missing_colon = 
+				!is_key_valid || key.size == 0 || 
+				!is_value_valid || value.size != 0;
 
-			if (!is_key_valid || key.size == 0 || !is_value_valid || value.size != 0) {
+			if (is_missing_colon) {
 				error = json_missing_colon_error;
 				goto cleanup0;
 			}
@@ -295,8 +314,12 @@ estring_map jsons_unmake_object_private(const string *json, const allocator *mem
 			}
 
 			break;
-		default:
-			if (!is_key_valid || key.size == 0 || !is_value_valid || value.size != 0) {
+		default: ;
+			is_missing_colon = 
+				!is_key_valid || key.size == 0 || 
+				!is_value_valid || value.size != 0;
+
+			if (is_missing_colon) {
 				error = json_missing_colon_error;
 				goto cleanup0;
 			}
@@ -328,7 +351,11 @@ estring_map jsons_unmake_object_private(const string *json, const allocator *mem
 
 	cleanup0:
 	if (map.data) {
-		string_maps_free(&map, mem);
+		maps_free(
+			&map, 
+			(freefunc)strings_free, 
+			(freefunc)strings_free, 
+			mem);
 	}
 
 	if (key.data) {
@@ -342,13 +369,16 @@ estring_map jsons_unmake_object_private(const string *json, const allocator *mem
 	return (estring_map) {.error=error};
 }
 
-estring_map jsons_unmake_list_private(const string *json, const allocator *mem) {
+estring_map jsons_unmake_list_private(
+	const string *json, const allocator *mem) {
+
 	#if cels_debug
 		errors_abort("json", strings_check_extra(json));
 	#endif
 
 	int error = 0;
-	string_map map = string_maps_init();
+	string_map map = {0};
+	maps_init(map);
 
 	size_t count = 0;
 	bool is_value_valid = true;
@@ -432,7 +462,11 @@ estring_map jsons_unmake_list_private(const string *json, const allocator *mem) 
 
 	cleanup0:
 	if (map.data) {
-		string_maps_free(&map, mem);
+		maps_free(
+			&map, 
+			(freefunc)strings_free, 
+			(freefunc)strings_free, 
+			mem);
 	}
 
 	if (value.size != 0) {
@@ -441,6 +475,9 @@ estring_map jsons_unmake_list_private(const string *json, const allocator *mem) 
 
 	return (estring_map) {.error=error};
 }
+
+
+/* publics */
 
 estring_map jsons_unmake(const string *json, const allocator *mem) {
 	#if cels_debug
@@ -463,14 +500,14 @@ estring_map jsons_unmake(const string *json, const allocator *mem) {
 
 estring jsons_make(const string_map *self, const allocator *mem) {
 	#if cels_debug
-		errors_abort("self", bynary_nodes_check((const bynary_node *)self));
+		errors_abort("self", bynodes_check((const bynode *)self));
 	#endif
 
 	string json = strings_make("{", mem);
 	error error = ok;
 
 	string_map_iterator it = {0};
-	while (bynary_trees_next((bynary_tree *)self, (bynary_tree_iterator *)&it)) {
+	while (bytrees_next(self, &it)) {
 		bool push_error = strings_push_with(&json, "\"", mem);
 		if (push_error) {
 			error = fail;

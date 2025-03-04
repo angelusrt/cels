@@ -1,5 +1,8 @@
 #include "errors.h"
 
+
+/* errors */
+
 error error_reports_check(const error_report *report) {
 	bool is_bigger_than_total = report->successfull > report->total;
 
@@ -135,6 +138,9 @@ void errors_print(errors_mode mode, const char *const message, ...) {
 
     va_end(args);
 }
+
+
+/* error_reports */
 
 void error_reports_print(const error_report *self) {
 	#if cels_debug
