@@ -13,6 +13,7 @@
 #include "vectors.h"
 #include "maths.h"
 
+
 /*
  * The module 'strings' is about manipulating the 
  * data structure 'string'.
@@ -41,11 +42,8 @@
  * - deprecate shift
  */
 
-/* string */
-vectors_define(char_vec, char)
-typedef char_vec string;
 
-typedef errors(string) estring;
+/* string */
 
 typedef enum string_size {
 	string_min_size = 16,
@@ -57,10 +55,26 @@ typedef enum string_size {
 	string_max_size = SIZE_MAX,
 } string_size;
 
-vectors_define(string_vec, string)
+typedef unsigned char byte;
+typedef vectors(byte) byte_vec;
+typedef errors(byte_vec) ebyte_vec;
+
+typedef struct string {
+  size_t size;
+  size_t capacity;
+  char *data;
+} string;
+
+typedef string string_view;
+
+typedef errors(string) estring;
+
+typedef vectors(string) string_vec;
+typedef vectors(string_view) string_view_vec;
+
 typedef errors(string_vec) estring_vec;
 
-/* char_vecs */
+typedef vectors(string_vec) string_mat;
 
 /*
  * Verifies if character is a either 
@@ -95,6 +109,38 @@ void chars_print_special(char letter);
  * #to-review
  */
 bool strs_check(const char *self);
+
+
+/* byte_vec */
+
+/*
+ * Converts byte_vec to string if eligible.
+ *
+ * If byte_vec's charset has readable-characters 
+ * plus '\n', '\t', '\r' and '\0' (but, only for 
+ * the last character) the conversion will be possible.
+ *
+ * #to-review
+ */
+estring byte_vecs_to_string(own byte_vec *self, const allocator *mem);
+
+/*
+ * Checks if byte_vecs is string.
+ *
+ * #to-review
+ */
+bool byte_vecs_is_string(own byte_vec *self);
+
+
+/* string_view */
+
+/*
+ * Converts a string_view to string.
+ *
+ * #to-review
+ */
+string string_views_to_string(const string_view *self, const allocator *mem);
+
 
 /* strings */
 
@@ -151,7 +197,7 @@ bool strs_check(const char *self);
  * #to-review
  */
 #define strings_prehash(lit) \
-	strings_hasherize(&(string)strings_premake(lit))
+	strings_hash(&(string)strings_premake(lit))
 
 /* 
  * Checks string, regardless of obeying to null-termination
@@ -161,7 +207,6 @@ bool strs_check(const char *self);
  */
 cels_warn_unused
 bool strings_check_view(const string *self);
-
 
 /* 
  * Checks if string was properly initialized 
@@ -220,7 +265,8 @@ string strings_make(const char *literal, const allocator *mem);
  * #depends:string.h #posix-reliant #to-review
  */
 cels_warn_unused
-string strings_copy(const string *self, size_t start, size_t end, const allocator *mem);
+string strings_copy(
+	const string *self, size_t start, size_t end, const allocator *mem);
 
 /*
  * Allocates a new string hard-copying 'self'.
@@ -251,16 +297,7 @@ string strings_encapsulate(const char *literal);
  * #depends:string.h #posix-reliant #to-review
  */
 cels_warn_unused
-string strings_view(const string *self, size_t start, size_t end);
-
-/*
- * Makes a null-terminated string copy 
- * of 'self' - being a string_view.
- *
- * #to-review
- */
-cels_warn_unused
-string strings_unview(const string *self, const allocator *mem);
+string_view strings_view(const string *self, size_t start, size_t end);
 
 /*
  * Pops a character from string.
@@ -292,7 +329,7 @@ error strings_push_with(string *self, char *item, const allocator *mem);
  * Shouldn't be used for non-allocated strings!
  *
  * #may-fail #depends:string.h #posix-reliant 
- * #tested #to-edit
+ * #tested #to-review
  */
 void strings_free(string *self, const allocator *mem);
 
@@ -393,7 +430,8 @@ ssize_t strings_find(const string *self, const string substring, size_t pos);
  * #case-insensitive #to-review
  */
 cels_warn_unused
-ssize_t strings_find_with(const string *self, const char *substring, size_t pos);
+ssize_t strings_find_with(
+	const string *self, const char *substring, size_t pos);
 
 /*
  * Finds any character from seps within 'self' 
@@ -420,7 +458,10 @@ ssize_t strings_find_from(const string *self, const string seps, size_t pos);
  */
 cels_warn_unused
 size_vec strings_find_all(
-	const string *self, const string substring, size_t n, const allocator *mem);
+	const string *self, 
+	const string substring, 
+	size_t n, 
+	const allocator *mem);
 
 /*
  * Finds the respective closing-tag of the provided 
@@ -433,7 +474,10 @@ size_vec strings_find_all(
  */
 cels_warn_unused
 ssize_t strings_find_matching(
-	const string *self, const string open_tag, const string close_tag, size_t pos);
+	const string *self, 
+	const string open_tag, 
+	const string close_tag, 
+	size_t pos);
 
 /*
  * Replaces at most n ocurrences of any character 
@@ -446,7 +490,8 @@ ssize_t strings_find_matching(
  *
  * #case-sensitive #tested
  */
-void strings_replace_from(string *self, const string seps, const char rep, size_t n);
+void strings_replace_from(
+	string *self, const string seps, const char rep, size_t n);
 
 /*
  * Creates a new string where the ocurrences of substring 
@@ -490,7 +535,8 @@ string strings_replace_with(
  * #depends:string.h #posix-reliant #tested #to-edit
  */
 cels_warn_unused
-string_vec strings_split(const string *self, const string sep, size_t n, const allocator *mem);
+string_vec strings_split(
+	const string *self, const string sep, size_t n, const allocator *mem);
 
 /*
  * A convenience over 'strings_split' which uses 'char *'.
@@ -498,7 +544,8 @@ string_vec strings_split(const string *self, const string sep, size_t n, const a
  * #to-review
  */
 cels_warn_unused
-string_vec strings_split_with(const string *self, const char *sep, size_t n, const allocator *mem);
+string_vec strings_split_with(
+	const string *self, const char *sep, size_t n, const allocator *mem);
 
 /*
  * Formats the string in form with arguments and 
@@ -520,7 +567,7 @@ string strings_format(const char *const form, const allocator *mem, ...);
  * #case-insensitive #depends:math.h,ctype.h #tested
  */
 cels_warn_unused
-size_t strings_hasherize(const string *self);
+size_t strings_hash(const string *self);
 
 /*
  * Converts characters in self to lowercase.
@@ -548,7 +595,7 @@ void strings_upper(string *self);
  *
  * #case-insensitive #iterator #tested
  */
-bool strings_next(const string *self, const string sep, string *next);
+bool strings_next(const string *self, const string sep, string_view *next);
 
 /*
  * Slices string shifting start and cutting end.
@@ -599,6 +646,7 @@ bool strings_has_suffix(const string *self, const string suffix);
 cels_warn_unused
 bool strings_has_prefix(const string *self, const string prefix);
 
+
 /* string_vecs */
 
 /*
@@ -627,25 +675,81 @@ string string_vecs_join(string_vec *self, string sep, const allocator *mem);
  * #not-to-use #to-review
  */
 cels_warn_unused
-string_vec string_vecs_make_helper(char *args[], size_t argn, const allocator *mem);
+string_vec string_vecs_make_helper(
+	char *args[], size_t argn, const allocator *mem);
 
-
-/* string_mats */
-
-vectors_define(string_mat, string_vec)
 
 /* extras */
 
 #include "nodes.h"
 
+
 /* sets */
 
-sets_define(string_set, string)
+sets(string_set, string)
+
+/*
+ * Initiates string_sets.
+ *
+ * #to-review
+ */
+string_set string_sets_init(void);
+
+/*
+ * Iterates through set.
+ *
+ * #to-review
+ */
+bool string_sets_next(const string_set *self, string_set_iterator *it);
+
+/*
+ * Gets item in set.
+ *
+ * #to-review
+ */
+string *string_sets_get(const string_set *self, string item);
+
+/*
+ * Pushes item to set.
+ *
+ * #to-review
+ */
+error string_sets_push(string_set *self, string item, const allocator *mem);
+
 
 /* maps */
 
-maps_define(string_map, string, string)
+maps(string_map, string, string)
 typedef errors(string_map) estring_map;
+
+/*
+ * Initiates string_maps.
+ *
+ * #to-review
+ */
+string_map string_maps_init(void);
+
+/*
+ * Iterates through string_map.
+ *
+ * #to-review
+ */
+bool string_maps_next(const string_map *self, string_map_iterator *it);
+
+/*
+ * Gets value of pair else null.
+ *
+ * #to-review
+ */
+string *string_maps_get(const string_map *self, string key);
+
+/*
+ * Pushes key and value to map.
+ *
+ * #to-review
+ */
+error string_maps_push(
+	string_map *self, string key, string value, const allocator *mem);
 
 /*
  * Push key and value over string_map allocating 
@@ -655,13 +759,11 @@ typedef errors(string_map) estring_map;
  * #to-review
  */
 error string_maps_push_with(
-	string_map *self, 
-	const char *key, 
-	const char *value, 
-	const allocator *mem);
+	string_map *self, const char *key, const char *value, const allocator *mem);
+
 
 /* lists */
 
-pools_define(string_pool, string)
+pools(string_pool, string)
 
 #endif
