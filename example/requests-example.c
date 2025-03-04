@@ -1,18 +1,15 @@
-//#include "../cels/source/https.h"
-//#include "../cels/source/https.c"
+#include "../source/requests.h"
+#include "../source/files.h"
 
-#include "../cels/source/requests.h"
-#include "../cels/source/files.h"
-
-#include "../cels/source/files.c"
-#include "../cels/source/requests.c"
-#include "../cels/source/tasks.c"
-#include "../cels/source/strings.c"
-#include "../cels/source/vectors.c"
-#include "../cels/source/nodes.c"
-#include "../cels/source/errors.c"
-#include "../cels/source/mems.c"
-#include "../cels/source/maths.c"
+#include "../source/files.c"
+#include "../source/requests.c"
+#include "../source/tasks.c"
+#include "../source/strings.c"
+#include "../source/vectors.c"
+#include "../source/nodes.c"
+#include "../source/errors.c"
+#include "../source/mems.c"
+#include "../source/maths.c"
 #include <time.h>
 
 int main(void) {
@@ -51,9 +48,9 @@ int main(void) {
 		printf("file successfully written\n");
 
 		printf("head:\n");
-		strings_println(&response.value.head);
+		strings_println((string *)&response.value.head);
 		printf("\nbody:\n");
-		strings_println(&response.value.body);
+		strings_println((string *)&response.value.body);
 	} else {
 		printf("response.error = %d\n", response.error);
 		request_errors_println(response.error);

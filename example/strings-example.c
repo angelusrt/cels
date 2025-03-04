@@ -21,7 +21,7 @@ void strings_spliting_text() {
 		strings_println(&text_tokens.data[i]);
 	}
 
-	string_vecs_free(&text_tokens, null);
+	vectors_free(&text_tokens, (freefunc)strings_free, null);
 	strings_free(&text, null);
 }
 
@@ -60,11 +60,11 @@ void string_maps_making() {
 
 	string_maps_push_with(&json, "name", "angelus", &mem);
 
-	string_map_node *node = maps_get(&json, strings_hasherize(&key));
+	string_map_node *node = maps_get(&json, strings_hash(&key));
 	size_t name_frequency = node ? node->frequency : 0;
 	printf("name_frequency: %zu\n", name_frequency);
 
-	string_maps_free(&json, &mem);
+	maps_free(&json, (freefunc)strings_free, (freefunc)strings_free, &mem);
 
 	mem.debug(mem.storage);
 	mem.free(mem.storage);

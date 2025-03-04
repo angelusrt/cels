@@ -1,13 +1,13 @@
-#include "./src/utils.c"
-#include "./src/errors.c"
-#include "./src/mems.c"
-#include "./src/vectors.c"
-#include "./src/strings.c"
-#include "./src/nodes.c"
-#include "./src/files.c"
+#include "../source/utils.c"
+#include "../source/errors.c"
+#include "../source/mems.c"
+#include "../source/vectors.c"
+#include "../source/strings.c"
+#include "../source/nodes.c"
+#include "../source/files.c"
 
-#include "./src/jsons.h"
-#include "./src/jsons.c"
+#include "../source/jsons.h"
+#include "../source/jsons.c"
 
 int main(void) {
 	const allocator mem = arenas_init(4096);
@@ -26,8 +26,15 @@ int main(void) {
 		goto cleanup;
 	}
 
-	string_maps_print(&json_map.value);
-	printf("\n\n");
+	string_map_iterator it0 = {0};
+	while (maps_next(&json_map.value, &it0)) {
+		strings_print(&it0.data->data.key);
+		printf(":");
+		strings_print(&it0.data->data.value);
+		printf("\n");
+	}
+
+	printf("\n");
 
 	const string key = strings_premake("outros");
 	string *value = string_maps_get(&json_map.value, key);
@@ -43,7 +50,13 @@ int main(void) {
 		goto cleanup;
 	}
 
-	string_maps_print(&outros_map.value);
+	string_map_iterator it = {0};
+	while (maps_next(&outros_map.value, &it)) {
+		strings_print(&it.data->data.key);
+		printf(":");
+		strings_print(&it.data->data.value);
+		printf("\n");
+	}
 	printf("\n");
 
 	estring new_json = jsons_make(&json_map.value, &mem);

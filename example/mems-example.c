@@ -15,9 +15,9 @@ int main(void) {
 	string text0 = strings_make("teste, de, string, alocada", &mem);
 	string text1 = strings_make(",", &mem);
 	string text2 = strings_make(";", &mem);
-	string text3 = strings_make_replace(&text0, &text1, &text2, -1, &mem);
+	string text3 = strings_replace(&text0, text1, text2, -1, &mem);
 
-	string_vec texts = strings_make_split(&text0, &text1, -1, &mem);
+	string_vec texts = strings_split(&text0, text1, -1, &mem);
 
 	printf("text3: %s\n", text3.data);
 	mem.debug(mem.storage);

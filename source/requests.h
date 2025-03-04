@@ -102,8 +102,8 @@ typedef struct request_option {
 } request_option;
 
 typedef struct response {
-	string head;
-	string body;
+	byte_vec head;
+	byte_vec body;
 } response;
 
 typedef errors(response) eresponse;

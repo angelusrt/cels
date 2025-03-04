@@ -1,18 +1,18 @@
 #define cels_openssl 0
 
-#include "../cels/source/requests.h"
-#include "../cels/source/files.h"
-#include "../cels/source/tasks.h"
+#include "../source/requests.h"
+#include "../source/files.h"
+#include "../source/tasks.h"
 
-#include "../cels/source/files.c"
-#include "../cels/source/requests.c"
-#include "../cels/source/tasks.c"
-#include "../cels/source/strings.c"
-#include "../cels/source/vectors.c"
-#include "../cels/source/nodes.c"
-#include "../cels/source/errors.c"
-#include "../cels/source/mems.c"
-#include "../cels/source/maths.c"
+#include "../source/files.c"
+#include "../source/requests.c"
+#include "../source/tasks.c"
+#include "../source/strings.c"
+#include "../source/vectors.c"
+#include "../source/nodes.c"
+#include "../source/errors.c"
+#include "../source/mems.c"
+#include "../source/maths.c"
 #include <time.h>
 
 typedef struct downloader_param {
@@ -46,7 +46,7 @@ task_state downloader(downloader_param *args) {
 typedef struct writer_param {
 	size_t id;
 	file *file;
-	string *text;
+	byte_vec *text;
 	file_write file_write;
 	size_t state;
 	bool *producer_has_ended;
@@ -115,7 +115,7 @@ int main(void) {
 		.request={.option={.flags=request_async_raw_mode_flag}}
 	};
 
-	string *file_to_write = &param0.request.internal.response;
+	byte_vec *file_to_write = &param0.request.internal.response;
 	writer_param param1 = {
 		.file=file, 
 		.text=file_to_write, 
