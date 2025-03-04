@@ -1,10 +1,16 @@
 #include "parsers.h"
 
+
+/* constants */
+
 static const char letter = '.';
 static const string typedef_word = strings_premake("typedef");
 static const string struct_word = strings_premake("struct");
 static const string enum_word = strings_premake("enum");
 static const string union_word = strings_premake("union");
+
+
+/* parser_entitys */
 
 void parser_entitys_print(parser_entity *entity) {
 	printf("<parser_entity>{");
@@ -48,6 +54,9 @@ void parser_entitys_print(parser_entity *entity) {
 
     printf(",.range={%zu, %zu}}\n", entity->range[0], entity->range[1]);
 }
+
+
+/* parsers */
 
 void parsers_normalize(string *file) {
 	bool is_within_quotes = false;
@@ -221,7 +230,9 @@ ssize_t parsers_find_next_end_private(string *file, size_t cursor) {
 	return -1;
 }
 
-eparser_entity parsers_parse_typedef_private(string *file, size_t *cursor, const allocator *mem) {
+eparser_entity parsers_parse_typedef_private(
+	string *file, size_t *cursor, const allocator *mem) {
+
 	parser_entity entity = {0};
 
 	size_t initial_pos = *cursor + typedef_word.size - 1;
@@ -258,7 +269,9 @@ eparser_entity parsers_parse_typedef_private(string *file, size_t *cursor, const
 		return (eparser_entity){.error=parser_mal_formed_entity_error};
 	}
 
-	ssize_t second_term_pos = parsers_find_next_character_private(file, initial_pos);
+	ssize_t second_term_pos = parsers_find_next_character_private(
+		file, initial_pos);
+
 	if (second_term_pos < 0) {
 		return (eparser_entity){.error=parser_mal_formed_entity_error};
 	}
@@ -286,10 +299,14 @@ eparser_entity parsers_parse_typedef_private(string *file, size_t *cursor, const
 	}
 
 	if (entity.type == parser_alias_entity_type) {
-		string alias = strings_copy(file, second_term_pos, second_term_end_pos, mem);
+		string alias = strings_copy(
+			file, second_term_pos, second_term_end_pos, mem);
+
 		entity.alias = alias;
 
-		string name = strings_copy(file, third_term_pos, third_term_end_pos, mem);
+		string name = strings_copy(
+			file, third_term_pos, third_term_end_pos, mem);
+
 		entity.name = name;
 
 		return (eparser_entity){.value=entity};
@@ -298,7 +315,9 @@ eparser_entity parsers_parse_typedef_private(string *file, size_t *cursor, const
 	//other types
 	
 	ssize_t argument_pos = -1;
-	for (size_t i = (size_t)second_term_end_pos; i > (size_t)second_term_pos; i--) {
+	size_t step = second_term_end_pos;
+
+	for (size_t i = step; i > (size_t)second_term_pos; i--) {
 		if (file->data[i] == '{') {
 			argument_pos = i;
 			break;
@@ -400,7 +419,9 @@ eparser_entity parsers_parse_function_definition_private(
 	return (eparser_entity){.value=entity};
 }
 
-void parser_entity_vecs_push(parser_entity_vec *self, parser_entity item, const allocator *mem) {
+void parser_entity_vecs_push(
+	parser_entity_vec *self, parser_entity item, const allocator *mem) {
+
 	if (self->size >= self->capacity) {
 		size_t new_capacity = self->capacity << 1;
 		errors_abort("self->capacity (overflow)", 
@@ -408,7 +429,9 @@ void parser_entity_vecs_push(parser_entity_vec *self, parser_entity item, const 
 
 		void *new_data = mems_realloc(
 			mem, self->data, 
-			self->capacity * sizeof(parser_entity), new_capacity * sizeof(parser_entity));
+			self->capacity * sizeof(parser_entity), 
+			new_capacity * sizeof(parser_entity));
+
 		errors_abort("new_data", !new_data);
 
 		self->data = new_data;
@@ -419,7 +442,9 @@ void parser_entity_vecs_push(parser_entity_vec *self, parser_entity item, const 
 	self->data[self->size - 1] = item;
 }
 
-eparser_entity_vec parsers_get_entities_private(string *file, const allocator *mem) {
+eparser_entity_vec parsers_get_entities_private(
+	string *file, const allocator *mem) {
+
 	parser_entity_vec entities = {0};
 	entities.capacity = 16; 
 	entities.data = mems_alloc(mem, sizeof(parser_entity) * 16);
@@ -441,7 +466,9 @@ eparser_entity_vec parsers_get_entities_private(string *file, const allocator *m
 		if (parsers_is_typedef_private(file, i)) {
 			for (size_t j = i + typedef_word.size - 1; j < file->size; j++) {
 				if (file->data[j] == ';') {
-					eparser_entity entity = parsers_parse_typedef_private(file, &i, mem);
+					eparser_entity entity = parsers_parse_typedef_private(
+						file, &i, mem);
+
 					if (entity.error != parser_successfull) {
 						printf("entity_error: %d\n", entity.error);
 						return (eparser_entity_vec){.error=entity.error};
@@ -479,8 +506,8 @@ eparser_entity_vec parsers_get_entities_private(string *file, const allocator *m
 				}
 			}
 		} else if (parsers_is_function_private(file, i, &function_end)) {
-			eparser_entity entity = 
-				parsers_parse_function_definition_private(file, &i, function_end, mem);
+			eparser_entity entity = parsers_parse_function_definition_private(
+				file, &i, function_end, mem);
 
 			if (entity.error != parser_successfull) {
 				printf("entity_error: %d\n", entity.error);
@@ -515,7 +542,9 @@ eparser_entity_vec parsers_get_entities_private(string *file, const allocator *m
 	return (eparser_entity_vec){.value=entities};
 }
 
-eparser_entity_vec parsers_get_entities(const char *path, const allocator *mem) {
+eparser_entity_vec parsers_get_entities(
+	const char *path, const allocator *mem) {
+
 	#if cels_debug
 		errors_abort("path", strs_check(path));
 	#endif
@@ -526,7 +555,7 @@ eparser_entity_vec parsers_get_entities(const char *path, const allocator *mem) 
 		return (eparser_entity_vec){.error=fail};
 	}
 
-	estring file_buffer = files_read(file, mem);
+	ebyte_vec file_buffer = files_read(file, mem);
 	fclose(file);
 
 	if (file_buffer.error != file_successfull) {
@@ -534,15 +563,21 @@ eparser_entity_vec parsers_get_entities(const char *path, const allocator *mem) 
 		return (eparser_entity_vec){.error=fail};
 	}
 
+	estring fb = byte_vecs_to_string(&file_buffer.value, mem);
+	if (fb.error != ok) {
+		printf("file is bynary or mal-formed\n");
+		return (eparser_entity_vec){.error=fail};
+	}
+
 	printf("arquivo:\n");
-	strings_println(&file_buffer.value);
+	strings_println(&fb.value);
 
 	printf("arquivo normalizado:\n");
-	parsers_normalize(&file_buffer.value);
-	strings_println(&file_buffer.value);
+	parsers_normalize(&fb.value);
+	strings_println(&fb.value);
 
-	eparser_entity_vec entities = parsers_get_entities_private(&file_buffer.value, mem);
-	strings_free(&file_buffer.value, mem);
+	eparser_entity_vec entities = parsers_get_entities_private(&fb.value, mem);
+	strings_free(&fb.value, mem);
 
 	return entities;
 }

@@ -4,6 +4,9 @@
 #include "../packages/cels/strings.h"
 #include "../packages/cels/files.h"
 
+
+/* parsers */
+
 typedef enum parser_entity_type {
 	parser_alias_entity_type,
 	parser_struct_entity_type,
@@ -49,7 +52,7 @@ typedef struct parser_entity {
 
 typedef errors(parser_entity) eparser_entity;
 
-typedef vectors(parser_entity *) parser_entity_vec;
+typedef vectors(parser_entity) parser_entity_vec;
 typedef errors(parser_entity_vec) eparser_entity_vec;
 
 /*

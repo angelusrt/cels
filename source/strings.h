@@ -234,13 +234,21 @@ bool strings_check_extra(const string *self);
 cels_warn_unused
 bool strings_check_charset(const string *self, const string charset);
 
+/* 
+ * Converts string to byte-vec.
+ *
+ * #tested
+ */
+cels_warn_unused
+byte_vec strings_to_byte_vec(own string *self, const allocator *mem);
+
 /*
  * Allocates string (aka vectors(char)) with 
  * quantity mapping its capacity.
  *
  * You need to check if allocation was successfull.
  *
- * Should be freed using 'strings_free'.
+ * Should be freed using 'strings-free'.
  *
  * #allocates #depends:stdio.h #posix-reliant 
  * #tested #to-review

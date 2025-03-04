@@ -183,6 +183,18 @@ error vectors_filter(
 	void *self, filterfunc filter, freefunc cleaner, const allocator *mem);
 
 /*
+ * Filter vector uniquely.
+ *
+ * A 'comparer' function must be provided, 
+ * while a 'cleaner' function may be provided 
+ * to do extra cleanup.
+ *
+ * #to-review
+ */
+error vectors_filter_unique(
+	void *self, compfunc comparer, freefunc cleaner, const allocator *mem);
+
+/*
  * Shifts vector by amount 'amount' starting at 
  * position 'position'.
  *

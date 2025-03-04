@@ -339,6 +339,48 @@ error vectors_filter(
 	return ok; 
 } 
 
+error vectors_filter_unique(void *self, compfunc comparer, freefunc cleaner, const allocator *mem) {
+	vector *s = self;
+
+	#if cels_debug
+		errors_abort("self", vectors_check((void *)self));
+	#endif
+	
+	vector other = {0};
+	vectors_init(&other, s->type_size, vector_min, mem);
+	
+	for (size_t i = 0; i < s->size; i++) {
+		void *s_item = s->data + (i * s->type_size);
+
+		bool match = false;
+		for (size_t j = 0; j < other.size; j++) {
+			void *o_item = other.data + (j * s->type_size);
+			if (comparer(s_item, o_item)) {
+				match = true;
+				break;
+			}
+		}
+		
+		if (!match) {
+			error push_error = vectors_push(&other, s_item, mem);
+			if (push_error) { return fail; }
+		} else {
+			cleaner(s_item, mem);
+		}
+	}
+	
+	error dealloc_error = mems_dealloc(mem, s->data, s->capacity * s->type_size);
+	if (dealloc_error) { return fail; }
+	
+	*s = other;
+	
+	#if cels_debug
+		errors_abort("s", vectors_check((const vector *)s));
+	#endif
+	
+	return ok;
+}
+
 void vectors_shift(
 	void *self, 
 	size_t position, 

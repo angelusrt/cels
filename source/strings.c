@@ -263,6 +263,22 @@ bool strings_check_charset(const string *self, const string charset) {
 	return true;
 }
 
+byte_vec strings_to_byte_vec(own string *self, const allocator *mem) {
+	#if cels_debug
+		errors_abort("self", strings_check_extra(self));
+	#endif
+	
+	error pop_error = strings_pop(self, mem);
+	errors_abort("pop_error", pop_error);
+
+	return (byte_vec){
+		.size=self->size,
+		.capacity=self->capacity,
+		.data=(byte *)self->data,
+		.type_size=sizeof(byte)
+	};
+}
+
 string strings_init(size_t quantity, const allocator *mem) {
 	string self = {0};
 	self.capacity = quantity;

@@ -68,7 +68,8 @@ error menus_handle_init(void) {
 		goto cleanup0;
 	}
 
-	error write_error = files_write(json, configuration_json);
+	byte_vec conf = strings_to_byte_vec(&configuration_json, &mem);
+	error write_error = files_write(json, conf);
 	if (write_error) {
 		printf("an error happened while writing to file.\n");
 		goto cleanup1;
@@ -120,7 +121,7 @@ error menus_handle_build(bool is_build_mode) {
 		}
  	}
 
-	estring json = files_read(json_file, &mem);
+	ebyte_vec json = files_read(json_file, &mem);
 	fclose(json_file);
 
 	if (json.error != file_successfull) {
@@ -129,8 +130,13 @@ error menus_handle_build(bool is_build_mode) {
 	}
 
 	//strings_trim(&json.value);
-	estring_map json_map = jsons_unmake(&json.value, &mem);
+	estring j = byte_vecs_to_string(&json.value, &mem);
+	if (j.error != ok) {
+		printf("file is bynary.\n\n");
+		goto cleanup0;
+	}
 
+	estring_map json_map = jsons_unmake(&j.value, &mem);
 	if (json_map.error != json_successfull) {
 		printf("an error parsing occurred.\n");
 		printf("%d\n", json_map.error);
