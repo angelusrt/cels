@@ -38,7 +38,7 @@ ebyte_vec files_read(file *self, const allocator *mem) {
 	byte_vec buffer = {0};
 	vectors_init(&buffer, sizeof(byte), new_capacity, mem);
 
-	long bytes_read = fread(buffer.data, 1, buffer.capacity, self);
+	ulong bytes_read = fread(buffer.data, 1, buffer.capacity - 1, self);
 	buffer.size = bytes_read + 1;
 
 	if (feof(self)) {
@@ -52,7 +52,7 @@ ebyte_vec files_read(file *self, const allocator *mem) {
 	}
 
 	#if cels_debug
-		errors_abort("buffer", vectors_check((const vector *)&buffer));
+		errors_abort("buffer", byte_vecs_check(&buffer));
 	#endif
 
 	return (ebyte_vec){.value=buffer};
@@ -97,6 +97,10 @@ bool files_read_async(file *self, file_read *read, const allocator *mem) {
 		goto cleanup1;
 	}
 
+	#if cels_debug
+		errors_abort("f", byte_vecs_check(f));
+	#endif
+
 	return true;
 
 	cleanup1:
@@ -109,10 +113,10 @@ bool files_read_async(file *self, file_read *read, const allocator *mem) {
 error files_write(file *self, const byte_vec text) {
 	#if cels_debug
 		errors_abort("self", !self);
-		errors_abort("text", vectors_check((const vector *)&text));
+		errors_abort("text", byte_vecs_check(&text));
 	#endif
 
-	long write_error = fwrite(text.data, 1, text.size, self);
+	long write_error = fwrite(text.data, 1, text.size - 1, self);
 	if (write_error < (long)text.size) {
 		return file_writing_error;
 	}
@@ -145,6 +149,10 @@ bool files_write_async(file *self, file_write *file_write) {
 
 	if (file_write->consume) {
 		vectors_shift(f, 0, writen, null, null);
+
+		#if cels_debug
+			errors_abort("f", byte_vecs_check(f));
+		#endif
 	} else {
 		file_write->internal.position += writen;
 	}
@@ -159,7 +167,7 @@ bool files_write_async(file *self, file_write *file_write) {
 ssize_t files_find(file *self, const byte_vec substring, ssize_t pos) {
 	#if cels_debug
 		errors_abort("self", !self);
-		errors_abort("substring", vectors_check((const vector *)&substring));
+		errors_abort("substring", byte_vecs_check(&substring));
 	#endif
 
 	if (pos >= 0) {
@@ -185,7 +193,7 @@ ssize_t files_find(file *self, const byte_vec substring, ssize_t pos) {
 		}
 
 		j++;
-		if (i == substring.size) { return j - i; }
+		if (i == substring.size - 1) { return j - i; }
 	} while(letter != EOF);
 
 	return -1;
@@ -194,7 +202,7 @@ ssize_t files_find(file *self, const byte_vec substring, ssize_t pos) {
 ssize_t files_find_from(file *self, const byte_vec seps, ssize_t pos) {
 	#if cels_debug
 		errors_abort("self", !self);
-		errors_abort("seps", vectors_check((const vector *)&seps));
+		errors_abort("seps", byte_vecs_check(&seps));
 	#endif
 
 	if (pos >= 0) {
@@ -210,7 +218,7 @@ ssize_t files_find_from(file *self, const byte_vec seps, ssize_t pos) {
 	do {
 		current_character = fgetc(self);
 
-		for (size_t i = 0; i < seps.size; i++) {
+		for (size_t i = 0; i < seps.size - 1; i++) {
 			if (current_character == seps.data[i]) {
 				return pos;
 			}
@@ -244,18 +252,13 @@ bool files_next(file *self, byte_vec *line, const allocator *mem) {
 	}
 
 	#if cels_debug
-		errors_abort("line", vectors_check((const vector *)line));
+		errors_abort("line", byte_vecs_check(line));
 	#endif
 
-	const byte_vec line_separator = {
-		.size=2,
-		.capacity=2,
-		.data=(byte[2]){'\n', EOF},
-		.type_size=sizeof(byte)
-	};
+	const byte_vec line_sep = vectors_premake(byte, '\n', EOF, '\0');
 
 	ssize_t next_position = files_find_from(
-		self, line_separator, current_position + 1);
+		self, line_sep, current_position + 1);
 
 	if (next_position == -1) { return true; }
 
@@ -279,54 +282,10 @@ bool files_next(file *self, byte_vec *line, const allocator *mem) {
 	return false;
 }
 
-estring files_normalize(const string *filepath, const allocator *mem) {
-	#if cels_debug
-		errors_abort("filepath", strings_check_extra(filepath));
-	#endif
 
-	static const string file_sep = strings_premake("/");
-	static const string one_dots = strings_premake(".");
-	static const string two_dots = strings_premake("..");
+/* paths */
 
-	string path_normalized = strings_init(vector_min, mem);
-	string_vec file_nodes = strings_split(filepath, file_sep, 0, mem);
-
-	size_t i = 0;
-	while(true) {
-		if (strings_seems(&file_nodes.data[i], &two_dots)) {
-			if (i == 0) { goto cleanup; }
-
-			vectors_shift(&file_nodes, i - 1, 2, (freefunc)strings_free, mem);
-			i--;
-		} else if (strings_seems(&file_nodes.data[i], &one_dots)) {
-			vectors_shift(&file_nodes, i, 1, (freefunc)strings_free, mem);
-		} else {
-			i++;
-		}
-
-		if (i == file_nodes.size - 1) {
-			break;
-		}
-	}
-
-	for (size_t i = 0; i < file_nodes.size; i++) {
-		error push_error = strings_push(&path_normalized, file_sep, mem);
-		if (push_error) { goto cleanup; }
-
-		push_error = strings_push(&path_normalized, file_nodes.data[i], mem);
-		if (push_error) { goto cleanup; }
-	}
-
-	vectors_free(&file_nodes, (freefunc)strings_free, mem);
-	return (estring){.value=path_normalized};
-
-	cleanup:
-	strings_free(&path_normalized, mem);
-	vectors_free(&file_nodes, (freefunc)strings_free, mem);
-	return (estring){.error=file_mal_formed_error};
-}
-
-estring files_path(const string *filepath, const allocator *mem) {
+estring paths_make(const string *filepath, const allocator *mem) {
 	#if cels_debug
 		errors_abort("filepath", strings_check_extra(filepath));
 	#endif
@@ -350,12 +309,62 @@ estring files_path(const string *filepath, const allocator *mem) {
 	working_directory.data[working_directory.size - 1] = '\0';
 
 	string path = strings_format(
-		"%s/%s", mem, working_directory.data, filepath->data);
+		"%s" file_sep "%s", 
+		mem, 
+		working_directory.data, 
+		filepath->data);
 
-	estring path_normalized = files_normalize(&path, mem);
+	estring path_normalized = paths_normalize(&path, mem);
 	strings_free(&path, mem);
 
 	return path_normalized;
+}
+
+estring paths_normalize(const string *filepath, const allocator *mem) {
+	#if cels_debug
+		errors_abort("filepath", strings_check_extra(filepath));
+	#endif
+
+	static const string file_sep2 = strings_premake(file_sep);
+	static const string one_dots = strings_premake(".");
+	static const string two_dots = strings_premake("..");
+
+	string path_normalized = strings_init(vector_min, mem);
+	string_vec file_nodes = strings_split(filepath, file_sep2, 0, mem);
+
+	size_t i = 0;
+	while(true) {
+		if (strings_seems(&file_nodes.data[i], &two_dots)) {
+			if (i == 0) { goto cleanup; }
+
+			vectors_shift(&file_nodes, i - 1, 2, (freefunc)strings_free, mem);
+			i--;
+		} else if (strings_seems(&file_nodes.data[i], &one_dots)) {
+			vectors_shift(&file_nodes, i, 1, (freefunc)strings_free, mem);
+		} else {
+			i++;
+		}
+
+		if (i == file_nodes.size - 1) {
+			break;
+		}
+	}
+
+	for (size_t i = 0; i < file_nodes.size; i++) {
+		error push_error = strings_push(&path_normalized, file_sep2, mem);
+		if (push_error) { goto cleanup; }
+
+		push_error = strings_push(&path_normalized, file_nodes.data[i], mem);
+		if (push_error) { goto cleanup; }
+	}
+
+	vectors_free(&file_nodes, (freefunc)strings_free, mem);
+	return (estring){.value=path_normalized};
+
+	cleanup:
+	strings_free(&path_normalized, mem);
+	vectors_free(&file_nodes, (freefunc)strings_free, mem);
+	return (estring){.error=file_mal_formed_error};
 }
 
 

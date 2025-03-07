@@ -65,6 +65,12 @@ typedef struct file_write {
 	file_write_internal internal;
 } file_write;
 
+#if _WIN32
+#define file_sep "\\"
+#else
+#define file_sep "/"
+#endif
+
 /*
  * Read files content to string 
  * and if any error happens a 
@@ -148,15 +154,8 @@ ssize_t files_find_from(file *self, byte_vec seps, ssize_t pos);
 cels_warn_unused
 bool files_next(file *self, byte_vec *line, const allocator *mem);
 
-/*
- * Normalizes filepath, eliminating ".." and ".".
- *
- * If filepath is mal-formed or an allocation 
- * error happens, file_error is returned.
- *
- */
-cels_warn_unused
-estring files_normalize(const string *filepath, const allocator *mem);
+
+/* paths */
 
 /*
  * Normalizes path and concatenates to 
@@ -168,7 +167,17 @@ estring files_normalize(const string *filepath, const allocator *mem);
  * #to-review
  */
 cels_warn_unused
-estring files_path(const string *filepath, const allocator *mem);
+estring paths_make(const string *filepath, const allocator *mem);
+
+/*
+ * Normalizes filepath, eliminating ".." and ".".
+ *
+ * If filepath is mal-formed or an allocation 
+ * error happens, file_error is returned.
+ *
+ */
+cels_warn_unused
+estring paths_normalize(const string *filepath, const allocator *mem);
 
 
 /* dirs */
