@@ -1,13 +1,16 @@
 #include "https.h"
-#include "strings.h"
+#include "bytes.h"
+#include "nodes.h"
 
 
 /* constants */
 
-const string line_sep = strings_premake("\r\n");
-const string token_sep = strings_premake(" ");
-const string attribute_sep = strings_premake(": ");
-const string route_sep = strings_premake("/");
+const byte_vec line_sep = byte_vecs_premake("\r\n");
+const byte_vec section_sep = byte_vecs_premake("\r\n\r\n");
+const byte_vec token_sep = byte_vecs_premake(" ");
+const byte_vec prop_sep = byte_vecs_premake(": ");
+const byte_vec route_sep = byte_vecs_premake("/");
+
 const string route_var_sep = strings_premake(":");
 
 const string variable_charset = strings_premake(
@@ -18,13 +21,28 @@ const string regex_charset = strings_premake(
 	"0123456789+[]|()\\-*._");
 
 
+/* router_privates */
+
+void router_privates_free(router_private *self, const allocator *mem) {
+	strings_free(&self->location, mem);
+
+	if (self->name.data) {
+		strings_free(&self->name, mem);
+	}
+
+	if (self->regex.__buffer) {
+		regfree(&self->regex);
+	}
+}
+
+
 /* routers */
 
 bool routers_check(const router *self) {
 	#if cels_debug
-		errors_return("self.location", strings_check(&self->location))	
+		errors_return("self.location", strings_check_extra(&self->location))	
 	#else
-		if (strings_check(&self->location)) return true;
+		if (strings_check_extra(&self->location)) return true;
 	#endif
 
 	return false;
@@ -37,363 +55,535 @@ bool router_nodes_check(const router_node *self) {
 	return routers_check((router *)&self->data);
 }
 
-void router_nodes_debug(const router_node *self) {
-	#if cels_debug
-		errors_abort("self", router_nodes_check(self));
-	#endif
-
-	printf(
-		"%p<router_node>"
-		"{.data=<router>{.location=%s, .has_regex=%d}, .next=%p}\n", 
-		(void *)self, 
-		self->data.location.data, 
-		self->data.has_regex, 
-		(void *)self->next);
-}
-
-void router_nodes_full_debug_private(
-	const router_node *self, size_t stackframe) {
-
-	if (stackframe > cels_max_recursion) { return; }
-
-	router_nodes_debug(self);
-	if (self->next == null) { return; }
-
-	for (size_t i = 0; i < self->next->size; i++) {
-		router_nodes_full_debug_private(&self->next->data[i], ++stackframe);
-	}
-}
-
-void router_nodes_full_debug(const router_node *self) {
-	#if cels_debug
-		errors_abort("self", router_nodes_check(self));
-	#endif
-
-	router_nodes_full_debug_private(self, 0);
-}
-
 
 /* router_node_vecs */
 
-cels_warn_unused
-long router_node_vecs_find_hash(const router_node_vec *self, size_t hash) {
+error router_vecs_push_with(
+	router_vec *self, 
+	char *location, 
+	httpfunc callback, 
+	void *param, 
+	const allocator *mem) {
+
 	#if cels_debug
 		errors_abort("self", vectors_check((const vector *)self));
+		errors_abort("location", strs_check(location));
 	#endif
 
-	if (self->size == 0) return -1;
+	string loc = strings_encapsulate(location);
+	router route = {.location=loc, .func=callback, .param=param};
 
-	for (size_t i = 0; i < self->size; i++) {
+	return vectors_push(self, &route, mem);
+}
+
+cels_warn_unused
+router_node *router_nodes_find_hash_private(router_node *self, size_t hash) {
+	/*#if cels_debug
+		errors_abort("self", munodes_check((const munode *)self));
+	#endif*/
+
+	router_node *route = self;
+	while (route) {
 		#if cels_debug
-			errors_abort("self.data[i]", router_nodes_check(&self->data[i]));
-			router_nodes_debug(&self->data[i]);
+			errors_abort("self.data[i]", router_nodes_check(route));
 		#endif
 
-		if (self->data[i].data.hash == hash) return i;
+		if (route->data.hash == hash) {
+			return route;
+		}
+
+		route = route->left;
 	}
 
-	#if cels_debug
-		printf("\n");
-	#endif
-
-	return -1;
+	return null;
 }
 
 
-/* https */
+/* private */
 
-#define header_size 3
-static const string headers[header_size] = {
+#define http_header_size 3
+#define http_method_hash_size 9
+#define http_protocol_hash_size 2
+
+static const string http_headers[http_header_size] = {
 	strings_premake("Method"), 
 	strings_premake("Location"), 
 	strings_premake("Protocol") 
 };
 
-static const size_vec methods = vectors_premake(size_t, 4);
-static const size_vec protocols = vectors_premake(size_t, 2);
+static size_t http_header_hashs[http_header_size] = {0};
+static size_t http_method_hashs[http_method_hash_size] = {0};
+static size_t http_protocol_hashs[http_protocol_hash_size] = {0};
+static size_t http_body_hash = 0;
 
 void https_initialize_private(void) {
-	methods.data[0] = strings_prehash("GET");
-	methods.data[1] = strings_prehash("POST");
-	methods.data[2] = strings_prehash("PUT");
-	methods.data[3] = strings_prehash("DELETE");
-	protocols.data[0] = strings_prehash("HTTP/1.0");
-	protocols.data[1] = strings_prehash("HTTP/1.1");
+	http_header_hashs[0] = strings_hash(&http_headers[0]);
+	http_header_hashs[1] = strings_hash(&http_headers[1]);
+	http_header_hashs[2] = strings_hash(&http_headers[2]);
+
+	http_method_hashs[0] = strings_prehash("GET");
+	http_method_hashs[1] = strings_prehash("POST");
+	http_method_hashs[2] = strings_prehash("PUT");
+	http_method_hashs[3] = strings_prehash("DELETE");
+	http_method_hashs[4] = strings_prehash("PATCH");
+	http_method_hashs[5] = strings_prehash("HEAD");
+	http_method_hashs[6] = strings_prehash("OPTIONS");
+	http_method_hashs[7] = strings_prehash("TRACE");
+	http_method_hashs[8] = strings_prehash("CONNECT");
+
+	http_protocol_hashs[0] = strings_prehash("HTTP/1.0");
+	http_protocol_hashs[1] = strings_prehash("HTTP/1.1");
+
+	http_body_hash = strings_prehash("Body");
 }
 
 cels_warn_unused
-bool https_head_check(const string_map *head) {
+ebyte_map https_make_head_private(byte_vec *head, const allocator *mem) {
 	#if cels_debug
-		errors_abort("head", bynodes_check((bynode *)head));
+		errors_abort("head", byte_vecs_check(head));
 	#endif
 
-	//TODO: improve validation
 
-	errors_abort("head.size != 3", head->size != header_size);
+	/* creating head (method, location protocol) */
+
+	error err = ok;
+	byte_mat head_props = byte_vecs_split(head, token_sep, 0, mem);
+
+	if (head_props.size != http_header_size) {
+		err = http_head_size_error;
+		goto cleanup0;
+	}
+
+
+	/* check if head is correct */
 
 	bool is_method_valid = false;
-	string *method_value = maps_get(head, strings_hash(&headers[0]));
-	if (method_value != null) {
-		ssize_t pos = vectors_find(
-			&methods, &method_value, (compfunc)strings_seems);
+	if (byte_vecs_is_string(&head_props.data[0])) {
+		size_t m_hash = strings_hash((string *)&head_props.data[0]);
 
-		if (pos > -1) { is_method_valid = true; }
+		for (size_t i = 0; i < http_method_hash_size; i++) {
+			if (http_method_hashs[i] == m_hash) {
+				is_method_valid = true;
+				break;
+			}
+		}
 	}
 
-	bool is_location_valid = false;
-	string *location_value = maps_get(head, strings_hash(&headers[1]));
-	if (location_value != null && location_value->data[0] == '/') {
-		is_location_valid = true;
+	if (!is_method_valid) {
+		err = http_method_invalid_error;
+		goto cleanup0;
 	}
+
+
+	bool is_location_valid = 
+		byte_vecs_is_string(&head_props.data[1]) && 
+		head_props.data[1].data[0] == '/';
+
+	if (!is_location_valid) {
+		err = http_location_invalid_error;
+		goto cleanup0;
+	}
+
 
 	bool is_protocol_valid = false;
-	string *protocol_value = maps_get(head, strings_hash(&headers[2]));
-	if (protocol_value != null) {
-		ssize_t pos = vectors_find(
-			&protocols, &protocol_value, (compfunc)strings_seems);
+	if (byte_vecs_is_string(&head_props.data[2])) {
+		size_t p_hash = strings_hash((string *)&head_props.data[2]);
 
-		if (pos > -1) { is_protocol_valid = true; }
+		for (size_t i = 0; i < http_protocol_hash_size; i++) {
+			if (http_protocol_hashs[i] == p_hash) {
+				is_protocol_valid = true;
+				break;
+			}
+		}
 	}
 
-	return is_method_valid && is_location_valid && is_protocol_valid;
+	if (!is_protocol_valid) {
+		err = http_protocol_invalid_error;
+		goto cleanup0;
+	}
+
+
+	/* creating map */
+
+	byte_map header = {0};
+	maps_init(header);
+
+
+	byte_map_pair pair0 = {
+		.key=strings_make("Method", mem), 
+		.value=head_props.data[0]};
+
+	error push_error = maps_push(
+		&header, &pair0, http_header_hashs[0], mem);
+
+	if (push_error) {
+		strings_free(&pair0.key, mem);
+		goto cleanup1;
+	}
+
+
+	byte_map_pair pair1 = {
+		.key=strings_make("Location", mem), 
+		.value=head_props.data[1]};
+
+	push_error = maps_push(
+		&header, &pair1, http_header_hashs[1], mem);
+
+	if (push_error) {
+		strings_free(&pair1.key, mem);
+		goto cleanup1;
+	}
+
+
+	byte_map_pair pair2 = {
+		.key=strings_make("Protocol", mem), 
+		.value=head_props.data[2]};
+
+	push_error = maps_push(
+		&header, &pair2, http_header_hashs[2], mem);
+
+	if (push_error) {
+		strings_free(&pair2.key, mem);
+		goto cleanup1;
+	}
+
+
+	/* cleanup */
+
+	mems_dealloc(
+		mem, 
+		head_props.data, 
+		head_props.type_size * head_props.capacity);
+
+	return (ebyte_map) {.value=header};
+
+	cleanup1:
+	maps_free(&header, (freefunc)strings_free, null, mem);
+
+	cleanup0:
+	vectors_free(&head_props, (freefunc)byte_vecs_free, mem);
+	return (ebyte_map) {.error=err};
 }
 
 cels_warn_unused
-string_map *https_tokenize(string *request, const allocator *mem) {
-	if (errors_check("https_tokenize.request", strings_check_extra(request))) {
-		goto invalid_request0;
+ebyte_map https_tokenize_private(byte_vec *request, const allocator *mem) {
+	#if cels_debug
+		errors_abort("request", byte_vecs_check(request));
+	#endif
+
+	/* TODO: reduce copies */
+
+	error err = ok;
+
+	if (byte_vecs_check(request)) {
+		err = http_request_invalid_error;
+		goto cleanup0;
 	}
 
-	string_vec attributes = strings_split(request, line_sep, 0, mem);
-	if (errors_check("https_tokenize.attributes empty", attributes.size < 2)) {
-		goto invalid_request1;
+	byte_mat sections = byte_vecs_split(request, section_sep, 1, mem);
+	byte_mat header_props = byte_vecs_split(&sections.data[0], line_sep, 0, mem);
+	ebyte_map request_props = https_make_head_private(&header_props.data[0], mem);
+	if (request_props.error != http_successfull) {
+		err = request_props.error;
+		goto cleanup1;
 	}
 
-	string_vec header = strings_split(&attributes.data[0], token_sep, 0, mem);
-	bool is_header_valid = header.size == header_size;
+	for (size_t i = 1; i < header_props.size; i++) {
+		byte_mat terms = byte_vecs_split(
+			&header_props.data[i], prop_sep, 1, mem);
 
-	if (errors_check("https_tokenize.header invalid", !is_header_valid)) {
-		goto invalid_request2;
-	}
+		if (terms.size != 2) {
+			err = http_property_size_invalid_error;
 
-	string_map *request_attributes = null;
-	for (size_t i = 0; i < header_size; i++) {
-		string key = strings_clone(&headers[i], mem);
+			vectors_free(&terms, (freefunc)byte_vecs_free, mem);
+			goto cleanup2;
+		}
 
-		string_map_pair pair = {.key=key, .value=header.data[i]};
-		error push_error = maps_push(
-			request_attributes, &pair, strings_hash(&pair.key), mem);
+		if (!byte_vecs_is_string(&terms.data[0])) {
+			err = http_property_mal_formed_error;
+
+			vectors_free(&terms, (freefunc)byte_vecs_free, mem);
+			goto cleanup2;
+		}
+
+		byte_map_pair pair = {
+			.key=*(string *)&terms.data[0], 
+			.value=terms.data[1]};
+
+		bool push_error = maps_push(
+			&request_props.value, &pair, strings_hash(&pair.key), mem);
 
 		if (push_error) {
-			strings_free(&key, mem);
-			strings_free(&header.data[i], mem);
+			err = http_property_mal_formed_error;
+
+			vectors_free(&terms, (freefunc)byte_vecs_free, mem);
+			goto cleanup2;
+		}
+
+		mems_dealloc(mem, terms.data, terms.capacity * terms.type_size);
+	}
+
+	if (sections.size == 2) {
+		byte_map_pair pair = {
+			.key=strings_make("Body", mem), 
+			.value=sections.data[1]};
+
+		bool push_error = maps_push(
+			&request_props.value, &pair, http_body_hash, mem);
+
+		if (push_error) {
+			strings_free(&pair.key, mem);
+			goto cleanup2;
 		}
 	}
 
-	bool is_head_valid = https_head_check(request_attributes);
-	if (errors_check("https_tokenize.head invalid", is_head_valid == false)) {
-		goto invalid_request3;
-	}
 
-	for (size_t i = 1; i < attributes.size; i++) {
-		string_vec attribute = strings_split(
-			&attributes.data[i], attribute_sep, 0, mem);
+	byte_vecs_free(&sections.data[0], mem);
+	mems_dealloc(mem, sections.data, sections.capacity * sections.type_size);
 
-		if (i == attributes.size - 1 && attribute.size < 2) {
-			string body_key = strings_make("Body", mem);
-			string value = strings_clone(&attributes.data[i], mem);
+	vectors_free(&header_props, (freefunc)byte_vecs_free, mem);
+	return request_props;
 
-			string_map_pair pair = {.key=body_key, .value=value};
-			bool push_status = maps_push(
-				request_attributes, &pair, strings_hash(&pair.key), mem);
+	cleanup2:
+	maps_free(
+		&request_props, 
+		(freefunc)strings_free, 
+		(freefunc)byte_vecs_free, 
+		mem);
 
-			if (push_status) {
-				strings_free(&body_key, mem);
-				strings_free(&value, mem);
-			}
+	cleanup1:
+	vectors_free(&sections, (freefunc)byte_vecs_free, mem);
+	vectors_free(&header_props, (freefunc)strings_free, mem);
 
-			mems_dealloc(mem, attribute.data, attribute.capacity);
-		} else if (attribute.size == 2) {
-			string_map_pair pair = {
-				.key=attribute.data[0], 
-				.value=attribute.data[1]};
-
-			bool push_status = maps_push(
-				request_attributes, &pair, strings_hash(&pair.key), mem);
-
-			if (push_status) {
-				strings_free(&attribute.data[0], mem);
-				strings_free(&attribute.data[1], mem);
-			}
-
-			mems_dealloc(mem, attribute.data, attribute.capacity);
-		} else {
-			vectors_free(&attribute, (freefunc)strings_free, mem);
-		}
-	}
-
-	mems_dealloc(mem, header.data, header.capacity);
-	vectors_free(&attributes, (freefunc)strings_free, mem);
-	return request_attributes;
-
-	invalid_request3:
-		maps_free(
-			request_attributes, 
-			(freefunc)strings_free, 
-			(freefunc)strings_free, 
-			mem);
-
-		mems_dealloc(mem, header.data, header.capacity);
-		vectors_free(&attributes, (freefunc)strings_free, mem);
-		return null;
-
-	invalid_request2:
-		vectors_free(&header, (freefunc)strings_free, mem);
-	invalid_request1:
-		vectors_free(&attributes, (freefunc)strings_free, mem);
-	invalid_request0:
-		return null;
+	cleanup0:
+	return (ebyte_map){.error=err};
 }
 
 cels_warn_unused
-router_private *https_find_route(
-	router_node *router, string_map *request, const allocator *mem) {
-	//TODO: check params
+erouter_private https_find_route_private(
+	router_tree *router, byte_map *request, const allocator *mem) {
 
-	string *location_value = maps_get(request, strings_hash(&headers[1]));
-	if (!location_value) { return &router->data; }
+	#if cels_debug
+		errors_abort("request", !request);
+		errors_abort("request", binodes_check((binode *)request->data));
+	#endif
 
-	string_vec routes = strings_split(location_value, route_sep, 0, mem);
-	if (routes.size == 0) { goto cleanup; }
+	error err = ok;
+	byte_vec *location_value = maps_get(request, http_header_hashs[1]);
+	if (!location_value && !byte_vecs_is_string(location_value)) { 
+		return (erouter_private) {.error=http_location_invalid_error};
+	}
+
+	string *l = (string *)location_value;
+	string *rs = (string *)&route_sep;
+
+	string_vec routes = strings_split(l, *rs, 0, mem);
 
 	if (location_value->data[0] == '/' && location_value->size == 2) {
 		vectors_free(&routes, (freefunc)strings_free, mem);
-		return &router->data;
+
+		#if cels_debug
+			string *loc = &router->data->data.location;
+
+			errors_abort(
+				"router.data[0]", 
+				strings_equals(loc, &strings_do("/")));
+		#endif
+
+		return (erouter_private){.value=router->data->data};
 	}
 
-	router_node_vec *router_current = router->next;
-	for (size_t i = 0; i < routes.size; i++) {
-		size_t route_hash = strings_hash(&routes.data[i]);
+	size_t i = 0;
+	router_node *route = router->data->down;
+	size_t route_hash = strings_hash(&routes.data[i]);
 
-		bool has_matched = false;
-		for (size_t j = 0; j < router_current->size; j++) {
-			router_node *route = &router_current->data[j];
+	bool has_matched = false;
+	while (route) {
+		if (route->data.has_regex) {
+			int regex_status = regexec(
+				&route->data.regex,
+				routes.data[i].data,
+				0, null, 0);
 
-			if (route->data.has_regex) {
-				int regex_status = regexec(
-					&route->data.regex,
-					routes.data[i].data,
-					0, null, 0);
+			has_matched = regex_status == 0;
 
-				has_matched = regex_status == 0;
+			if (has_matched) {
+				string key = strings_clone(&route->data.name, mem);
+				string value = strings_clone(&routes.data[i], mem);
 
-				if (has_matched) {
-					string key = strings_clone(&route->data.name, mem);
-					string value = strings_clone(&routes.data[i], mem);
-					string_map_pair pair = {.key=key, .value=value};
+				byte_vec v = strings_to_byte_vec(&value);
+				byte_map_pair pair = {.key=key, .value=v};
 
-					error push_error = maps_push(
-						request, &pair, strings_hash(&pair.key), mem);
+				error push_error = maps_push(
+					request, &pair, strings_hash(&pair.key), mem);
 
-					if (push_error) {
-						strings_free(&key, mem);
-						strings_free(&value, mem);
-					}
-				}
-			} else {
-				if (route->data.hash == route_hash) {
-					has_matched = true;
+				if (push_error) {
+					strings_free(&key, mem);
+					strings_free(&value, mem);
+
+					err = http_property_probably_duplicated_error;
+					goto cleanup0;
 				}
 			}
+		} else {
+			if (route->data.hash == route_hash) {
+				has_matched = true;
+			}
+		}
 
-			if (has_matched && (i < routes.size - 1)) {
-				router_current = route->next;
+		if (has_matched) {
+			if (i < routes.size - 1) {
+				++i;
+				route_hash = strings_hash(&routes.data[i]);
+				route = route->down;
+			} else if (i == routes.size - 1) {
 				break;
-			} else if (has_matched && (i == routes.size - 1)) {
-				vectors_free(&routes, (freefunc)strings_free, mem);
-				return &route->data;
 			}
+		} else {
+			route = route->left;
 		}
 
-		if (!has_matched) {
-			//Verify if '0' exists else default
-			vectors_free(&routes, (freefunc)strings_free, mem);
-			return &router->next->data[0].data;
-		}
-
-		if (i == routes.size - 1) {
-			vectors_free(&routes, (freefunc)strings_free, mem);
-			return &router_current->data[0].data;
+		if (!route) { 
+			err = http_not_found_error;
+			goto cleanup0; 
 		}
 	}
 
-	cleanup:
+	vectors_free(&routes, (freefunc)strings_free, mem);
+	return (erouter_private){.value=route->data};
+
+	cleanup0:
 	vectors_free(&routes, (freefunc)strings_free, mem);
 
-	return &router->data;
+	return (erouter_private){.error=err};
 }
 
-typedef struct https_handle_client_params {
+typedef struct client_param {
 	int client;
-	router_node *routes;
+	router_tree *routes;
 	const allocator *mem;
-} https_handle_client_params;
+} client_param;
 
-void *https_handle_client(void *args) {
-    https_handle_client_params arg = *((https_handle_client_params *)args);
-	router_node *routes = arg.routes;
-	int client_descriptor = arg.client;
-	const allocator *mem = arg.mem;
+void *https_handle_client_private(void *args) {
+    client_param *arg = args;
+	int client_descriptor = arg->client;
+	router_tree *routes = arg->routes;
+	const allocator *mem = arg->mem;
 
-	string request = strings_init(string_small_size, mem);
-    ssize_t request_bytes = recv(
+
+	/* Receiving request */
+	
+	//ebyte_vec request = byte_vecs_receive(client_descriptor, MSG_WAITALL, 1024, mem);
+	byte_vec request = {0};
+	vectors_init(&request, sizeof(byte), string_small_size, mem);
+	long bytes = recv(
 		client_descriptor, 
-		request.data, 
-		request.capacity, 
-		0);
+		request.data + request.size, 
+		string_small_size, 0);
 
-	#if cels_debug
-		if (request_bytes < 0) {
-			errors_inform("recv error'ed", request_bytes < 0);
+	if (bytes < 0) {
+		#if cels_debug
 			fprintf(
 				stderr, 
-				"recv: %s (%d), client_descriptor: %d\n", 
+				"recv-error: %s (%d), client_descriptor: %d\n", 
 				strerror(errno), 
 				errno, 
 				client_descriptor);
-		} 
+		#endif
+
+		goto cleanup0; 
+	} 
+
+	request.size += bytes;
+	error push_error = vectors_push(&request, &(byte){'\0'}, mem);
+	if (push_error) { goto cleanup0; }
+
+	#if cels_debug
+		printf("request:\n");
+		byte_vecs_print(&request);
+		printf("\n");
 	#endif
 
-    if(request_bytes > 0) {
-		request.size = request_bytes + 1;
 
-		string_map *request_attributes = https_tokenize(&request, mem);
+	/* tokenizing */
 
-		if (!request_attributes) { 
-			goto cleanup0; 
+	ebyte_map request_props = https_tokenize_private(
+		&request, mem);
+
+	if (request_props.error != http_successfull) { 
+		#if cels_debug
+			fprintf(
+				stderr, 
+				colors_error("client '%d' had error '%d'\n"), 
+				client_descriptor,
+				request_props.error);
+		#endif
+
+		goto cleanup1; 
+	} 
+
+	#if cels_debug
+		printf("request: \n");
+		maps_print(
+			&request_props.value, 
+			(printfunc)strings_print, 
+			(printfunc)byte_vecs_print);
+		printf("\n");
+	#endif
+
+
+	/* routing */
+
+	erouter_private callback = https_find_route_private(
+		routes, &request_props.value, mem);
+
+	if (callback.error != http_successfull) {
+		#if cels_debug
+			fprintf(
+				stderr, 
+				colors_error("'%d' had error '%d'\n"), 
+				client_descriptor,
+				callback.error);
+		#endif
+
+		if (callback.error == http_not_found_error) {
+			if (routes->data && routes->data->down) {
+				callback.value = routes->data->down->data;
+			} else {
+				https_send_not_found(
+					null, client_descriptor, null);
+
+				goto cleanup2;
+			}
+		} else {
+			https_send_not_found(
+				null, client_descriptor, null);
+
+			goto cleanup2;
 		}
+	} 
 
-		if (request_attributes->size == 0) { 
-			router_private *callback = https_find_route(
-				routes, request_attributes, mem);
+	errors_abort("callback.func", !callback.value.func);
+	callback.value.func(
+		&request_props.value, 
+		client_descriptor, 
+		callback.value.param);
 
-			errors_abort("callback.func", !callback->func);
-			callback->func(
-				request_attributes, 
-				client_descriptor, 
-				callback->params);
-		}
 
-		maps_free(
-			request_attributes, 
-			(freefunc)strings_free, 
-			(freefunc)strings_free, 
-			mem);
-    }
+	cleanup2:
+	maps_free(
+		&request_props.value, 
+		(freefunc)strings_free, 
+		(freefunc)byte_vecs_free, 
+		mem);
+
+	cleanup1:
+	vectors_free(&request, null, mem);
 
 	cleanup0:
-	strings_free(&request, mem);
+	printf("m\n");
     close(client_descriptor);
+
     return null;
 }
 
@@ -409,22 +599,158 @@ router_private https_find_root_private(router_vec *callbacks) {
 
 			return (router_private) {
 				.location=r.location,
-				.params=r.params,
+				.param=r.param,
 				.func=r.func
 			};
 		}
 	}
 
-	router r = callbacks->data[0];
-	return (router_private) {
-		.location=r.location, 
-		.params=r.params, 
-		.func=r.func 
-	};
+	return (router_private) {0};
 }
 
+error https_insert_route_private(
+	router_tree router, 
+	router_node **route, 
+	const string node_name, 
+	const struct router callback,
+	bool is_last,
+	const allocator *mem) {
+
+	size_t hash = strings_hash(&node_name);
+	router_node *hash_route = router_nodes_find_hash_private(*route, hash);
+
+	if (hash_route) {
+		router_private *r = &hash_route->data;
+		if (!r->func && is_last) {
+			r->param = callback.param;
+			r->func = callback.func;
+		} else if (r->func && is_last) {
+			return http_route_collision_error;
+		}
+
+		*route = hash_route;
+	} else {
+		string loc = strings_clone(&node_name, mem);
+		router_node node = {
+			.data={
+				.location=loc,
+				.has_regex=false,
+				.hash=hash,
+			}
+		};
+
+		if (is_last) {
+			node.data.param = callback.param;
+			node.data.func = callback.func;
+		} 
+
+		router_node *node_capsule = mems_alloc(mem, sizeof(router_node));
+		errors_abort("node_capsule", !node_capsule);
+
+		*node_capsule = node;
+		if (*route && (*route)->down) {
+			mutrees_push(&router, (*route)->down, node_capsule);
+		} else {
+			mutrees_attach(&router, *route, node_capsule);
+		}
+
+		*route = node_capsule;
+	}
+
+	return ok;
+}
+
+error https_insert_route_with_regex_private(
+	router_tree router, 
+	router_node **route, 
+	const string node_name, 
+	const struct router callback,
+	bool is_last,
+	const string_vec var_terms, 
+	const allocator *mem) {
+
+	bool is_regex_valid = strings_check_charset(
+		&var_terms.data[1], regex_charset);
+
+	if (!is_regex_valid) {
+		return http_route_regex_invalid_error;
+	}
+
+	size_t hash = strings_hash(&var_terms.data[0]);
+	string name = strings_format(
+		"vars_%s", mem, var_terms.data[0].data);
+
+	router_node *hash_route = router_nodes_find_hash_private(
+		*route, hash);
+
+	regex_t regex = {0};
+	int reg_status = regcomp(
+		&regex, var_terms.data[1].data, REG_EXTENDED);
+
+	if (reg_status != 0) {
+		strings_free(&name, mem);
+		return http_route_regex_invalid_error;
+	}
+
+	if (hash_route) {
+		router_private *router = &hash_route->data;
+		bool has_regex = router->has_regex;
+
+		if (!has_regex && is_last) {
+			router->has_regex = true;
+			router->regex = regex;
+			router->name = name;
+
+			bool has_func_added = router->func;
+			if (has_func_added) {
+				strings_free(&name, mem);
+				return http_route_collision_error;
+			}
+
+			router->param = callback.param;
+			router->func = callback.func;
+		} else {
+			regfree(&regex);
+			strings_free(&name, mem);
+		}
+
+		*route = hash_route;
+	} else {
+		string loc = strings_clone(&node_name, mem);
+		router_node node = {
+			.data={
+				.location=loc,
+				.has_regex=true,
+				.regex=regex,
+				.hash=hash,
+				.name=name,
+			}
+		};
+
+		if (is_last) {
+			node.data.param = callback.param;
+			node.data.func = callback.func;
+		} 
+
+		router_node *node_capsule = mems_alloc(mem, sizeof(router_node));
+		errors_abort("node_capsule", !node_capsule);
+
+		*node_capsule = node;
+		if (*route && (*route)->down) {
+			mutrees_push(&router, (*route)->down, node_capsule);
+		} else {
+			mutrees_attach(&router, *route, node_capsule);
+		}
+
+		*route = node_capsule;
+	} 
+
+	return ok;
+}
+
+/* #to-review */
 cels_warn_unused
-router_node https_create_routes_private(
+erouter_tree https_create_router_private(
 	router_vec *callbacks, const allocator *mem) {
 
 	#if cels_debug
@@ -433,17 +759,20 @@ router_node https_create_routes_private(
 			vectors_check((const vector *)callbacks));
 	#endif
 
-	router_node_vec rnv = {0}; 
-	vectors_init(&rnv, sizeof(router_node), vector_min, mem);
+	error err = ok;
 
-	router_node_vec *rnv_capsule = mems_alloc(mem, sizeof(router_node_vec));
-	errors_abort("rnv_capsule", rnv_capsule == null);
-	*rnv_capsule = rnv;
+	router_tree router = {0};
+	mutrees_init(router);
 
-	router_node r = { 
-		.data=https_find_root_private(callbacks), 
-		.next=rnv_capsule 
-	};
+	router_private index = https_find_root_private(callbacks);
+	router_node node = { .data=index };
+
+	router_node *node_capsule = mems_alloc(mem, sizeof(router_node));
+	errors_abort("node_capsule", !node_capsule);
+
+	*node_capsule = node;
+	mutrees_push(&router, null, node_capsule);
+
 
 	for (size_t i = 0; i < callbacks->size; i++) {
 		#if cels_debug
@@ -456,196 +785,105 @@ router_node https_create_routes_private(
 			strings_do(""), 
 			0, mem);
 
+		string *rs = (string *)&route_sep;
 		string_vec location_terms = strings_split(
-			&location_normalized, route_sep, 0, mem);
+			&location_normalized, *rs, 0, mem);
 
-		if (location_terms.size < 1) { goto cleanup0; }
-
-		router_node *router_current = &r;
+		router_node *route = router.data;
 		for (size_t j = 0; j < location_terms.size; j++) {
 			string_vec var_terms = strings_split(
 				&location_terms.data[j], route_var_sep, 0, mem);
 
+			if (var_terms.size > 2) {
+				vectors_free(&var_terms, (freefunc)strings_free, mem);
+				err = http_route_name_mal_formed_error;
+				goto cleanup1;
+			}
+
 			#if cels_debug
-				vectors_debug(&var_terms, (printfunc)strings_debugln);
+				vectors_debug(&var_terms, (printfunc)strings_print);
+				printf("\n");
 			#endif
-			errors_abort("var_terms.size > 2", var_terms.size > 2);
 
 			bool is_variable_valid = strings_check_charset(
 				&var_terms.data[0], variable_charset);
-			errors_abort("!is_variable_valid", !is_variable_valid);
 
+			if (!is_variable_valid) {
+				vectors_free(&var_terms, (freefunc)strings_free, mem);
+				err = http_route_name_invalid_error;
+				goto cleanup1;
+			}
+
+			error insert_error = ok;
 			bool is_last = j == location_terms.size - 1;
 			if (var_terms.size < 2) {
-				size_t hash = strings_hash(&location_terms.data[j]);
-				long hash_pos = router_node_vecs_find_hash(
-					router_current->next, hash);
+				insert_error = https_insert_route_private(
+					router, 
+					&route, 
+					location_terms.data[j], 
+					callbacks->data[i], 
+					is_last, 
+					mem);
 
-				if (hash_pos > -1) {
-					router_private *r = 
-						&router_current->next->data[hash_pos].data;
-					bool has_func = r->func != null;
-
-					if (!has_func && is_last) {
-						r->params = callbacks->data[i].params;
-						r->func = callbacks->data[i].func;
-					} else if (has_func && is_last){
-						errors_abort("func != null (already exists)", has_func);
-					}
-				} else if (hash_pos <= -1) {
-					router_node_vec rnv = {0};
-					vectors_init(&rnv, sizeof(router_node), vector_min, mem);
-
-					router_node_vec *rnv_capsule = mems_alloc(
-						mem, sizeof(router_node_vec));
-
-					errors_abort("rnv_capsule", rnv_capsule == null);
-					*rnv_capsule = rnv;
-
-					#if cels_debug
-						strings_println(&location_terms.data[j]);
-					#endif
-
-					string l = strings_clone(&location_terms.data[j], mem);
-					router_node node = {
-						.next=rnv_capsule,
-						.data={
-							.location=l, //Why?
-							.has_regex=false,
-							.hash=hash,
-						}
-					};
-
-					if (is_last) {
-						node.data.params = callbacks->data[i].params;
-						node.data.func = callbacks->data[i].func;
-					} 
-
-					bool error = vectors_push(router_current->next, &node, mem);
-					#if cels_debug
-						errors_abort("error", error);
-					#endif
-
-					if (error) {
-						strings_free(&node.data.location, mem);
-						vectors_free(rnv_capsule, null, mem);
-
-						size_t cs = sizeof(router_node_vec*);
-						mems_dealloc(mem, rnv_capsule, cs);
-					}
-				}
-
-				hash_pos = router_node_vecs_find_hash(
-					router_current->next, hash);
-				errors_abort("hash_pos == -1 (1)", hash_pos == -1);
-
-				router_current = &router_current->next->data[hash_pos];
 				vectors_free(&var_terms, (freefunc)strings_free, mem);
-				continue;
-			}
-
-			bool is_regex_valid = strings_check_charset(
-				&var_terms.data[1], regex_charset);
-			errors_abort("!is_regex_valid", !is_regex_valid);
-
-			size_t hash = strings_hash(&var_terms.data[0]);
-			string name = strings_format("vars_%s", mem, var_terms.data[0].data);
-
-			errors_abort("router_current.next", !router_current->next);
-			long hash_pos = router_node_vecs_find_hash(
-				router_current->next, hash);
-			bool is_empty = router_current->next->size == 0;
-
-			regex_t regex;
-			int reg_status = regcomp(
-				&regex, var_terms.data[1].data, REG_EXTENDED);
-			errors_abort("regcomp != 0", reg_status != 0);
-
-			if (hash_pos > -1) {
-				router_private *router = 
-					&router_current->next->data[hash_pos].data;
-				bool has_regex = router->has_regex;
-
-				if (!has_regex && is_last) {
-					router->has_regex = true;
-					router->regex = regex;
-					router->name = name;
-				} else {
-					regfree(&regex);
-					strings_free(&name, mem);
-				}
-			} else if (hash_pos <= -1 && is_empty){
-				router_node_vec rnv = {0};
-				vectors_init(&rnv, sizeof(router_node), vector_min, mem);
-
-				router_node_vec *rnv_capsule = mems_alloc(
-					mem, sizeof(router_node_vec));
-				errors_abort("rnv_capsule", rnv_capsule == null);
-				*rnv_capsule = rnv;
-
-				string l = strings_clone(&var_terms.data[0], null);
-				router_node node = {
-					.next=rnv_capsule,
-					.data={
-						.location=l,
-						.has_regex=true,
-						.regex=regex,
-						.hash=hash,
-						.name=name,
-					}
-				};
-
-				bool error = vectors_push(router_current->next, &node, mem);
-				#if cels_debug
-					errors_abort("error", error);
-				#endif
-
-				if (error) {
-					strings_free(&node.data.location, mem);
-					vectors_free(rnv_capsule, null, mem);
-					mems_dealloc(mem, rnv_capsule, sizeof(router_node_vec*));
-				}
-
-				errors_abort("router_current.next", !router_current->next);
-				hash_pos = router_node_vecs_find_hash(
-					router_current->next, hash);
-				errors_abort("hash_pos == -1 (2)", hash_pos == -1);
 			} else {
-				errors_abort("!is_empty (route colision)", !is_empty);
+				insert_error = https_insert_route_with_regex_private(
+					router, 
+					&route, 
+					location_terms.data[j], 
+					callbacks->data[i], 
+					is_last, 
+					var_terms,
+					mem);
+
+				vectors_free(&var_terms, (freefunc)strings_free, mem);
 			}
 
-			if (is_last) {
-				router_private *router = 
-					&router_current->next->data[hash_pos].data;
-				bool has_func_added = router->func != null;
-				errors_abort("!func (already added)", has_func_added);
-
-				router->params = callbacks->data[i].params;
-				router->func = callbacks->data[i].func;
-			} 
-
-			router_current = &router_current->next->data[hash_pos];
-			vectors_free(&var_terms, (freefunc)strings_free, mem);
+			if (insert_error) {
+				err = insert_error;
+				goto cleanup1;
+			}
 		}
 
-		cleanup0:
+
+		cleanup1:
 		vectors_free(&location_terms, (freefunc)strings_free, mem);
 		strings_free(&location_normalized, mem);
+
+		if (err) { 
+			goto cleanup0; 
+		}
 	}
 
-	return r;
+
+	return (erouter_tree){.value=router};
+
+	cleanup0:
+	mutrees_free(&router, (freefunc)router_privates_free, mem);
+
+	return (erouter_tree){.error=err};
 }
 
-void https_serve(short port, router_vec *callbacks, const allocator *mem) {
+http_error https_serve(short port, router_vec *callbacks, const allocator *mem) {
 	#if cels_debug
-		errors_abort("callbacks", vectors_check((void *)callbacks));
+		errors_abort("callbacks", vectors_check((const vector *)callbacks));
 	#endif
 
 	https_initialize_private();
-	router_node routes = https_create_routes_private(callbacks, mem);
+	erouter_tree router = https_create_router_private(callbacks, mem);
+	if (router.error != http_successfull) {
+		return router.error;
+	}
 
 	#if cels_debug
-		router_nodes_full_debug(&routes);
+		printf("\nroutes: \n");
+
+		router_tree_iterator it = {0};
+		while (mutrees_next(&router.value, &it)) {
+			printf("location: ");
+			strings_println(&it.data->data.location);
+		}
+
 		printf("\n");
 	#endif
 	
@@ -656,26 +894,33 @@ void https_serve(short port, router_vec *callbacks, const allocator *mem) {
 	};
 
     short socket_descriptor = socket(AF_INET, SOCK_STREAM, 0);
-	errors_abort("socket failed", socket_descriptor == -1);
+	if (socket_descriptor == -1) {
+		return http_socket_failed_error;
+	}
 
     address.sin_family = AF_INET;
     address.sin_addr.s_addr = INADDR_ANY;
     address.sin_port = htons(port);
 
-    short bind_statusus = bind(
+    short bind_status = bind(
 		socket_descriptor, 
 		(struct sockaddr *)&address, 
 		sizeof(address));
 
-	errors_abort("bind failed", bind_statusus == -1);
+	if (bind_status == -1) {
+		return http_bind_failed_error;
+	}
 
 	#define https_request_maximum 200
-    short listen_statusus = listen(socket_descriptor, https_request_maximum);
-	errors_abort("listen failed", listen_statusus == -1);
+    short listen_status = listen(socket_descriptor, https_request_maximum);
+
+	if (listen_status == -1) {
+		return http_listen_failed_error;
+	}
 	#undef https_request_maximum
 
     while (true) {
-		struct sockaddr_in client_address;
+		struct sockaddr_in client_address = {0};
 		socklen_t client_address_size = sizeof(client_address);
 
 		int client_descriptor = accept(
@@ -691,31 +936,33 @@ void https_serve(short port, router_vec *callbacks, const allocator *mem) {
 			continue; 
 		}
 
-		pthread_t thread;
-		https_handle_client_params params = {
-			.client=client_descriptor, .routes=&routes};
-		pthread_create(&thread, null, https_handle_client, &params);
+		pthread_t thread = {0};
+		client_param param = {
+			.client=client_descriptor, .routes=&router.value};
+
+		pthread_create(&thread, null, https_handle_client_private, &param);
 		pthread_detach(thread);
     }
 
     close(socket_descriptor);
 }
 
-void https_default_not_found(
-	notused string_map *request, int client_connection, notused void *params) {
-	string not_found_page = strings_premake(
+void https_send_not_found(
+	notused byte_map *request, int client_connection, notused void *param) {
+
+	static const byte_vec not_found_page = byte_vecs_premake(
 		"HTTP/1.1 404 Not Found\r\nContent-Type: text/html\r\n\r\n"
 		"<html>"
 		"<head><title>not found</title></head>"
 		"<body><h1>404</h1><h4>your page wasn't found</h4></body>"
 		"</html>");
 
-	send(client_connection, not_found_page.data, not_found_page.size, 0);
+	send(client_connection, not_found_page.data, not_found_page.size - 1, 0);
 }
 
-void https_send(int client_connection, const string *body, const string *head) {
-	//TODO: validate params
+void https_send(
+	int client_connection, const byte_vec head, const byte_vec body) {
 
-	send(client_connection, head->data, head->size, 0);
-	send(client_connection, body->data, body->size, 0);
+	send(client_connection, head.data, head.size - 1, 0);
+	send(client_connection, body.data, body.size - 1, 0);
 }
