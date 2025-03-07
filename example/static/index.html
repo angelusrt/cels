@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<title>Page Test</title>
+		<meta charset="UTF-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1">
+		<style>
+			body {
+				padding: 80px 20px;
+				-webkit-font-smoothing: subpixel-antialiased;
+			}
+			p {
+				font-family: 'Roboto', sans-serif;
+				font-weight: 400;
+				font-size: 20px;
+				line-height: 150%;
+			}
+			.flexbox {
+				display: flex;
+				flex-wrap: nowrap;
+				flex-direction: column;
+				justify-items: center;
+				width: 100%;
+				margin: 80px 0px;
+			}
+			.card {
+				flex: 1;
+				border-radius: 20px;
+				border: solid 2px black;
+				margin: 40px 0px;
+				padding: 40px;
+				backface-visibility: hidden;
+				transform: scale(1); 
+				transition: transform 0.2s ease-in-out;
+			}
+			.card:hover {
+				backface-visibility: hidden;
+				transform: scale(1.05); 
+				transition: transform 0.2s ease-in-out;
+			}
+			@media (min-width: 1200px)  {
+				body { padding: 80px; }
+				.flexbox { flex-direction: row; }
+				.card { margin: 40px; }
+			}
+		</style>
+	</head>
+	<body>
+		<div class="flexbox">
+			<div class="card">
+				<h3>Card 1</h3>
+				<p> Lorem ipsum dolor sit amet, officia excepteur ex fugiat reprehenderit enim labore culpa sint ad nisi Lorem pariatur mollit ex esse exercitation amet. </p>
+			</div>
+			<div class="card">
+				<h3>Card 2</h3>
+				<p> Lorem ipsum dolor sit amet, officia excepteur ex fugiat reprehenderit enim labore culpa sint ad nisi Lorem pariatur mollit ex esse exercitation amet. </p>
+			</div>
+			<div class="card">
+				<h3>Card 3</h3>
+				<p> Lorem ipsum dolor sit amet, officia excepteur ex fugiat reprehenderit enim labore culpa sint ad nisi Lorem pariatur mollit ex esse exercitation amet. </p>
+			</div>
+		</div>
+	</body>
+</html>
