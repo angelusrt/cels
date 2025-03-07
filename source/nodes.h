@@ -16,17 +16,17 @@
  */
 
 
-/* bynodes and bytrees */
+/* binodes and bitrees */
 
 /*
- * A bynary node data-structure to 
- * serve as basis for a bynary search 
+ * A binary node data-structure to 
+ * serve as basis for a binary search 
  * algorythm implementation, 
  * know as red-black tree.
  */
-#define bynodes(type0, type1) \
+#define binodes(type0, type1) \
 	struct type1 { \
-		bynode_color color; \
+		binode_color color; \
 		size_t hash; \
 		ulong frequency; \
 		type1 *parent; \
@@ -35,7 +35,7 @@
 		type0 data; \
 	}
 
-#define bytrees(type0) \
+#define bitrees(type0) \
 	struct { \
 		size_t size; \
 		size_t type_size; \
@@ -44,53 +44,53 @@
 		type0 *data; \
 	}
 
-#define bytree_iterators(type0) \
+#define bitree_iterators(type0) \
 	struct { \
 		type0 *data; \
-		bytree_iterator_internal internal; \
+		bitree_iterator_internal internal; \
 	}
 
-typedef struct bynode bynode;
+typedef struct binode binode;
 
-typedef enum bynode_color {
-	bynode_red_color,
-	bynode_black_color,
-} bynode_color;
+typedef enum binode_color {
+	binode_red_color,
+	binode_black_color,
+} binode_color;
 
-typedef enum bytree_iterator_state {
-	bytree_initial_iterator_state,
-	bytree_left_most_iterator_state,
-	bytree_right_most_iterator_state,
-	bytree_returning_node_iterator_state,
-	bytree_finished_iterator_state,
-} bytree_iterator_state;
+typedef enum bitree_iterator_state {
+	bitree_initial_iterator_state,
+	bitree_left_most_iterator_state,
+	bitree_right_most_iterator_state,
+	bitree_returning_node_iterator_state,
+	bitree_finished_iterator_state,
+} bitree_iterator_state;
 
-typedef struct bytree_iterator_internal {
-	bynode *left;
-	bynode *right;
-	bynode *prev;
-	bytree_iterator_state state;
-} bytree_iterator_internal;
+typedef struct bitree_iterator_internal {
+	binode *left;
+	binode *right;
+	binode *prev;
+	bitree_iterator_state state;
+} bitree_iterator_internal;
 
-typedef bynodes(void *, bynode) bynode;
-typedef bytrees(bynode) bytree;
-typedef bytree_iterators(bynode) bytree_iterator;
+typedef binodes(void *, binode) binode;
+typedef bitrees(binode) bitree;
+typedef bitree_iterators(binode) bitree_iterator;
 
 /*
- * Checks if bynode is correct.
+ * Checks if binode is correct.
  *
  * #to-review
  */
-bool bynodes_check(const bynode *self);
+bool binodes_check(const binode *self);
 
 /*
  * Pushes 'item' onto 'self'. 
- * 'self' must be bytree-like whereas 
- * 'item' should be bynode-like. 
+ * 'self' must be bitree-like whereas 
+ * 'item' should be binode-like. 
  *
  * The sizes of the types used must be provided also; 
  * 'type_size' being the size of the underlying type 
- * being hold by the bynode 'item', while 
+ * being hold bi the binode 'item', while 
  * 'node_size' is the size of 'item' itself.
  *
  * A hash must be provided to identify uniquely such 
@@ -102,30 +102,31 @@ bool bynodes_check(const bynode *self);
  *
  * #to-review
  */
-error bytrees_push(void *self, void *item, size_t hash, const allocator *mem);
+error bitrees_push(
+	void *self, void *item, size_t hash, const allocator *mem);
 
 /*
  * Gets node with hash, if it fails or it 
  * doesn't find it, it returns null.
  *
- * 'self' must be a bytree-like structure.
+ * 'self' must be a bitree-like structure.
  *
- * Returns a bynode-like structure if found 
+ * Returns a binode-like structure if found 
  * else null.
  *
  * #to-review
  */
-void* bytrees_get(const void *self, size_t hash);
+void* bitrees_get(const void *self, size_t hash);
 
 /*
  * Iterates self in-order executing callback.
  *
- * 'self' must be a bytree-like structure and 
- * 'iterator' a bytree-iterator-like one.
+ * 'self' must be a bitree-like structure and 
+ * 'iterator' a bitree-iterator-like one.
  *
  * #to-review
  */
-bool bytrees_next(const void *self, void *iterator);
+bool bitrees_next(const void *self, void *iterator);
 
 
 /* munodes and mutrees */
@@ -168,7 +169,7 @@ typedef struct mutree_iterator_internal {
 	size_t cursor;
 } mutree_iterator_internal;
 
-typedef mutree_iterators(munode)  mutree_iterator;
+typedef mutree_iterators(munode) mutree_iterator;
 
 /*
  * Initializes mutree.
@@ -233,16 +234,17 @@ bool mutrees_next_breadth_wise(
  *
  * #to-review
  */
-void mutrees_free(void *self, freefunc cleaner, const allocator *mem);
+void mutrees_free(
+	void *self, freefunc cleaner, const allocator *mem);
 
 
 /* sets*/
 
 #define sets(name, type0) \
 	typedef struct name##_node name##_node; \
-	typedef bynodes(type0, name##_node) name##_node; \
-	typedef bytrees(name##_node) name; \
-	typedef bytree_iterators(name) name##_iterator;
+	typedef binodes(type0, name##_node) name##_node; \
+	typedef bitrees(name##_node) name; \
+	typedef bitree_iterators(name) name##_iterator;
 
 /*
  * Initializes map.
@@ -265,6 +267,15 @@ void mutrees_free(void *self, freefunc cleaner, const allocator *mem);
  * #to-review
  */
 bool sets_next(const void *self, void *iterator);
+
+/*
+ * Prints 'self' using printer.
+ *
+ * 'self' must be a set-like structure.
+ *
+ * #to-review
+ */
+void sets_print(const void *self, printfunc printer);
 
 /*
  * Gets item from set provided item's hash.
@@ -293,7 +304,8 @@ void *sets_get(const void *self, size_t hash);
  *
  * #to-review
  */
-error sets_push(void *self, void *item, size_t hash, const allocator *mem);
+error sets_push(
+	void *self, void *item, size_t hash, const allocator *mem);
 
 /*
  * Frees set.
@@ -317,9 +329,9 @@ void sets_free(void *self, freefunc cleaner, const allocator *mem);
 #define maps(name, type0, type1) \
 	typedef map_pairs(type0, type1) name##_pair; \
 	typedef struct name##_node name##_node; \
-	typedef bynodes(name##_pair, name##_node) name##_node; \
-	typedef bytrees(name##_node) name; \
-	typedef bytree_iterators(name##_node) name##_iterator;
+	typedef binodes(name##_pair, name##_node) name##_node; \
+	typedef bitrees(name##_node) name; \
+	typedef bitree_iterators(name##_node) name##_iterator;
 
 /*
  * Initializes map.
@@ -348,6 +360,19 @@ void sets_free(void *self, freefunc cleaner, const allocator *mem);
 bool maps_next(const void *self, void *iterator);
 
 /*
+ * Prints 'self' using 'key_printer'
+ * and 'value_printer'.
+ *
+ * 'self' must be a set-like structure.
+ *
+ * #to-review
+ */
+void maps_print(
+	const void *self, 
+	printfunc key_printer, 
+	printfunc value_printer);
+
+/*
  * Gets item from map provided item's hash.
  *
  * 'self' must be a map-like structure.
@@ -374,14 +399,16 @@ void *maps_get(const void *self, size_t hash);
  *
  * #to-review
  */
-error maps_push(void *self, void *item, size_t hash, const allocator *mem);
+error maps_push(
+	void *self, void *item, size_t hash, const allocator *mem);
 
 /*
  * Frees map.
  *
  * 'self' must be a set-like structure.
  *
- * a key_cleaner and value_cleaner may be provided to free the underlying data.
+ * A 'key_cleaner' and 'value_cleaner' may be 
+ * provided to free the underlying data.
  *
  * #to-review
  */
@@ -471,7 +498,8 @@ void pools_init(
  *
  * #to-review
  */
-error pools_push(void *self, void *item, const allocator *mem);
+error pools_push(
+	void *self, void *item, const allocator *mem);
 
 /*
  * Iterates through pool.
@@ -493,7 +521,8 @@ bool pools_next(void *self, void *iterator);
  *
  * #to-review
  */
-void pools_free(void *self, freefunc cleaner, const allocator *mem);
+void pools_free(
+	void *self, freefunc cleaner, const allocator *mem);
 
 
 /* #to-deprecate */
@@ -508,6 +537,6 @@ typedef struct node_set node_set;
 	}
 
 typedef nodes(node, node_set, void *) node;
-bynodes(node, node_set);
+binodes(node, node_set);
 
 #endif

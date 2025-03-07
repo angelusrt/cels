@@ -1,15 +1,15 @@
 #include "nodes.h" 
 
 
-/* bynodes */
+/* binodes */
 
-void bynodes_right_rotate_private(notused bynode *self, bynode *new_node) {
+void binodes_right_rotate_private(notused binode *self, binode *new_node) {
 	#if cels_debug
-		errors_abort("self", bynodes_check(self));
-		errors_abort("new_node", bynodes_check(new_node));
+		errors_abort("self", binodes_check(self));
+		errors_abort("new_node", binodes_check(new_node));
 	#endif
 
-    bynode* left = new_node->left;
+    binode* left = new_node->left;
     new_node->left = left->right;
 
     if (new_node->left) {
@@ -29,13 +29,13 @@ void bynodes_right_rotate_private(notused bynode *self, bynode *new_node) {
     new_node->parent = left;
 }
  
-void bynodes_left_rotate_private(notused bynode *self, bynode *new_node) {
+void binodes_left_rotate_private(notused binode *self, binode *new_node) {
 	#if cels_debug
-		errors_abort("self", bynodes_check(self));
-		errors_abort("new_node", bynodes_check(new_node));
+		errors_abort("self", binodes_check(self));
+		errors_abort("new_node", binodes_check(new_node));
 	#endif
 
-    bynode* right = new_node->right;
+    binode* right = new_node->right;
     new_node->right = right->left;
 
     if (new_node->right) {
@@ -57,25 +57,25 @@ void bynodes_left_rotate_private(notused bynode *self, bynode *new_node) {
 
 /*
  * This function normalizes the red-black tree 
- * violentions made by insertion by bynodes_push.
+ * violentions made bi insertion bi binodes_push.
  *
  * I've got this from gist.github.com/VictorGarritano/5f894be162d39e9bdd5c
  */
-void bynodes_normalize_private(bynode *self, bynode *new_node) {
+void binodes_normalize_private(binode *self, binode *new_node) {
 	#if cels_debug
-		errors_abort("self", bynodes_check(self));
-		errors_abort("new_node", bynodes_check(new_node));
+		errors_abort("self", binodes_check(self));
+		errors_abort("new_node", binodes_check(new_node));
 	#endif
 
 	bool is_new_node_unique = 
 		new_node != self && new_node != self->left && new_node != self->right;
 
 	bool is_new_node_parent_red = 
-		new_node->parent && new_node->parent->color == bynode_red_color;
+		new_node->parent && new_node->parent->color == binode_red_color;
 
     // iterate until new_node is not the self and new_node's parent color is red
     while (is_new_node_unique && is_new_node_parent_red) {
-        bynode *y = null;
+        binode *y = null;
 
         // Find uncle and store uncle in y
 		bool does_parent_exists = 
@@ -98,10 +98,10 @@ void bynodes_normalize_private(bynode *self, bynode *new_node) {
         // (iii) Move new_node to grandparent
         if (!y) {
             new_node = new_node->parent->parent;
-		} else if (y->color == bynode_red_color) {
-            y->color = bynode_black_color;
-            new_node->parent->color = bynode_black_color;
-            new_node->parent->parent->color = bynode_red_color;
+		} else if (y->color == binode_red_color) {
+            y->color = binode_black_color;
+            new_node->parent->color = binode_black_color;
+            new_node->parent->parent->color = binode_red_color;
             new_node = new_node->parent->parent;
         } else {
             // Left-Left (LL) case, do following
@@ -118,10 +118,10 @@ void bynodes_normalize_private(bynode *self, bynode *new_node) {
 				new_node == new_node->parent->left;
 
             if (case1) {
-                bynode_color color = new_node->parent->color ;
+                binode_color color = new_node->parent->color ;
                 new_node->parent->color = new_node->parent->parent->color;
                 new_node->parent->parent->color = color;
-                bynodes_right_rotate_private(self,new_node->parent->parent);
+                binodes_right_rotate_private(self,new_node->parent->parent);
             }
 
             // Left-Right (LR) case, do following
@@ -139,11 +139,11 @@ void bynodes_normalize_private(bynode *self, bynode *new_node) {
 				new_node == new_node->parent->right;
 
             if (case2) {
-                bynode_color color = new_node->color ;
+                binode_color color = new_node->color ;
                 new_node->color = new_node->parent->parent->color;
                 new_node->parent->parent->color = color;
-                bynodes_left_rotate_private(self,new_node->parent);
-                bynodes_right_rotate_private(self,new_node->parent->parent);
+                binodes_left_rotate_private(self,new_node->parent);
+                binodes_right_rotate_private(self,new_node->parent->parent);
             }
 
             // Right-Right (RR) case, do following
@@ -160,10 +160,10 @@ void bynodes_normalize_private(bynode *self, bynode *new_node) {
 				new_node == new_node->parent->right;
 
             if (case3) {
-                bynode_color color = new_node->parent->color;
+                binode_color color = new_node->parent->color;
                 new_node->parent->color = new_node->parent->parent->color;
                 new_node->parent->parent->color = color;
-                bynodes_left_rotate_private(self,new_node->parent->parent);
+                binodes_left_rotate_private(self,new_node->parent->parent);
             }
 
             // Right-Left (RL) case, do following
@@ -181,24 +181,24 @@ void bynodes_normalize_private(bynode *self, bynode *new_node) {
 				new_node == new_node->parent->left;
 
             if (case4) {
-                bynode_color color = new_node->color;
+                binode_color color = new_node->color;
                 new_node->color = new_node->parent->parent->color;
                 new_node->parent->parent->color = color;
-                bynodes_right_rotate_private(self,new_node->parent);
-                bynodes_left_rotate_private(self,new_node->parent->parent);
+                binodes_right_rotate_private(self,new_node->parent);
+                binodes_left_rotate_private(self,new_node->parent->parent);
             }
         }
     }
 
-    self->color = bynode_black_color; 
+    self->color = binode_black_color; 
 }
 
-bynode *bynodes_find_left_most_private(bynode *self) {
+binode *binodes_find_left_most_private(binode *self) {
 	if (!self || !self->left) {
 		return null;
 	}
 
-	bynode *left_most = self->left;
+	binode *left_most = self->left;
 	while (true) {
 		if (left_most->left) {
 			left_most = left_most->left;
@@ -211,9 +211,9 @@ bynode *bynodes_find_left_most_private(bynode *self) {
 	return left_most;
 }
 
-bool bynodes_check(const bynode *self) {
+bool binodes_check(const binode *self) {
 	bool is_color_out_of_range = 
-		self->color < 0 || self->color > bynode_black_color;
+		self->color < 0 || self->color > binode_black_color;
 
 	#if cels_debug
 		errors_return("self", !self)
@@ -227,69 +227,65 @@ bool bynodes_check(const bynode *self) {
 }
 
 
-/* bytrees */
+/* bitrees */
 
-void bytrees_next_right_procedure_private(
-	bynode *self, bytree_iterator *iterator) {
+void bitrees_next_right_procedure_private(
+	binode *self, bitree_iterator *iterator) {
 
-	bynode *left_most = bynodes_find_left_most_private(self);
+	binode *left_most = binodes_find_left_most_private(self);
 
 	if (left_most) {
 		iterator->data = left_most;
 		iterator->internal.left = left_most;
 		iterator->internal.right = left_most->parent->right;
-		iterator->internal.state = bytree_left_most_iterator_state;
+		iterator->internal.state = bitree_left_most_iterator_state;
 	} else {
 		iterator->data = self;
 		iterator->internal.right = self;
-		iterator->internal.state = bytree_right_most_iterator_state;
+		iterator->internal.state = bitree_right_most_iterator_state;
 	}
 }
 
-bool bytrees_next(const void *self, void *iterator) {
-	const bytree *s = self;
-	bytree_iterator *it = iterator; 
-
-	#if cels_debug
-		errors_abort("self.data", bynodes_check(s->data));
-	#endif
+bool bitrees_next(const void *self, void *iterator) {
+	const bitree *s = self;
+	bitree_iterator *it = iterator; 
 
 	if (!s || !s->data) { return false; }
 
 	it->internal.prev = it->data;
 
-	if (it->internal.state == bytree_initial_iterator_state) {
+	if (it->internal.state == bitree_initial_iterator_state) {
 		if (s->data->left) {
-			bynode *left_most = bynodes_find_left_most_private(s->data);
+			binode *left_most = binodes_find_left_most_private(s->data);
 			it->data = left_most;
 			it->internal.left = left_most;
 			it->internal.right = left_most->parent->right;
-			it->internal.state = bytree_left_most_iterator_state;
+			it->internal.state = bitree_left_most_iterator_state;
 			return true;
 		} else if (s->data->right) {
-			bytrees_next_right_procedure_private(s->data->right, it);
+			bitrees_next_right_procedure_private(s->data->right, it);
 			return true;
 		} else {
 			it->data = s->data;
-			it->internal.state = bytree_finished_iterator_state;
+			it->internal.state = bitree_finished_iterator_state;
 			return true;
 		}
-	} else if (it->internal.state == bytree_left_most_iterator_state) {
+	} else if (it->internal.state == bitree_left_most_iterator_state) {
 		if (it->internal.right) {
-			bytrees_next_right_procedure_private(it->internal.right, it);
+			bitrees_next_right_procedure_private(it->internal.right, it);
 			return true;
 		} 
 
 		it->data = it->internal.left->parent;
 		it->internal.right = it->internal.left->parent;
-		it->internal.state = bytree_returning_node_iterator_state;
+		it->internal.state = bitree_returning_node_iterator_state;
 		return true;
-	} else if (it->internal.state == bytree_right_most_iterator_state) {
+	} else if (it->internal.state == bitree_right_most_iterator_state) {
 		it->data = it->internal.right->parent;
 		it->internal.right = it->internal.right->parent;
-		it->internal.state = bytree_returning_node_iterator_state;
+		it->internal.state = bitree_returning_node_iterator_state;
 		return true;
-	} else if (it->internal.state == bytree_returning_node_iterator_state) {
+	} else if (it->internal.state == bitree_returning_node_iterator_state) {
 		if (!it->internal.right->parent) {
 			return false;
 		} 
@@ -299,19 +295,19 @@ bool bytrees_next(const void *self, void *iterator) {
 
 		if (is_left_side) {
 			if (it->internal.right->parent->right) {
-				bytrees_next_right_procedure_private(
+				bitrees_next_right_procedure_private(
 					it->internal.right->parent->right, it);
 				return true;
 			} else {
 				it->data = it->internal.right->parent;
 				it->internal.right = it->internal.right->parent;
-				it->internal.state = bytree_returning_node_iterator_state;
+				it->internal.state = bitree_returning_node_iterator_state;
 				return true;
 			}
 		} else {
 			it->data = it->internal.right->parent;
 			it->internal.right = it->internal.right->parent;
-			it->internal.state = bytree_returning_node_iterator_state;
+			it->internal.state = bitree_returning_node_iterator_state;
 			return true;
 		}
 	} else {
@@ -321,15 +317,15 @@ bool bytrees_next(const void *self, void *iterator) {
 	return false;
 }
 
-void *bytrees_get(const void *self, size_t hash) {
-	const bytree *s = self;
+void *bitrees_get(const void *self, size_t hash) {
+	const bitree *s = self;
 
 	#if cels_debug
 		errors_abort("self", !s);
-		errors_abort("self.data", bynodes_check(s->data));
+		errors_abort("self.data", binodes_check(s->data));
 	#endif
 
-	bynode *node = s->data;
+	binode *node = s->data;
 	while (node) {
 		if (hash < node->hash) {
 			if (node->left && node->frequency > 0) {
@@ -353,28 +349,30 @@ void *bytrees_get(const void *self, size_t hash) {
 	return null;
 }
 
-error bytrees_push(void *self, void *item, size_t hash, const allocator *mem) {
-	bytree *s = self;
+error bitrees_push(void *self, void *item, size_t hash, const allocator *mem) {
+	bitree *s = self;
 
-	bynode *node = mems_alloc(mem, s->node_size);
+	binode *node = mems_alloc(mem, s->node_size);
 	if (!node) { return fail; }
 
 	node->hash = hash;
-	node->color = bynode_black_color;
+	node->color = binode_black_color;
 	node->frequency = 1;
 	memcpy(&node->data, item, s->type_size);
 
 	#if cels_debug
 		errors_abort("self", !self);
-		errors_abort("node", bynodes_check(node));
+		errors_abort("node", binodes_check(node));
 	#endif
 
     if (!s->data) { 
 		s->data = node; 
+		++s->size;
+
 		return ok;
 	}
 
-	bynode *next = s->data;
+	binode *next = s->data;
 	while (next) {
 		if (node->hash < next->hash) {
 			if (next->left && next->frequency > 0) {
@@ -384,6 +382,7 @@ error bytrees_push(void *self, void *item, size_t hash, const allocator *mem) {
 
 			next->left = node;
 			next->left->parent = next;
+			++s->size;
 			break;
 		} else if (node->hash > next->hash) {
 			if (next->right && next->frequency > 0) {
@@ -393,15 +392,16 @@ error bytrees_push(void *self, void *item, size_t hash, const allocator *mem) {
 
 			next->right = node;
 			next->right->parent = next;
+			++s->size;
 			break;
 		} else {
-			next->frequency++;
+			++next->frequency;
 			mems_dealloc(mem, node, s->node_size);
 			return fail;
 		}
 	}
 
-	bynodes_normalize_private(s->data, node);
+	binodes_normalize_private(s->data, node);
 
 	return ok;
 }
@@ -520,7 +520,14 @@ bool mutrees_next(const void *self, void *iterator) {
 	munode *grandparent = parent;
 	while (grandparent) {
 		grandparent = grandparent->parent;
-		if (grandparent->left) { break; }
+
+		if (!grandparent) {
+			break;
+		}
+
+		if (grandparent->left) { 
+			break; 
+		}
 	}
 
 	if (grandparent) {
@@ -685,6 +692,8 @@ void pools_init(
 		.type_size=type_size,
 		.offset_size=offset_size,
 	};
+
+	*s = pool;
 }
 
 error pools_push(void *self, void *item, const allocator *mem) {
@@ -692,7 +701,6 @@ error pools_push(void *self, void *item, const allocator *mem) {
 
 	if (!s || !s->capacity) { return fail; }
 	
-	const int zero_value = 0;
 	pool_block *node = s->data;
 	while (node) {
 		char *end = (char *)node->data + (node->capacity * s->item_size);
@@ -717,7 +725,7 @@ error pools_push(void *self, void *item, const allocator *mem) {
 			int *data_status = data;
 			*data_status = 1;
 
-			memcpy(data + s->offset_size, item, s->type_size);
+			memcpy((char *)data + s->offset_size, item, s->type_size);
 			return ok;
 		}
 		
@@ -794,11 +802,21 @@ void pools_free(void *self, freefunc cleaner, const allocator *mem) {
 /* sets */
 
 bool sets_next(const void *self, void *iterator) {
-	return bytrees_next(self, iterator);
+	return bitrees_next(self, iterator);
+}
+
+void sets_print(const void *self, printfunc printer) {
+	const bitree *s = self;
+
+	bitree_iterator it = {0};
+	while (sets_next(s, &it)) {
+		printer(&it.data->data);
+		printf("\n");
+	}
 }
 
 void *sets_get(const void *self, size_t hash) {
-	bynode *node = bytrees_get(self, hash);
+	binode *node = bitrees_get(self, hash);
 	if (!node) {
 		return null;
 	}
@@ -807,14 +825,14 @@ void *sets_get(const void *self, size_t hash) {
 }
 
 error sets_push(void *self, void *item, size_t hash, const allocator *mem) {
-	return bytrees_push(self, item, hash, mem);
+	return bitrees_push(self, item, hash, mem);
 }
 
 void sets_free(void *self, freefunc cleaner, const allocator *mem) {
-	const bytree *s = self;
+	const bitree *s = self;
 
-	bytree_iterator it = {0};
-	while (bytrees_next(self, &it)) {
+	bitree_iterator it = {0};
+	while (bitrees_next(self, &it)) {
 		if (cleaner) {
 			cleaner(&it.data->data, mem);
 		}
@@ -833,13 +851,30 @@ void sets_free(void *self, freefunc cleaner, const allocator *mem) {
 /* maps */
 
 bool maps_next(const void *self, void *iterator) {
-	return bytrees_next(self, iterator);
+	return bitrees_next(self, iterator);
+}
+
+void maps_print(
+	const void *self, printfunc key_printer, printfunc value_printer) {
+
+	const bitree *s = self;
+
+	bitree_iterator it = {0};
+	while (maps_next(s, &it)) {
+		void *key = (char *)&it.data->data;
+		key_printer(key);
+		printf(":");
+
+		void *value = (char *)&it.data->data + s->extra_size;
+		value_printer(value);
+		printf("\n");
+	}
 }
 
 void *maps_get(const void *self, size_t hash) {
-	const bytree *s = self;
+	const bitree *s = self;
 
-	bynode *node = bytrees_get(self, hash);
+	binode *node = bitrees_get(self, hash);
 	if (!node) { return null; }
 	if (!node->data) { return null; }
 
@@ -848,7 +883,7 @@ void *maps_get(const void *self, size_t hash) {
 }
 
 error maps_push(void *self, void *item, size_t hash, const allocator *mem) {
-	return bytrees_push(self, item, hash, mem);
+	return bitrees_push(self, item, hash, mem);
 }
 
 void maps_free(
@@ -857,10 +892,10 @@ void maps_free(
 	freefunc value_cleaner, 
 	const allocator *mem) {
 
-	const bytree *s = self;
+	const bitree *s = self;
 
-	bytree_iterator it = {0};
-	while (bytrees_next(self, &it)) {
+	bitree_iterator it = {0};
+	while (bitrees_next(self, &it)) {
 		if (key_cleaner) {
 			key_cleaner(&it.data->data, mem);
 		}
