@@ -350,11 +350,11 @@ error vectors_filter_unique(void *self, compfunc comparer, freefunc cleaner, con
 	vectors_init(&other, s->type_size, vector_min, mem);
 	
 	for (size_t i = 0; i < s->size; i++) {
-		void *s_item = s->data + (i * s->type_size);
+		void *s_item = (char *)s->data + (i * s->type_size);
 
 		bool match = false;
 		for (size_t j = 0; j < other.size; j++) {
-			void *o_item = other.data + (j * s->type_size);
+			void *o_item = (char *)other.data + (j * s->type_size);
 			if (comparer(s_item, o_item)) {
 				match = true;
 				break;

@@ -55,10 +55,6 @@ typedef enum string_size {
 	string_max_size = SIZE_MAX,
 } string_size;
 
-typedef unsigned char byte;
-typedef vectors(byte) byte_vec;
-typedef errors(byte_vec) ebyte_vec;
-
 typedef struct string {
   size_t size;
   size_t capacity;
@@ -75,6 +71,8 @@ typedef vectors(string_view) string_view_vec;
 typedef errors(string_vec) estring_vec;
 
 typedef vectors(string_vec) string_mat;
+
+#include "bytes.h"
 
 /*
  * Verifies if character is a either 
@@ -102,6 +100,13 @@ bool chars_is_alphanumeric(char letter);
  */
 void chars_print_special(char letter);
 
+/* Prints printable and non-printable 
+ * characters.
+ *
+ * #to-review
+ */
+void chars_print_normal(char letter);
+
 /*
  * Checks if string literal is invalid.
  * Returns true if it is.
@@ -109,27 +114,6 @@ void chars_print_special(char letter);
  * #to-review
  */
 bool strs_check(const char *self);
-
-
-/* byte_vec */
-
-/*
- * Converts byte_vec to string if eligible.
- *
- * If byte_vec's charset has readable-characters 
- * plus '\n', '\t', '\r' and '\0' (but, only for 
- * the last character) the conversion will be possible.
- *
- * #to-review
- */
-estring byte_vecs_to_string(own byte_vec *self, const allocator *mem);
-
-/*
- * Checks if byte_vecs is string.
- *
- * #to-review
- */
-bool byte_vecs_is_string(own byte_vec *self);
 
 
 /* string_view */
@@ -140,6 +124,15 @@ bool byte_vecs_is_string(own byte_vec *self);
  * #to-review
  */
 string string_views_to_string(const string_view *self, const allocator *mem);
+
+/* 
+ * Checks string, regardless of obeying to null-termination
+ * and returns true if something illegal was found.
+ *
+ * #tested
+ */
+cels_warn_unused
+bool strings_views_check(const string *self);
 
 
 /* strings */
@@ -200,15 +193,6 @@ string string_views_to_string(const string_view *self, const allocator *mem);
 	strings_hash(&(string)strings_premake(lit))
 
 /* 
- * Checks string, regardless of obeying to null-termination
- * and returns true if something illegal happened.
- *
- * #tested
- */
-cels_warn_unused
-bool strings_check_view(const string *self);
-
-/* 
  * Checks if string was properly initialized 
  * returning true if something illegal happened.
  *
@@ -233,14 +217,6 @@ bool strings_check_extra(const string *self);
  */
 cels_warn_unused
 bool strings_check_charset(const string *self, const string charset);
-
-/* 
- * Converts string to byte-vec.
- *
- * #tested
- */
-cels_warn_unused
-byte_vec strings_to_byte_vec(own string *self, const allocator *mem);
 
 /*
  * Allocates string (aka vectors(char)) with 
@@ -653,6 +629,14 @@ bool strings_has_suffix(const string *self, const string suffix);
  */
 cels_warn_unused
 bool strings_has_prefix(const string *self, const string prefix);
+
+/* 
+ * Converts string to byte-vec.
+ *
+ * #tested
+ */
+cels_warn_unused
+byte_vec strings_to_byte_vec(own string *self);
 
 
 /* string_vecs */
