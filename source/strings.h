@@ -132,7 +132,7 @@ string string_views_to_string(const string_view *self, const allocator *mem);
  * #tested
  */
 cels_warn_unused
-bool strings_views_check(const string *self);
+bool string_views_check(const string *self);
 
 
 /* strings */

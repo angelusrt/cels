@@ -13,6 +13,7 @@
 #include "../source/errors.c"
 #include "../source/mems.c"
 #include "../source/maths.c"
+
 #include <time.h>
 
 typedef struct downloader_param {
@@ -64,13 +65,13 @@ task_state writer(writer_param *args) {
 	}
 
 	if (vectors_check((const vector *)args->text)) {
-		args->state++;
+		++args->state;
 		printf("writer_%zu skipped because string is malformed.\n", args->id);
 		return task_waiting_state; 
 	}
 
 	if (args->text->size == 0) {
-		args->state++;
+		++args->state;
 		printf("writer_%zu skipped because string is malformed.\n", args->id);
 		return task_waiting_state; 
 	}
@@ -104,9 +105,14 @@ int main(void) {
 	struct timespec start0 = {0};
     clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &start0);
 
+
 	/* shared memory */
+
 	bool has_ended = false;
 	const allocator mem = arenas_init(string_large_size);
+
+
+	routine routine = routines_init(vector_min, &mem);
 
 	downloader_param param0 = {
 		.mem=mem, 
@@ -114,6 +120,8 @@ int main(void) {
 		.has_ended=&has_ended, 
 		.request={.option={.flags=request_async_raw_mode_flag}}
 	};
+
+	routines_push_with(&routine, (taskfunc)downloader, &param0, &mem);
 
 	byte_vec *file_to_write = &param0.request.internal.response;
 	writer_param param1 = {
@@ -123,10 +131,10 @@ int main(void) {
 		.file_write={.size=string_large_size, .consume=true}
 	};
 
-	routine routine = routines_init(vector_min, &mem);
-	routines_push_with(&routine, (taskfunc)downloader, &param0, &mem);
 	routines_push_with(&routine, (taskfunc)writer, &param1, &mem);
+
 	routines_make(&routine, null);
+
 
 	struct timespec end0 = {0};
     clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &end0);

@@ -91,6 +91,7 @@ void handle_file(
 
 	size_t key_hash = strings_prehash("vars_file");
 	byte_vec *filename = maps_get(request, key_hash);
+
 	if (!filename) {
 		https_send(response, https_default_head, default_response);
 		return;

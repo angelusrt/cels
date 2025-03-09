@@ -9,6 +9,7 @@
 #include "../source/maths.c"
 #include "../source/files.c"
 #include "../source/jsons.c"
+#include "../source/bytes.c"
 
 static const string templ = strings_premake(
 	"<| define index |>\n"
@@ -24,7 +25,7 @@ static const string templ = strings_premake(
 		"<p><| item.body |></p>\n"
 		"<| for info in item.info |>\n"
 			"<br>\n"
-			"<h4>name: <| info.name |></h2>\n"
+			"<h4>name: <| info.name |></h4>\n"
 		"<| end |>\n"
 	"<| end |>"
 	"</body>\n"
@@ -38,7 +39,7 @@ static const string option_json = strings_premake("{"
 	"\"items\":[{"
 		"\"title\":\"section-title\","
 		"\"subtitle\":\"section-subtitle\","
-		"\"body\":\"lorem ipsum\""
+		"\"body\":\"lorem ipsum\","
 		"\"info\":[{\"name\":\"angelus\"},{\"name\":\"roberto\"}]"
 	"}]"
 "}");

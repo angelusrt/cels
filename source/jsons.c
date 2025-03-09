@@ -500,14 +500,14 @@ estring_map jsons_unmake(const string *json, const allocator *mem) {
 
 estring jsons_make(const string_map *self, const allocator *mem) {
 	#if cels_debug
-		errors_abort("self", bynodes_check((const bynode *)self));
+		errors_abort("self", binodes_check((const binode *)self));
 	#endif
 
 	string json = strings_make("{", mem);
 	error error = ok;
 
 	string_map_iterator it = {0};
-	while (bytrees_next(self, &it)) {
+	while (bitrees_next(self, &it)) {
 		bool push_error = strings_push_with(&json, "\"", mem);
 		if (push_error) {
 			error = fail;

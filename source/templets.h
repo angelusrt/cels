@@ -67,7 +67,7 @@ error templets_parse(
 
 /*
  * Creates a map of parsed-templet 
- * files provided by glob-path ready 
+ * files, provided by glob-path, ready 
  * to be executed.
  */
 cels_warn_unused

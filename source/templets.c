@@ -6,7 +6,7 @@
 bool templets_check(const templet *self) {
 	#if cels_debug
 		errors_return("self", !self)
-		errors_return("self.text", strings_check_extra(&self->text))
+		//errors_return("self.text", strings_check_extra(&self->text))
 		bool is_within = 
 			self->op >= 0 && 
 			self->op < templet_private_operator;
@@ -14,7 +14,7 @@ bool templets_check(const templet *self) {
 		errors_return("self.op", !is_within)
 	#else
 		if (!self) return true;
-		if (strings_check_extra(&self->text)) return true;
+		//if (strings_check_extra(&self->text)) return true;
 
 		bool is_within = 
 			self->op >= 0 && 
@@ -31,7 +31,9 @@ void templets_print(const templet *self) {
 	#endif
 
 	printf("%d{", self->op);
-	strings_imprint(&self->text);
+	if (self->text.data) {
+		strings_imprint(&self->text);
+	}
 	printf("}\n");
 }
 
@@ -73,7 +75,7 @@ void templet_trees_free(templet_tree *self, const allocator *mem) {
 cels_warn_unused
 templet templets_parse_tag(own string *tag, const allocator *mem) {
 	#if cels_debug
-		errors_abort("tag", strings_check_view(tag));
+		errors_abort("tag", string_views_check(tag));
 	#endif
 
 	const string alt_whitespaces = strings_premake("\t\r\n");
@@ -203,6 +205,7 @@ error templets_parse(
 				if (push_error) {
 					strings_free(&tag.text, mem);
 					strings_free(&tag.alias, mem);
+					mems_dealloc(mem, node, sizeof(templet_tree_node));
 					err = templet_allocation_error;
 					goto cleanup0;
 				}
@@ -210,7 +213,27 @@ error templets_parse(
 				leaf = node;
 			} else if (tag.op == templet_end_operator) {
 				if (!leaf->parent) {
+					strings_free(&tag.text, mem);
+					strings_free(&tag.alias, mem);
 					err = templet_invalid_tag_error;
+					goto cleanup0;
+				}
+
+				templet_tree_node *node = mems_alloc(
+					mem, sizeof(templet_tree_node));
+
+				if (!node) {
+					strings_free(&tag.text, mem);
+					strings_free(&tag.alias, mem);
+					err = templet_allocation_error;
+					goto cleanup0;
+				}
+
+				node->data = tag;
+				error push_error = mutrees_push(&sections, leaf, node);
+				if (push_error) {
+					mems_dealloc(mem, node, sizeof(templet_tree_node));
+					err = templet_allocation_error;
 					goto cleanup0;
 				}
 
@@ -242,6 +265,7 @@ error templets_parse(
 
 				if (push_error) {
 					strings_free(&tag.text, mem);
+					mems_dealloc(mem, node, sizeof(templet_tree_node));
 					err = templet_allocation_error;
 					goto cleanup0;
 				}
@@ -290,6 +314,7 @@ error templets_parse(
 
 			if (push_error) {
 				strings_free(&section, mem);
+				mems_dealloc(mem, node, sizeof(templet_tree_node));
 				err = templet_allocation_error;
 				goto cleanup0;
 			}
@@ -359,13 +384,14 @@ etemplet_map templets_make(const string path, const allocator *mem) {
 			goto cleanup0;
 		}
 
-		estring f = byte_vecs_to_string(&fileread.value, mem);
-		if (f.error != ok) {
+		if (!byte_vecs_is_string(&fileread.value)) {
 			error = templet_mal_formed_error;
 			goto cleanup0;
 		}
 
-		error = templets_parse(&map, &f.value, mem);
+		string *f = (string *)&fileread.value;
+
+		error = templets_parse(&map, f, mem);
 		if (error != templet_successfull) {
 			goto cleanup0;
 		}
@@ -406,7 +432,7 @@ estring templets_get_value_private(
 
 	#if cels_debug
 		errors_abort("map", !map);
-		errors_abort("map", bynodes_check((bynode *)map->data));
+		errors_abort("map", binodes_check((binode *)map->data));
 		errors_abort("text", strings_check_extra(&text));
 	#endif
 
@@ -432,22 +458,23 @@ estring templets_get_value_private(
 
 			item = strings_view(&text, object_start + 1, object_end);
 
-			if (object_end == -1) {
+			if (object_end == (ssize_t)text.size - 1) {
 				object_start = -1;
 			}
 		}
 
-		string *value = maps_get(&json, strings_hash(&item));
-		if (!value) {
+		string *v = maps_get(&json, strings_hash(&item));
+		if (!v) {
 			err = templet_variable_missing_error;
 			goto cleanup0;
 		}
 
 		if (object_start == -1) {
+			value = *v;
 			break;
 		}
 
-		estring_map new_json = jsons_unmake(value, mem);
+		estring_map new_json = jsons_unmake(v, mem);
 		if (new_json.error != json_successfull) {
 			err = templet_json_mal_formed_error;
 			goto cleanup0;
@@ -485,7 +512,7 @@ estring_map templets_get_json_private(
 
 	#if cels_debug
 		errors_abort("map", !map);
-		errors_abort("map", bynodes_check((bynode *)map->data));
+		errors_abort("map", binodes_check((binode *)map->data));
 		errors_abort("text", strings_check_extra(&text));
 	#endif
 
@@ -510,7 +537,7 @@ estring_map templets_get_json_private(
 
 			item = strings_view(&text, object_start + 1, object_end);
 
-			if (object_end == -1) {
+			if (object_end == (ssize_t)text.size - 1) {
 				object_start = -1;
 			}
 		}
@@ -565,10 +592,10 @@ estring templets_unmake(
 
 	#if cels_debug
 		errors_abort("templets", !templets);
-		errors_abort("templets", bynodes_check((bynode *)templets->data));
+		errors_abort("templets", binodes_check((binode *)templets->data));
 		errors_abort("templet_name", strs_check(templet_name));
 		errors_abort("options", !options);
-		errors_abort("options", bynodes_check((bynode *)options->data));
+		errors_abort("options", binodes_check((binode *)options->data));
 	#endif
 
 	error err = ok;
@@ -772,16 +799,16 @@ estring templets_unmake_with(
 	const string *options, 
 	const allocator *mem) {
 
-	estring_map eoptions = jsons_unmake(options, mem);
-	if (eoptions.error != json_successfull) {
+	estring_map opts = jsons_unmake(options, mem);
+	if (opts.error != json_successfull) {
 		return (estring){.error=fail};
 	}
 
 	estring templet = templets_unmake(
-		templets, templet_name, &eoptions.value, mem);
+		templets, templet_name, &opts.value, mem);
 
 	maps_free(
-		&eoptions.value, 
+		&opts.value, 
 		(freefunc)strings_free, 
 		(freefunc)strings_free, 
 		mem);

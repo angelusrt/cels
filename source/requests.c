@@ -18,6 +18,7 @@ typedef errors(request) erequest;
 
 static const string request_port = strings_premake("80");
 static const string request_port_secure = strings_premake("443");
+static const byte_vec section_sep = byte_vecs_premake("\r\n\r\n");
 
 void requests_free_private(request *self, const allocator *mem) {
 	#if cels_debug
@@ -870,24 +871,26 @@ bool requests_make_async(
 
 		if (!is_raw) {
 			response response = {0};
-			string *response_raw = (string *)&request->internal.response;
-			//TODO: create byte_vecs_split_with
+			byte_vec *r = &request->internal.response;
 
-			string_vec packets = strings_split_with(
-				response_raw, "\r\n\r\n", 1, mem);
+			byte_mat packets = byte_vecs_split(
+				r, section_sep, 1, mem);
 
 			errors_abort("#packets", packets.size == 0);
 
 			if (packets.size == 1) {
 				response.head = packets.data[0];
-				response.body = strings_do("");
+				response.body = (byte_vec)byte_vecs_premake("");
 			} else {
 				response.head = packets.data[0];
 				response.body = packets.data[1];
 			}
 
 			request->response.value = response;
-			mems_dealloc(mem, packets.data, sizeof(string) * packets.capacity);
+			mems_dealloc(
+				mem, 
+				packets.data, 
+				packets.type_size * packets.capacity);
 		}
 
 
