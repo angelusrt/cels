@@ -24,20 +24,22 @@ Cels has:
 ```C
 int main(void) {
     const allocator mem = arenas_init(1024);
-    string_vec words = string_vecs_init(vector_min, &mem);
+
+    string_vec words = {0};
+    vectors_init(&words, sizeof(string), vector_min, &mem);
 
     string hello = strings_make("hello", &mem);
-    string_vecs_push(&words, hello, &mem);
+    vectors_push(&words, &hello, &mem);
 
     string world = strings_make("world", &mem);
-    string_vecs_push(&words, world, &mem);
+    vectors_push(&words, &world, &mem);
 
     const string sep = strings_premake(", ");
     string hello_world = string_vecs_join(&words, sep, &mem);
 
     strings_println(&hello_world); // hello, world
 
-    mem.free(mem.storage);
+    mems_free(&mem, null);
     return 0;
 }
 ```
