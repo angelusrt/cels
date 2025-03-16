@@ -2,6 +2,7 @@
 #define cels_tasks_h
 
 #include "nodes.h"
+#include "pthread.h"
 
 
 /*
@@ -48,6 +49,13 @@ typedef struct supervisor {
 	task_state status;
 } supervisor;
 
+typedef struct routine_option {
+	supervisor *supervisor;
+
+	/* for threads */
+	bool is_threads_enabled;
+	allocator *mem;
+} routine_option;
 
 /* routines */
 
@@ -61,7 +69,7 @@ routine routines_init(size_t capacity, const allocator *mem);
  *
  * #to-review
  */
-bool routines_make(routine *self, supervisor *supervisor);
+error routines_make(routine *self, routine_option option);
 
 /*
  * Convenience over 'push' that 
@@ -71,6 +79,19 @@ bool routines_make(routine *self, supervisor *supervisor);
  */
 error routines_push_with(
 	routine *self, taskfunc callback, void *args, const allocator *mem);
+
+/*
+ * Convenience over 'push_to' that 
+ * creates task with arguments.
+ *
+ * #to-review
+ */
+error routines_push_to(
+	routine *self, 
+	taskfunc callback, 
+	void *args, 
+	size_t n, 
+	const allocator *mem);
 
 /*
  * Frees routine.
