@@ -502,6 +502,20 @@ error pools_push(
 	void *self, void *item, const allocator *mem);
 
 /*
+ * Pushes item to a pool-block.
+ *
+ * 'self' must be a pool-like structure, while 'item' 
+ * shall be a pointer for the underlying type.
+ * 
+ * If 'n' block doesn't exist, it allocates 
+ * one until it arrives at that index.
+ *
+ * #to-review
+ */
+error pools_push_to(
+	void *self, void *item, size_t n, const allocator *mem);
+
+/*
  * Iterates through pool.
  *
  * 'self' must be a pool-like structure, while 'iterator' 
@@ -510,6 +524,18 @@ error pools_push(
  * #to-review
  */
 bool pools_next(void *self, void *iterator);
+
+/*
+ * Iterates through a pool within a block.
+ * 
+ * 'self' must be a pool-like structure, while 'iterator' 
+ * shall be a pool-iterator-like one.
+ * 
+ * 'n' must be a valid index of pool-block.
+ *
+ * #to-review
+ */
+bool pools_next_in(void *self, size_t n, void *iterator);
 
 /*
  * Frees pool.

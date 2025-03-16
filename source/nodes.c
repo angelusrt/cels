@@ -735,6 +735,40 @@ error pools_push(void *self, void *item, const allocator *mem) {
 	return ok;
 }
 
+error pools_push_to(void *self, void *item, size_t n, const allocator *mem) {
+	pool *s = self;
+
+	if (!s || !s->capacity) { return fail; }
+	
+	size_t walked = 0; 
+	pool_block *node = s->data;
+	while (walked < n) {
+		if (!node->next) {
+			pool_block *nodes = pool_blocks_init_private(
+				s->item_size, s->data->capacity, mem);
+			if (!nodes) { return fail; }
+			
+			node->next = nodes;
+		}
+
+		node = node->next;
+		++walked;
+	}
+
+	char *end = (char *)node->data + (node->capacity * s->item_size);
+	for (char *i = (char *)node->data; i < end; i += s->item_size) {
+		int *item = (int *)i;
+
+		if (*item == 0) {
+			*item = 1;
+			memcpy(i + s->offset_size, item, s->type_size);
+			return ok;
+		}
+	}
+	
+	return fail;
+}
+
 bool pools_next(void *self, void *iterator) {
 	pool *s = self;
 	pool_iterator *it = iterator;
@@ -760,6 +794,41 @@ bool pools_next(void *self, void *iterator) {
 		it->next = it->next->next;
 		it->current = (char *)it->next->data;
 		it->end = (char *)it->next->data + (it->next->capacity * s->item_size);
+	}
+	
+	return false;
+}
+
+bool pools_next_in(void *self, size_t n, void *iterator) {
+	pool *s = self;
+	pool_iterator *it = iterator;
+
+	if (!s) { return false; }
+	
+	if (!it->next) {
+		size_t walked = 0; 
+		pool_block *node = s->data;
+		while (walked < n) {
+			if (!node->next) {
+				return false;
+			}
+
+			node = node->next;
+			++walked;
+		}
+
+		it->next = node;
+		it->current = (char *)it->next->data;
+		it->end = (char *)it->next->data + (it->next->capacity * s->item_size);
+	}
+	
+	for (char *i = it->current; i < it->end; i += s->item_size) {
+		int *data_status = (int *)i;
+		if (*data_status > 0) {
+			it->data = i + s->offset_size;
+			it->current = i;
+			return true;
+		}
 	}
 	
 	return false;
