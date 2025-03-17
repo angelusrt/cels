@@ -15,6 +15,7 @@
 #include "packages/cels/files.c"
 #include "packages/cels/csvs.c"
 #include "packages/cels/maths.c"
+#include "packages/cels/bytes.c"
 
 int main(int arg, char **argc) {
 	if (arg < 2) {
@@ -32,7 +33,7 @@ int main(int arg, char **argc) {
 	size_t generate_hash = strings_prehash("generate");
 
 	string command = strings_make(argc[1], &mem);
-	size_t command_hash = strings_hasherize(&command);
+	size_t command_hash = strings_hash(&command);
 
 	if (command_hash == init_hash) {
 		menus_handle_init();

@@ -49,7 +49,12 @@ bool byte_vecs_is_string(byte_vec *self) {
 	}
 
 	for (size_t i = 0; i < self->size - 1; i++) {
-		bool is_charset_valid = self->data[i] >= 32 && self->data[i] <= 126;
+		bool is_charset_valid = 
+			self->data[i] == 9 ||
+			self->data[i] == 10 ||
+			self->data[i] == 12 ||
+			(self->data[i] >= 32 && self->data[i] <= 126);
+		
 		if (!is_charset_valid) {
 			return false;
 		}

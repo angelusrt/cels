@@ -212,14 +212,19 @@ binode *binodes_find_left_most_private(binode *self) {
 }
 
 bool binodes_check(const binode *self) {
-	bool is_color_out_of_range = 
-		self->color < 0 || self->color > binode_black_color;
-
 	#if cels_debug
 		errors_return("self", !self)
+
+		bool is_color_out_of_range = 
+			self->color < 0 || self->color > binode_black_color;
+
 		errors_return("self.color", is_color_out_of_range)
 	#else
 		if (!self) return true;
+
+		bool is_color_out_of_range = 
+			self->color < 0 || self->color > binode_black_color;
+
 		if (is_color_out_of_range) return true;
 	#endif
 
@@ -705,10 +710,10 @@ error pools_push(void *self, void *item, const allocator *mem) {
 	while (node) {
 		char *end = (char *)node->data + (node->capacity * s->item_size);
 		for (char *i = (char *)node->data; i < end; i += s->item_size) {
-			int *item = (int *)i;
+			int *slot = (int *)i;
 
-			if (*item == 0) {
-				*item = 1;
+			if (*slot == 0) {
+				*slot = 1;
 				memcpy(i + s->offset_size, item, s->type_size);
 				return ok;
 			}
@@ -757,10 +762,10 @@ error pools_push_to(void *self, void *item, size_t n, const allocator *mem) {
 
 	char *end = (char *)node->data + (node->capacity * s->item_size);
 	for (char *i = (char *)node->data; i < end; i += s->item_size) {
-		int *item = (int *)i;
+		int *slot = (int *)i;
 
-		if (*item == 0) {
-			*item = 1;
+		if (*slot == 0) {
+			*slot = 1;
 			memcpy(i + s->offset_size, item, s->type_size);
 			return ok;
 		}

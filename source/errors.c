@@ -97,7 +97,12 @@ void errors_backtrace(void) {
 	if (!symbols) { return; }
 
 	for (i = frames - 4; i >= 0; --i) {
-		printf("%s\n", symbols[i]+2);
+		int offset = 0;
+		if (strncmp(symbols[i], "./", 2)) {
+			offset = 2;
+		}
+
+		printf("%s\n", symbols[i]+offset);
 	}
 
 	free(symbols);

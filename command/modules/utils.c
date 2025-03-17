@@ -38,7 +38,7 @@ estring_vec utils_get_packages(const string path, const allocator *mem) {
 		errors_abort("path", strings_check_extra(&path));
 	#endif
 
-	estring path_normalized = files_path(&path, mem);
+	estring path_normalized = paths_make(&path, mem);
 	if (path_normalized.error != file_successfull) {
 		return (estring_vec){.error=-1};
 	}
@@ -142,6 +142,11 @@ estring utils_get_flags(string main_file_name, const allocator *mem) {
 		(freefunc)strings_free, 
 		mem);
 
+	if (filter_error) {
+		vectors_free(&packages.value, (freefunc)strings_free, mem);
+		return (estring){.error=fail};
+	}
+
 	char *home = getenv("HOME");
 	const string homepath = strings_format(
 		"%s/.config/cels/cels-dictionary.txt", mem, home);
@@ -175,6 +180,10 @@ estring utils_get_flags(string main_file_name, const allocator *mem) {
 		if (seek_error) {
 			break;
 		}
+	}
+
+	if (line.data) {
+		byte_vecs_free(&line, mem);
 	}
 
 	return (estring){.value=flag};
@@ -305,7 +314,7 @@ string utils_create_configuration(
 	}
 
 	if (configuration->flags.size == 0) {
-		configuration->flags = strings_make("", mem);
+		configuration->flags = strings_init(8, mem);
 	}
 	
 	string build = {0};

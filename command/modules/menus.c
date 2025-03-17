@@ -9,6 +9,7 @@ void menus_print_help(void) {
 	printf(
 		"cels is a tool to make c more convenient.\n\n"
 		"commands:\n"
+		"\tinstall - install 'cels' in your filesystem\n"
 		"\tinit - starts a cel project\n"
 		"\tbuild - builds the project for production\n"
 		"\tdebug - builds the project in debug mode\n");
@@ -68,7 +69,7 @@ error menus_handle_init(void) {
 		goto cleanup0;
 	}
 
-	byte_vec conf = strings_to_byte_vec(&configuration_json, &mem);
+	byte_vec conf = strings_to_byte_vec(&configuration_json);
 	error write_error = files_write(json, conf);
 	if (write_error) {
 		printf("an error happened while writing to file.\n");
@@ -129,14 +130,13 @@ error menus_handle_build(bool is_build_mode) {
 		goto cleanup0;
 	}
 
-	//strings_trim(&json.value);
-	estring j = byte_vecs_to_string(&json.value, &mem);
-	if (j.error != ok) {
+	if(!byte_vecs_is_string(&json.value)) {
 		printf("file is bynary.\n\n");
 		goto cleanup0;
 	}
 
-	estring_map json_map = jsons_unmake(&j.value, &mem);
+	string *j = (string *)&json.value;
+	estring_map json_map = jsons_unmake(j, &mem);
 	if (json_map.error != json_successfull) {
 		printf("an error parsing occurred.\n");
 		printf("%d\n", json_map.error);
@@ -245,7 +245,7 @@ error menus_handle_generate(void) {
 		}
  	}
 
-	estring json = files_read(json_file, &mem);
+	ebyte_vec json = files_read(json_file, &mem);
 	fclose(json_file);
 
 	if (json.error != file_successfull) {
@@ -253,8 +253,13 @@ error menus_handle_generate(void) {
 		goto cleanup0;
 	}
 
-	//strings_trim(&json.value);
-	estring_map json_map = jsons_unmake(&json.value, &mem);
+	if(!byte_vecs_is_string(&json.value)) {
+		printf("file is bynary.\n\n");
+		goto cleanup0;
+	}
+
+	string *j = (string *)&json.value;
+	estring_map json_map = jsons_unmake(j, &mem);
 
 	if (json_map.error != json_successfull) {
 		printf("an error parsing occurred.\n");

@@ -1318,7 +1318,8 @@ string_map string_maps_init(void) {
 
 bool string_maps_next(const string_map *self, string_map_iterator *it) {
 	#if cels_debug
-		errors_abort("self", binodes_check((binode *)&self->data));
+		errors_abort("self", !self);
+		errors_abort("self", binodes_check((binode *)self->data));
 	#endif
 
 	return maps_next(self, it);
@@ -1326,7 +1327,8 @@ bool string_maps_next(const string_map *self, string_map_iterator *it) {
 
 string *string_maps_get(const string_map *self, string key) {
 	#if cels_debug
-		errors_abort("self", binodes_check((binode *)&self->data));
+		errors_abort("self", !self);
+		errors_abort("self", binodes_check((binode *)self->data));
 		errors_abort("key", strings_check_extra(&key));
 	#endif
 
